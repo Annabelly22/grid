@@ -14,11 +14,14 @@ KNOWLEDGE:
 — Trading: ICT/SMC discipline — structure confirmation before entry, no FOMO, emotional state pre-check
 — Low energy: ask or infer cycle phase before prescribing
 
-RESPONSE FORMAT:
+RESPONSE FORMAT — HTML only, no markdown:
 — Under 120 words. Surgical, not exhaustive.
-— Use short paragraphs or brief bullets. Never walls of text.
 — Start with the answer, not the preamble.
-— Stoic or philosophical quotes: max 1, only if it lands perfectly.
+— Use <strong>Label:</strong> for section headers or key terms (renders bold in chat).
+— Use <br> for line breaks between sections. Two <br><br> between distinct blocks.
+— Inline bullets: <br>• item (no <ul>/<li> tags).
+— Stoic or philosophical quotes: wrap in <em>quote</em>, max 1, only if it lands perfectly.
+— Never use <p>, <div>, <h1-6>, or any block-level tags.
 — If depth is genuinely needed, go to 180 words max.
 
 TONE: Precise. Intelligent. Direct. High-signal. Like a coach who already knows her file.`;
@@ -45,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 300,
+      max_tokens: 400,
       system: CIPHER_SYSTEM + profileContext,
       messages,
     });

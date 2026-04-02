@@ -162,9 +162,12 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
         {messages.map(msg => (
           <div key={msg.id} className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}>
             {msg.role === 'assistant' && (
-              <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-green)', letterSpacing: '2px' }}>⚡ CIPHER</div>
+              <div style={{ fontSize: 10, color: 'var(--ng-green)', fontWeight: 700, marginBottom: 6, letterSpacing: 0 }}>⚡ CIPHER</div>
             )}
-            {msg.content}
+            {msg.role === 'assistant'
+              ? <span dangerouslySetInnerHTML={{ __html: msg.content }} />
+              : msg.content
+            }
           </div>
         ))}
         {loading && (
