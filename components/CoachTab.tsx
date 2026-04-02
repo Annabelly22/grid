@@ -15,9 +15,9 @@ interface Message {
 
 const QUICK_PROMPTS = [
   "What should I focus on today?",
-  "I'm in my luteal phase and craving sugar — help",
+  "I'm in my luteal phase — help",
   "My trading session was off. What do I check?",
-  "Give me a 5-minute morning protocol",
+  "Give me a 5-min morning protocol",
   "I broke my streak. How do I reset?",
   "Best supplements for a training day",
   "I'm feeling low energy today",
@@ -29,13 +29,13 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
     content: `CIPHER ONLINE.\n\nOperative ${profile.codename} — I have your full context. ${profile.xp} XP earned. Longest streak: ${profile.longestStreak} days.\n\nHow can I help you execute today?`,
     id: 0,
   }]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [focusActive, setFocusActive] = useState(false);
-  const [focusTime, setFocusTime] = useState(0);
+  const [input, setInput]           = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [focusActive, setFocusActive]   = useState(false);
+  const [focusTime, setFocusTime]       = useState(0);
   const [focusDuration, setFocusDuration] = useState(25);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -71,7 +71,6 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
     setInput('');
     addMessage('user', msg);
     setLoading(true);
-
     try {
       const res = await fetch('/api/cipher', {
         method: 'POST',
@@ -91,75 +90,75 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
   }
 
   const formatTime = (s: number) => {
-    const m = Math.floor(s / 60).toString().padStart(2, '0');
+    const m   = Math.floor(s / 60).toString().padStart(2, '0');
     const sec = (s % 60).toString().padStart(2, '0');
     return `${m}:${sec}`;
   };
 
-  const focusPct = focusActive ? Math.round((focusTime / (focusDuration * 60)) * 100) : 0;
+  const remaining = focusDuration * 60 - focusTime;
+  const focusPct  = focusActive ? Math.round((focusTime / (focusDuration * 60)) * 100) : 0;
 
   return (
     <div className="content-area flex flex-col" style={{ paddingBottom: 80 }}>
-      {/* Header */}
+
+      {/* ── Header with inline focus timer ─────────────────── */}
       <div className="px-4 pt-4 pb-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--ng-border)' }}>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-amber)', fontSize: 16, letterSpacing: '3px' }}>CIPHER</h2>
-            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>AI COACH · {profile.focusMinutes} focus mins logged</div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-amber)', fontSize: 16, letterSpacing: '3px' }}>CIPHER</h2>
+              <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-green)', border: '1px solid var(--ng-green)', padding: '2px 7px', letterSpacing: '1px' }}>ONLINE</span>
+            </div>
+            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+              AI COACH · {profile.focusMinutes} focus mins logged
+            </div>
           </div>
-          <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-green)', border: '1px solid var(--ng-green)', padding: '3px 8px', letterSpacing: '1px' }}>ONLINE</div>
-        </div>
-      </div>
 
-      {/* Focus Timer */}
-      <div className="px-4 pt-3 pb-2 flex-shrink-0" style={{ borderBottom: '1px solid var(--ng-border)' }}>
-        <div className="flex items-center gap-3">
-          <div style={{ flex: 1 }}>
+          {/* Focus widget */}
+          <div className="flex items-center gap-2">
             {focusActive ? (
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-amber)', letterSpacing: '1px' }}>FOCUS SESSION ACTIVE</span>
-                  <span className="font-orbitron font-bold" style={{ fontSize: 14, color: 'var(--ng-green)' }}>{formatTime(focusDuration * 60 - focusTime)}</span>
-                </div>
-                <div style={{ height: 3, background: 'var(--ng-border)', borderRadius: 2 }}>
-                  <div style={{ height: '100%', width: `${focusPct}%`, background: 'var(--ng-green)', transition: 'width 1s linear', borderRadius: 2 }} />
-                </div>
-              </div>
+              <>
+                <span className="font-orbitron font-bold" style={{ fontSize: 15, color: 'var(--ng-green)', letterSpacing: '1px' }}>
+                  {formatTime(remaining)}
+                </span>
+                <button
+                  onClick={() => { setFocusActive(false); setFocusTime(0); }}
+                  className="font-orbitron"
+                  style={{ fontSize: 9, padding: '5px 10px', border: '1px solid var(--ng-red)', color: 'var(--ng-red)', background: 'transparent', cursor: 'pointer', borderRadius: 2, letterSpacing: '1px' }}>
+                  ■ STOP
+                </button>
+              </>
             ) : (
-              <div className="flex items-center gap-2">
-                <span className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px' }}>FOCUS:</span>
-                {[25, 50, 90].map(d => (
-                  <button key={d} onClick={() => setFocusDuration(d)} className="font-orbitron"
-                    style={{ fontSize: 9, padding: '3px 8px', border: `1px solid ${focusDuration === d ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: focusDuration === d ? 'var(--ng-amber)' : 'var(--ng-muted)', background: 'transparent', cursor: 'pointer', borderRadius: 2 }}>
-                    {d}m
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="flex gap-1">
+                  {[25, 50, 90].map(d => (
+                    <button key={d} onClick={() => setFocusDuration(d)} className="font-orbitron"
+                      style={{ fontSize: 8, padding: '4px 7px', border: `1px solid ${focusDuration === d ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: focusDuration === d ? 'var(--ng-amber)' : 'var(--ng-muted)', background: focusDuration === d ? 'rgba(255,184,0,0.08)' : 'transparent', cursor: 'pointer', borderRadius: 2 }}>
+                      {d}m
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setFocusActive(true)}
+                  className="font-orbitron"
+                  style={{ fontSize: 9, padding: '5px 10px', border: '1px solid var(--ng-amber)', color: 'var(--ng-amber)', background: 'transparent', cursor: 'pointer', borderRadius: 2, letterSpacing: '1px' }}>
+                  ▷
+                </button>
+              </>
             )}
           </div>
-          <button onClick={() => { setFocusActive(!focusActive); if (focusActive) { setFocusTime(0); } }}
-            style={{ padding: '6px 14px', border: `1px solid ${focusActive ? 'var(--ng-red)' : 'var(--ng-amber)'}`, color: focusActive ? 'var(--ng-red)' : 'var(--ng-amber)', background: 'transparent', cursor: 'pointer', borderRadius: 2 }}
-            className="font-orbitron">
-            <span className="font-orbitron" style={{ fontSize: 9, letterSpacing: '1px' }}>{focusActive ? '■ STOP' : '▷ START'}</span>
-          </button>
         </div>
+
+        {/* Focus progress bar — only when active */}
+        {focusActive && (
+          <div style={{ height: 2, background: 'var(--ng-border)', marginTop: 10, borderRadius: 1, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${focusPct}%`, background: 'var(--ng-green)', transition: 'width 1s linear' }} />
+          </div>
+        )}
       </div>
 
-      {/* Quick prompts */}
-      <div className="px-4 pt-2 pb-2 flex-shrink-0">
-        <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-          {QUICK_PROMPTS.map(p => (
-            <button key={p} onClick={() => sendMessage(p)}
-              className="font-mono flex-shrink-0"
-              style={{ fontSize: 9, padding: '4px 10px', border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'transparent', cursor: 'pointer', borderRadius: 2, whiteSpace: 'nowrap' }}>
-              {p}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Chat messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-3" style={{ minHeight: 0 }}>
+      {/* ── Chat messages — fills remaining space ──────────── */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3" style={{ minHeight: 0 }}>
         {messages.map(msg => (
           <div key={msg.id} className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}>
             {msg.role === 'assistant' && (
@@ -177,8 +176,18 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
         <div ref={chatEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="px-4 pb-2 flex-shrink-0" style={{ borderTop: '1px solid var(--ng-border)', paddingTop: 12 }}>
+      {/* ── Input area with quick prompts above ────────────── */}
+      <div className="px-4 pb-2 flex-shrink-0" style={{ borderTop: '1px solid var(--ng-border)', paddingTop: 10 }}>
+        {/* Quick prompts */}
+        <div className="flex gap-1 overflow-x-auto pb-2 mb-2" style={{ scrollbarWidth: 'none' }}>
+          {QUICK_PROMPTS.map(p => (
+            <button key={p} onClick={() => sendMessage(p)} className="font-mono flex-shrink-0"
+              style={{ fontSize: 9, padding: '4px 10px', border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'transparent', cursor: 'pointer', borderRadius: 2, whiteSpace: 'nowrap' }}>
+              {p}
+            </button>
+          ))}
+        </div>
+        {/* Input + send */}
         <div className="flex gap-2">
           <textarea
             className="ng-textarea"
@@ -194,6 +203,7 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
           </button>
         </div>
       </div>
+
     </div>
   );
 }

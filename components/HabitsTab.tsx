@@ -35,13 +35,16 @@ const CATEGORY_OPTIONS: { value: HabitCategory; label: string }[] = [
 export default function HabitsTab({ habits, onCompleteHabit, onAddHabit, onDeleteHabit }: Props) {
   const [showAdd, setShowAdd] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [name, setName] = useState('');
   const [category, setCategory] = useState<HabitCategory>('body');
   const [icon, setIcon] = useState('⚡');
   const [xp, setXp] = useState(20);
   const [filter, setFilter] = useState<HabitCategory | 'all'>('all');
 
-  const filtered = filter === 'all' ? habits : habits.filter(h => h.category === filter);
+  const filtered     = filter === 'all' ? habits : habits.filter(h => h.category === filter);
+  const incomplete   = filtered.filter(h => !h.completedToday);
+  const completed    = filtered.filter(h => h.completedToday);
   const completedToday = habits.filter(h => h.completedToday).length;
 
   const handleAdd = () => {
@@ -128,16 +131,38 @@ export default function HabitsTab({ habits, onCompleteHabit, onAddHabit, onDelet
           </div>
         )}
 
-        {/* Habit list */}
+        {/* Habit list — incomplete first */}
         {filtered.length === 0 ? (
           <div className="text-center py-12">
             <div className="font-orbitron" style={{ fontSize: 12, color: 'var(--ng-muted)', letterSpacing: '2px' }}>NO HABITS YET</div>
             <div className="font-mono mt-2" style={{ fontSize: 11, color: 'var(--ng-dimmer)' }}>Add presets or create your own</div>
           </div>
         ) : (
-          filtered.map(habit => (
-            <HabitCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onDelete={onDeleteHabit} />
-          ))
+          <>
+            {incomplete.length === 0 && completed.length > 0 && (
+              <div className="text-center py-6">
+                <div className="font-orbitron mb-1" style={{ fontSize: 11, color: 'var(--ng-green)', letterSpacing: '2px' }}>◆ ALL HABITS LOGGED</div>
+                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Protocol complete for today</div>
+              </div>
+            )}
+
+            {incomplete.map(habit => (
+              <HabitCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onDelete={onDeleteHabit} />
+            ))}
+
+            {completed.length > 0 && (
+              <>
+                <button onClick={() => setShowCompleted(!showCompleted)} className="w-full font-orbitron mb-2"
+                  style={{ padding: '9px 12px', fontSize: 9, letterSpacing: '2px', color: 'var(--ng-green)', background: 'rgba(0,255,65,0.04)', border: '1px solid rgba(0,255,65,0.2)', borderRadius: 2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>✓ LOGGED TODAY ({completed.length})</span>
+                  <span>{showCompleted ? '▲' : '▼'}</span>
+                </button>
+                {showCompleted && completed.map(habit => (
+                  <HabitCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onDelete={onDeleteHabit} />
+                ))}
+              </>
+            )}
+          </>
         )}
       </div>
     </div>

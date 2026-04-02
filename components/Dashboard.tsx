@@ -1,188 +1,217 @@
 'use client';
-import { UserProfile, Habit, Mission, Achievement, getLevel, CATEGORY_COLORS, CATEGORY_ICONS } from '../lib/gameStore';
+import { useState, useEffect } from 'react';
+import { UserProfile, Habit, getLevel, CATEGORY_COLORS } from '../lib/gameStore';
 import GridLogo from './GridLogo';
+import { getCyclePhase, getDayOfCycle, CYCLE_PHASES } from '../lib/supplementData';
 
 type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile';
 
 interface Props {
   profile: UserProfile;
   habits: Habit[];
-  missions: Mission[];
-  achievements: Achievement[];
   onNavigate: (tab: Tab) => void;
+  onCompleteHabit: (id: string) => void;
 }
 
 const STOIC_QUOTES = [
   { text: "The impediment to action advances action. What stands in the way becomes the way.", author: "Marcus Aurelius" },
   { text: "Make the best use of what is in your power, and take the rest as it happens.", author: "Epictetus" },
-  { text: "It is not that I'm so smart. But I stay with the questions much longer.", author: "Albert Einstein" },
   { text: "You have power over your mind — not outside events. Realize this, and you will find strength.", author: "Marcus Aurelius" },
   { text: "Waste no more time arguing about what a good man should be. Be one.", author: "Marcus Aurelius" },
   { text: "First say to yourself what you would be; and then do what you have to do.", author: "Epictetus" },
   { text: "The man who moves a mountain begins by carrying away small stones.", author: "Confucius" },
-  { text: "Do not indulge in dreams of having what you have not, but reckon up the chief of the blessings you do possess.", author: "Marcus Aurelius" },
+  { text: "Dwell on the beauty of life. Watch the stars, and see yourself running with them.", author: "Marcus Aurelius" },
+  { text: "Confine yourself to the present.", author: "Marcus Aurelius" },
 ];
 
 function getDailyQuote() {
-  const day = new Date().getDate();
-  return STOIC_QUOTES[day % STOIC_QUOTES.length];
+  return STOIC_QUOTES[new Date().getDate() % STOIC_QUOTES.length];
 }
 
 function getGreeting() {
   const h = new Date().getHours();
-  if (h < 12) return 'GOOD MORNING';
-  if (h < 17) return 'GOOD AFTERNOON';
-  return 'GOOD EVENING';
+  if (h < 5)  return 'LATE NIGHT OPS';
+  if (h < 12) return 'MORNING BRIEF';
+  if (h < 17) return 'AFTERNOON SITREP';
+  return 'EVENING DEBRIEF';
 }
 
-export default function Dashboard({ profile, habits, missions, achievements, onNavigate }: Props) {
-  const lvl = getLevel(profile.xp);
-  const quote = getDailyQuote();
-  const today = new Date().toISOString().split('T')[0];
-  const completedToday = habits.filter(h => h.completedToday).length;
-  const totalHabits = habits.length;
-  const completedMissions = missions.filter(m => m.completed).length;
-  const unlockedAchievements = achievements.filter(a => a.unlocked).length;
+export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit }: Props) {
+  const [cycleStart, setCycleStart] = useState<string | null>(null);
 
-  // Life score 0–100 based on today's completed habits
-  const lifeScore = totalHabits > 0 ? Math.round((completedToday / totalHabits) * 100) : 0;
+  useEffect(() => {
+    const sc = localStorage.getItem('grid_cycle_start');
+    if (sc) setCycleStart(sc);
+  }, []);
 
-  // Category breakdown
-  const categories = ['body', 'mind', 'trade', 'build', 'spirit', 'recovery'] as const;
-  const catScores = categories.map(cat => {
-    const catHabits = habits.filter(h => h.category === cat);
-    const done = catHabits.filter(h => h.completedToday).length;
-    return { cat, done, total: catHabits.length, pct: catHabits.length > 0 ? Math.round((done / catHabits.length) * 100) : 0 };
-  });
+  const lvl        = getLevel(profile.xp);
+  const quote      = getDailyQuote();
+  const incomplete = habits.filter(h => !h.completedToday);
+  const doneCount  = habits.filter(h => h.completedToday).length;
+  const total      = habits.length;
+  const lifeScore  = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+  const allDone    = total > 0 && doneCount === total;
 
-  // Pending habits (not done today)
-  const pending = habits.filter(h => !h.completedToday).slice(0, 4);
+  const topStreak     = habits.length > 0 ? Math.max(...habits.map(h => h.streak)) : 0;
+  const topStreakHabit = habits.find(h => h.streak === topStreak && h.streak > 0);
 
-  const scoreColor = lifeScore >= 80 ? 'var(--ng-green)' : lifeScore >= 50 ? 'var(--ng-amber)' : 'var(--ng-red)';
+  const phase     = getCyclePhase(cycleStart);
+  const dayOfCycle = getDayOfCycle(cycleStart);
+  const phaseData = phase ? CYCLE_PHASES[phase] : null;
 
   return (
     <div className="content-area" style={{ paddingBottom: 80 }}>
-      {/* Header */}
-      <div className="px-4 pt-5 pb-4" style={{ borderBottom: '1px solid var(--ng-border)' }}>
-        <div className="flex items-start justify-between">
-          <div>
-            <GridLogo variant="lockup" size={44} />
-            <div className="font-orbitron mt-2" style={{ fontSize: 10, color: 'var(--ng-muted)', letterSpacing: '2px' }}>
-              {getGreeting()}, {profile.codename}
-            </div>
-          </div>
-          <div className="flex flex-col items-end gap-0.5">
-            <div className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-amber)', letterSpacing: '1px' }}>
-              {lvl.title}
+
+      {/* ── Header ─────────────────────────────────────────── */}
+      <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--ng-border)' }}>
+        <div className="flex items-center justify-between">
+          <GridLogo variant="lockup" size={36} />
+          <div className="text-right">
+            <div className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-amber)', letterSpacing: '2px' }}>
+              {profile.codename}
             </div>
             <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px' }}>
-              LV{lvl.level} · {profile.xp.toLocaleString()} XP
-            </div>
-            <div style={{ width: 80 }}>
-              <div className="xp-bar mt-1">
-                <div className="xp-fill" style={{ width: `${lvl.progress}%` }} />
-              </div>
-              <div className="font-orbitron mt-0.5 text-right" style={{ fontSize: 7, color: 'var(--ng-dimmer)', letterSpacing: '1px' }}>
-                {lvl.xpToNext} XP TO {lvl.next.title}
-              </div>
+              {lvl.title} · LV{lvl.level} · {profile.xp.toLocaleString()} XP
             </div>
           </div>
+        </div>
+        {/* XP progress — thin line */}
+        <div style={{ height: 2, background: 'var(--ng-border)', marginTop: 10, borderRadius: 1, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${lvl.progress}%`, background: 'linear-gradient(90deg, var(--ng-green), var(--ng-cyan))', transition: 'width 0.5s ease' }} />
         </div>
       </div>
 
       <div className="px-4 pt-4">
 
-        {/* Life Score */}
-        <div className="card mb-4" style={{ borderColor: scoreColor + '44', background: `${scoreColor}08` }}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="font-orbitron font-bold" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '2px' }}>DAILY LIFE SCORE</div>
-            <div className="font-orbitron font-black" style={{ fontSize: 28, color: scoreColor, letterSpacing: '2px', textShadow: `0 0 12px ${scoreColor}66` }}>
-              {lifeScore}
-            </div>
-          </div>
-          <div style={{ width: '100%', height: 4, background: 'var(--ng-border)', borderRadius: 2 }}>
-            <div style={{ height: '100%', width: `${lifeScore}%`, background: scoreColor, borderRadius: 2, transition: 'width 0.5s ease', boxShadow: `0 0 6px ${scoreColor}` }} />
-          </div>
-          <div className="flex justify-between mt-1">
-            <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{completedToday}/{totalHabits} habits</span>
-            <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>
-              {lifeScore >= 80 ? 'ELITE DAY' : lifeScore >= 50 ? 'SOLID' : 'GET MOVING'}
-            </span>
-          </div>
-        </div>
-
-        {/* Category grid */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {catScores.map(({ cat, done, total, pct }) => (
-            <div key={cat} className="card" style={{ borderLeft: `3px solid ${CATEGORY_COLORS[cat]}44`, padding: '10px' }}>
-              <div className="flex items-center justify-between mb-1">
-                <span style={{ fontSize: 14 }}>{CATEGORY_ICONS[cat]}</span>
-                <span className="font-orbitron font-bold" style={{ fontSize: 11, color: CATEGORY_COLORS[cat] }}>{pct}%</span>
-              </div>
-              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px', textTransform: 'uppercase' }}>{cat}</div>
-              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)' }}>{done}/{total}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {[
-            { label: 'MISSIONS', value: completedMissions, color: 'var(--ng-purple)', sub: 'done' },
-            { label: 'ACHIEVEMENTS', value: unlockedAchievements, color: 'var(--ng-amber)', sub: 'unlocked' },
-            { label: 'BEST STREAK', value: profile.longestStreak, color: 'var(--ng-cyan)', sub: 'days' },
-          ].map(item => (
-            <div key={item.label} className="card" style={{ padding: '10px', textAlign: 'center' }}>
-              <div className="font-orbitron font-black" style={{ fontSize: 20, color: item.color }}>{item.value}</div>
-              <div className="font-orbitron" style={{ fontSize: 7, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{item.label}</div>
-              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)' }}>{item.sub}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Pending habits */}
-        {pending.length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '2px' }}>PENDING TODAY</div>
-              <button onClick={() => onNavigate('habits')} className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-cyan)', letterSpacing: '1px' }}>VIEW ALL →</button>
-            </div>
-            {pending.map(h => (
-              <div key={h.id} className="flex items-center gap-3 mb-2 p-3" style={{ background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderLeft: `3px solid ${CATEGORY_COLORS[h.category]}` }}>
-                <span style={{ fontSize: 16 }}>{h.icon}</span>
-                <div className="flex-1">
-                  <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-text)' }}>{h.name}</div>
-                  <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>+{h.xpReward} XP · {h.streak > 0 ? `🔥 ${h.streak}d` : 'no streak'}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Stoic quote */}
-        <div className="p-4 mb-4" style={{ background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderLeft: '3px solid var(--ng-amber)' }}>
-          <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '2px' }}>DAILY PROTOCOL</div>
+        {/* ── Daily quote ────────────────────────────────────── */}
+        <div className="p-3 mb-4" style={{ background: 'var(--ng-surface)', borderLeft: '3px solid var(--ng-amber)', borderRadius: 2 }}>
+          <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '2px' }}>{getGreeting()}</div>
           <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-text)', lineHeight: 1.7, fontStyle: 'italic' }}>
             "{quote.text}"
           </div>
-          <div className="font-orbitron mt-2" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px' }}>— {quote.author}</div>
+          <div className="font-orbitron mt-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>— {quote.author}</div>
         </div>
 
-        {/* Quick nav */}
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { id: 'habits' as Tab, icon: '◈', label: 'LOG HABIT', sub: `${habits.length} active`, color: 'var(--ng-cyan)' },
-            { id: 'missions' as Tab, icon: '◆', label: 'MISSIONS', sub: `${missions.filter(m=>!m.completed).length} active`, color: 'var(--ng-purple)' },
-            { id: 'body' as Tab, icon: '❋', label: 'BODY STACK', sub: 'supplements', color: 'var(--ng-green)' },
-            { id: 'coach' as Tab, icon: '⚡', label: 'CIPHER AI', sub: 'ask anything', color: 'var(--ng-amber)' },
-          ].map(item => (
-            <button key={item.id} onClick={() => onNavigate(item.id)} className="card text-left" style={{ borderColor: item.color + '33' }}>
-              <div className="font-orbitron font-bold" style={{ fontSize: 18, color: item.color, marginBottom: 6 }}>{item.icon}</div>
-              <div className="font-orbitron font-bold" style={{ fontSize: 10, color: 'var(--ng-text)', letterSpacing: '1px' }}>{item.label}</div>
-              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{item.sub}</div>
+        {/* ── Streak hero ────────────────────────────────────── */}
+        {topStreak > 0 ? (
+          <div className="p-4 mb-4" style={{ background: 'rgba(255,184,0,0.05)', border: '1px solid rgba(255,184,0,0.2)', borderRadius: 2 }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '2px', marginBottom: 6 }}>BEST ACTIVE STREAK</div>
+                {topStreakHabit && (
+                  <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+                    {topStreakHabit.icon} {topStreakHabit.name}
+                  </div>
+                )}
+                <div className="font-orbitron mt-2" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '1px' }}>
+                  DON'T BREAK IT
+                </div>
+              </div>
+              <div className="font-orbitron font-black" style={{ fontSize: 56, color: 'var(--ng-amber)', lineHeight: 1, textShadow: '0 0 28px rgba(255,184,0,0.45)' }}>
+                {topStreak}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 mb-4" style={{ background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderRadius: 2 }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '2px', marginBottom: 4 }}>NO ACTIVE STREAK</div>
+                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-dimmer)' }}>Complete a habit to start one</div>
+              </div>
+              <div className="font-orbitron font-black" style={{ fontSize: 56, color: 'var(--ng-border)', lineHeight: 1 }}>0</div>
+            </div>
+          </div>
+        )}
+
+        {/* ── ALL DONE celebration ───────────────────────────── */}
+        {allDone && (
+          <div className="p-4 mb-4 text-center" style={{ background: 'rgba(0,255,65,0.05)', border: '1px solid rgba(0,255,65,0.25)', borderRadius: 2 }}>
+            <div className="font-orbitron font-black" style={{ fontSize: 13, color: 'var(--ng-green)', letterSpacing: '3px', marginBottom: 6 }}>
+              ◆ ALL PROTOCOLS COMPLETE
+            </div>
+            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+              {total} habits logged · {lifeScore}% today
+            </div>
+          </div>
+        )}
+
+        {/* ── Today's protocol ──────────────────────────────── */}
+        {total === 0 ? (
+          <div className="mb-4 p-5 text-center" style={{ background: 'var(--ng-surface)', border: '1px dashed var(--ng-border)', borderRadius: 2 }}>
+            <div className="font-orbitron mb-2" style={{ fontSize: 10, color: 'var(--ng-muted)', letterSpacing: '2px' }}>NO PROTOCOL YET</div>
+            <div className="font-mono mb-4" style={{ fontSize: 11, color: 'var(--ng-dimmer)', lineHeight: 1.6 }}>
+              Build your daily habit stack to start earning XP and streaks.
+            </div>
+            <button onClick={() => onNavigate('habits')} className="btn-green" style={{ fontSize: 9, padding: '8px 20px' }}>
+              BUILD PROTOCOL →
             </button>
-          ))}
-        </div>
+          </div>
+        ) : !allDone && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '2px' }}>TODAY'S PROTOCOL</div>
+              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{doneCount}/{total}</div>
+            </div>
+            <div style={{ height: 2, background: 'var(--ng-border)', marginBottom: 12, borderRadius: 1, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${lifeScore}%`, background: 'var(--ng-green)', transition: 'width 0.5s ease' }} />
+            </div>
+
+            {incomplete.map(h => {
+              const color = CATEGORY_COLORS[h.category];
+              return (
+                <button key={h.id} onClick={() => onCompleteHabit(h.id)} className="w-full text-left mb-2"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px',
+                    background: 'var(--ng-surface)', border: `1px solid var(--ng-border)`,
+                    borderLeft: `3px solid ${color}`, borderRadius: 2, cursor: 'pointer',
+                    transition: 'background 0.15s', minHeight: 54,
+                  }}>
+                  <div style={{ width: 22, height: 22, border: `2px solid ${color}55`, borderRadius: 2, flexShrink: 0 }} />
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{h.icon}</span>
+                  <div className="flex-1">
+                    <div className="font-mono" style={{ fontSize: 12, color: 'var(--ng-text)' }}>{h.name}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="font-orbitron" style={{ fontSize: 8, color, letterSpacing: '1px' }}>{h.category.toUpperCase()}</span>
+                      <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '1px' }}>+{h.xpReward}xp</span>
+                      {h.streak > 0 && <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-amber)' }}>🔥 {h.streak}d</span>}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+
+            {doneCount > 0 && (
+              <div className="mt-1 mb-3 p-2" style={{ background: 'rgba(0,255,65,0.04)', border: '1px solid rgba(0,255,65,0.12)', borderRadius: 2 }}>
+                <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-green)', letterSpacing: '2px' }}>
+                  ✓ LOGGED: {doneCount} habit{doneCount !== 1 ? 's' : ''}
+                </div>
+              </div>
+            )}
+
+            <button onClick={() => onNavigate('habits')} className="w-full font-orbitron"
+              style={{ padding: '9px', fontSize: 9, letterSpacing: '2px', color: 'var(--ng-muted)', background: 'transparent', border: '1px solid var(--ng-border)', borderRadius: 2, cursor: 'pointer' }}>
+              MANAGE HABITS →
+            </button>
+          </div>
+        )}
+
+        {/* ── Phase context strip ────────────────────────────── */}
+        {phaseData && (
+          <button onClick={() => onNavigate('body')} className="w-full text-left mb-4"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', background: phaseData.bg, border: `1px solid ${phaseData.color}44`, borderRadius: 2, cursor: 'pointer' }}>
+            <div className="flex items-center gap-2">
+              <span style={{ fontSize: 16 }}>{phaseData.icon}</span>
+              <div>
+                <div className="font-orbitron" style={{ fontSize: 9, color: phaseData.color, letterSpacing: '2px' }}>
+                  {phaseData.label} PHASE · DAY {dayOfCycle}
+                </div>
+                <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{phaseData.headline}</div>
+              </div>
+            </div>
+            <span className="font-orbitron" style={{ fontSize: 8, color: phaseData.color, letterSpacing: '1px', flexShrink: 0 }}>VIEW →</span>
+          </button>
+        )}
 
       </div>
     </div>

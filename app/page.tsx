@@ -207,9 +207,9 @@ export default function App() {
           ))}
         </div>
 
-        {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} missions={missions} achievements={achievements} onNavigate={t => setTab(t)} />}
+        {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} onNavigate={t => setTab(t)} onCompleteHabit={handleCompleteHabit} />}
         {tab === 'habits' && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} />}
-        {tab === 'missions' && <MissionsTab missions={missions} onCompleteMission={handleCompleteMission} />}
+        {tab === 'missions' && <MissionsTab missions={missions} profile={profile} habits={habits} onCompleteMission={handleCompleteMission} />}
         {tab === 'body' && <BodyTab />}
         {tab === 'coach' && <CoachTab profile={profile} onFocusMinutes={handleFocusMinutes} />}
         {tab === 'profile' && <ProfileTab profile={profile} habits={habits} achievements={achievements} onUpdateCodename={handleUpdateCodename} onResetData={handleResetData} />}

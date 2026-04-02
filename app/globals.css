@@ -92,7 +92,7 @@ html, body { background: var(--ng-bg); color: var(--ng-text); font-family: 'JetB
 .nav-item:active { transform: scale(0.92); }
 .nav-item.active { color: var(--ng-green); }
 .nav-item.active .nav-icon { text-shadow: 0 0 8px rgba(0,255,65,0.7); }
-.nav-label { font-size: 7px; letter-spacing: 1px; font-weight: 700; }
+.nav-label { font-size: 9px; letter-spacing: 1px; font-weight: 700; }
 
 .achievement-popup { background: var(--ng-surface); border: 1px solid var(--ng-amber); border-left: 3px solid var(--ng-amber); padding: 12px 16px; border-radius: 2px; box-shadow: 0 0 20px rgba(255,184,0,0.2); animation: slideDown 0.3s ease forwards; }
 
