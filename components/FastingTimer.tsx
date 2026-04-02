@@ -39,7 +39,7 @@ export default function FastingTimer() {
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (fastStart) {
-      intervalRef.current = setInterval(() => setNow(Date.now()), 15000);
+      intervalRef.current = setInterval(() => setNow(Date.now()), 1000);
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fastStart]);
@@ -66,8 +66,10 @@ export default function FastingTimer() {
   const progress = Math.min(elapsedH / 24, 1);
   const dash = CIRC * progress;
 
-  const hours   = Math.floor(elapsedH);
-  const minutes = Math.floor((elapsedH - hours) * 60);
+  const totalSec = Math.floor(elapsedMs / 1000);
+  const hours    = Math.floor(totalSec / 3600);
+  const minutes  = Math.floor((totalSec % 3600) / 60);
+  const seconds  = totalSec % 60;
 
   // Tick marks at each phase boundary
   const TICKS = [4, 8, 12, 16, 18].map(h => {
@@ -110,16 +112,20 @@ export default function FastingTimer() {
           {/* Center text */}
           {fastStart ? (
             <>
-              <text x={CX} y={CY - 10} textAnchor="middle" fill={phase.color}
-                fontFamily="'Orbitron', sans-serif" fontWeight="900" fontSize={26}>
+              <text x={CX} y={CY - 14} textAnchor="middle" fill={phase.color}
+                fontFamily="'Orbitron', sans-serif" fontWeight="900" fontSize={22}>
                 {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}
               </text>
-              <text x={CX} y={CY + 8} textAnchor="middle" fill={phase.color}
-                fontFamily="'Orbitron', sans-serif" fontSize={9} letterSpacing={2}>
+              <text x={CX} y={CY + 4} textAnchor="middle" fill={phase.color}
+                fontFamily="'Orbitron', sans-serif" fontSize={13} fontWeight="700">
+                :{String(seconds).padStart(2, '0')}
+              </text>
+              <text x={CX} y={CY + 18} textAnchor="middle" fill={phase.color}
+                fontFamily="'Orbitron', sans-serif" fontSize={8} letterSpacing={2}>
                 {phase.label}
               </text>
-              <text x={CX} y={CY + 22} textAnchor="middle" fill="var(--ng-muted)"
-                fontFamily="'JetBrains Mono', monospace" fontSize={9}>
+              <text x={CX} y={CY + 30} textAnchor="middle" fill="var(--ng-muted)"
+                fontFamily="'JetBrains Mono', monospace" fontSize={8}>
                 {phase.sublabel}
               </text>
             </>
