@@ -42,10 +42,54 @@ html, body { background: var(--ng-bg); color: var(--ng-text); font-family: 'JetB
 .btn-green-solid:hover { background: #00cc34; }
 .btn-red { background: transparent; border: 1px solid var(--ng-red); color: var(--ng-red); font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 1px; padding: 6px 12px; border-radius: 2px; cursor: pointer; }
 
-.content-area { overflow-y: auto; height: calc(100vh - 60px); -webkit-overflow-scrolling: touch; }
+/* iOS PWA safe area support */
+.content-area {
+  overflow-y: auto;
+  height: calc(100vh - 60px - env(safe-area-inset-bottom));
+  /* iOS PWA: account for notch at top */
+  padding-top: env(safe-area-inset-top);
+  -webkit-overflow-scrolling: touch;
+}
 
-.bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; height: 60px; background: var(--ng-surface); border-top: 1px solid var(--ng-border); display: flex; z-index: 100; }
-.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: transparent; border: none; color: var(--ng-muted); cursor: pointer; transition: all 0.2s; font-family: 'Orbitron', sans-serif; }
+/* Bottom nav — sits above iOS home indicator */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  /* nav buttons sit in the 60px zone; safe area padding is below */
+  height: calc(60px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--ng-surface);
+  border-top: 1px solid var(--ng-border);
+  display: flex;
+  align-items: stretch;
+  z-index: 100;
+  /* Frosted glass effect on iOS */
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  color: var(--ng-muted);
+  cursor: pointer;
+  transition: color 0.2s, transform 0.1s;
+  font-family: 'Orbitron', sans-serif;
+  /* iOS tap area */
+  min-height: 44px;
+  padding-bottom: 4px;
+}
+.nav-item:active { transform: scale(0.92); }
 .nav-item.active { color: var(--ng-green); }
 .nav-item.active .nav-icon { text-shadow: 0 0 8px rgba(0,255,65,0.7); }
 .nav-label { font-size: 7px; letter-spacing: 1px; font-weight: 700; }

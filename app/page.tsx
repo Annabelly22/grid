@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import GridLogo from '../components/GridLogo';
 import {
   UserProfile, Habit, Mission, Achievement,
   loadProfile, saveProfile, loadHabits, saveHabits,
@@ -113,7 +114,7 @@ export default function App() {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0A0A0F' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-          <div className="font-orbitron glitch-text" style={{ fontSize: 28, fontWeight: 900, color: '#00FF41', letterSpacing: '6px', textShadow: '0 0 20px rgba(0,255,65,0.5)' }}>GRID</div>
+          <GridLogo variant="lockup" size={56} />
           <div className="loader-dots" style={{ display: 'flex', gap: 8 }}><span /><span /><span /></div>
           <div className="font-mono" style={{ fontSize: 11, color: '#6A6A8A', letterSpacing: '2px' }}>INITIALIZING SYSTEM...</div>
         </div>
@@ -125,8 +126,8 @@ export default function App() {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: '#0A0A0F' }}>
         <div style={{ width: '100%', maxWidth: 360 }} className="fade-in">
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <div className="font-orbitron glitch-text" style={{ fontSize: 36, fontWeight: 900, color: '#00FF41', letterSpacing: '6px', marginBottom: 8 }}>GRID</div>
+          <div style={{ textAlign: 'center', marginBottom: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <GridLogo variant="lockup" size={56} />
             <div className="font-mono" style={{ fontSize: 11, color: '#6A6A8A', letterSpacing: '2px' }}>YOUR SOVEREIGN LIFE OPERATING SYSTEM</div>
           </div>
           <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>

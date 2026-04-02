@@ -1,5 +1,6 @@
 'use client';
 import { UserProfile, Habit, Mission, Achievement, getLevel, CATEGORY_COLORS, CATEGORY_ICONS } from '../lib/gameStore';
+import GridLogo from './GridLogo';
 
 type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile';
 
@@ -65,8 +66,8 @@ export default function Dashboard({ profile, habits, missions, achievements, onN
       <div className="px-4 pt-5 pb-4" style={{ borderBottom: '1px solid var(--ng-border)' }}>
         <div className="flex items-start justify-between">
           <div>
-            <div className="font-orbitron font-black text-2xl glitch-text" style={{ color: 'var(--ng-green)', letterSpacing: '6px', textShadow: '0 0 20px rgba(0,255,65,0.4)' }}>GRID</div>
-            <div className="font-orbitron mt-0.5" style={{ fontSize: 10, color: 'var(--ng-muted)', letterSpacing: '2px' }}>
+            <GridLogo variant="lockup" size={44} />
+            <div className="font-orbitron mt-2" style={{ fontSize: 10, color: 'var(--ng-muted)', letterSpacing: '2px' }}>
               {getGreeting()}, {profile.codename}
             </div>
           </div>
