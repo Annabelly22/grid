@@ -37,7 +37,7 @@ export default function App() {
     const m = loadMissions();
     const a = loadAchievements();
     setProfile(p); setHabits(h); setMissions(m); setAchievements(a);
-    if (p.codename === 'OPERATIVE' && p.xp === 0 && p.totalHabitsCompleted === 0) setOnboarded(false);
+    if (!p.onboarded) setOnboarded(false);
   }, []);
 
   const addXPPopup = (amount: number) => {
@@ -107,7 +107,7 @@ export default function App() {
   };
 
   const handleUpdateCodename = (name: string) => { if (!profile) return; const u = { ...profile, codename: name }; saveProfile(u); setProfile(u); };
-  const handleOnboard = () => { if (!profile) return; const u = { ...profile, codename: onboardName.trim().toUpperCase() || 'OPERATIVE' }; saveProfile(u); setProfile(u); setOnboarded(true); };
+  const handleOnboard = () => { if (!profile) return; const u = { ...profile, codename: onboardName.trim().toUpperCase() || 'OPERATIVE', onboarded: true }; saveProfile(u); setProfile(u); setOnboarded(true); };
   const handleResetData = () => { localStorage.clear(); window.location.reload(); };
 
   if (!mounted || !profile) {

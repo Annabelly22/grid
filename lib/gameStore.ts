@@ -10,6 +10,7 @@ export interface UserProfile {
   focusMinutes: number;
   missionsCompleted: number;
   joinDate: string;
+  onboarded: boolean;
 }
 
 export interface Habit {
@@ -161,7 +162,13 @@ export function loadProfile(): UserProfile {
   if (typeof window === 'undefined') return defaultProfile();
   try {
     const raw = localStorage.getItem(KEY_PROFILE);
-    return raw ? JSON.parse(raw) : defaultProfile();
+    if (!raw) return defaultProfile();
+    const parsed = JSON.parse(raw);
+    // Migration: profiles saved before the onboarded flag was added
+    if (parsed.onboarded === undefined) {
+      parsed.onboarded = parsed.codename !== 'OPERATIVE';
+    }
+    return parsed;
   } catch { return defaultProfile(); }
 }
 export function saveProfile(p: UserProfile) {
@@ -218,6 +225,7 @@ function defaultProfile(): UserProfile {
     focusMinutes: 0,
     missionsCompleted: 0,
     joinDate: new Date().toISOString(),
+    onboarded: false,
   };
 }
 
