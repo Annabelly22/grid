@@ -1,65 +1,201 @@
-import Image from "next/image";
+'use client';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  UserProfile, Habit, Mission, Achievement,
+  loadProfile, saveProfile, loadHabits, saveHabits,
+  loadMissions, saveMissions, loadAchievements, saveAchievements,
+  checkAchievements,
+} from '../lib/gameStore';
+import Dashboard from '../components/Dashboard';
+import HabitsTab from '../components/HabitsTab';
+import MissionsTab from '../components/MissionsTab';
+import BodyTab from '../components/BodyTab';
+import CoachTab from '../components/CoachTab';
+import ProfileTab from '../components/ProfileTab';
 
-export default function Home() {
+type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile';
+interface AchievementToast { achievement: Achievement; id: number; }
+interface XPPopup { amount: number; id: number; }
+
+export default function App() {
+  const [tab, setTab] = useState<Tab>('dashboard');
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [toasts, setToasts] = useState<AchievementToast[]>([]);
+  const [xpPopups, setXpPopups] = useState<XPPopup[]>([]);
+  const [mounted, setMounted] = useState(false);
+  const [onboarded, setOnboarded] = useState(true);
+  const [onboardName, setOnboardName] = useState('');
+
+  useEffect(() => {
+    setMounted(true);
+    const p = loadProfile();
+    const h = loadHabits();
+    const m = loadMissions();
+    const a = loadAchievements();
+    setProfile(p); setHabits(h); setMissions(m); setAchievements(a);
+    if (p.codename === 'OPERATIVE' && p.xp === 0 && p.totalHabitsCompleted === 0) setOnboarded(false);
+  }, []);
+
+  const addXPPopup = (amount: number) => {
+    const id = Date.now() + Math.random();
+    setXpPopups(prev => [...prev, { amount, id }]);
+    setTimeout(() => setXpPopups(prev => prev.filter(p => p.id !== id)), 2000);
+  };
+
+  const addToast = (achievement: Achievement) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { achievement, id }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  };
+
+  const awardXP = useCallback((amount: number, p: UserProfile, h: Habit[], a: Achievement[]) => {
+    addXPPopup(amount);
+    const working: UserProfile = { ...p, xp: p.xp + amount };
+    const { updated: newAch, newlyUnlocked } = checkAchievements(working, h, a);
+    const bonus = newlyUnlocked.reduce((s, a) => s + a.xpReward, 0);
+    const final: UserProfile = { ...working, xp: working.xp + bonus };
+    saveProfile(final); setProfile(final);
+    if (newlyUnlocked.length > 0) { saveAchievements(newAch); setAchievements(newAch); newlyUnlocked.forEach(a => setTimeout(() => addToast(a), 500)); }
+    return final;
+  }, []);
+
+  const handleCompleteHabit = (id: string) => {
+    if (!profile) return;
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const updated = habits.map(h => {
+      if (h.id !== id || h.completedToday) return h;
+      const streak = (h.lastCompleted === yesterday || h.streak === 0) ? h.streak + 1 : 1;
+      return { ...h, completedToday: true, lastCompleted: today, streak, totalCompletions: h.totalCompletions + 1 };
+    });
+    saveHabits(updated); setHabits(updated);
+    const habit = habits.find(h => h.id === id);
+    if (!habit) return;
+    awardXP(habit.xpReward, { ...profile, totalHabitsCompleted: profile.totalHabitsCompleted + 1, longestStreak: Math.max(profile.longestStreak, updated.find(h => h.id === id)?.streak || 0) }, updated, achievements);
+  };
+
+  const handleAddHabit = (data: Omit<Habit, 'id' | 'streak' | 'completedToday' | 'lastCompleted' | 'totalCompletions' | 'createdAt'>) => {
+    const newHabit: Habit = { ...data, id: `h_${Date.now()}`, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString() };
+    const updated = [...habits, newHabit];
+    saveHabits(updated); setHabits(updated);
+    if (updated.length >= 5 && profile) {
+      const { updated: a2, newlyUnlocked } = checkAchievements(profile, updated, achievements);
+      if (newlyUnlocked.length > 0) { saveAchievements(a2); setAchievements(a2); newlyUnlocked.forEach(a => addToast(a)); }
+    }
+  };
+
+  const handleDeleteHabit = (id: string) => { const u = habits.filter(h => h.id !== id); saveHabits(u); setHabits(u); };
+
+  const handleCompleteMission = (id: string) => {
+    if (!profile) return;
+    const m = missions.find(m => m.id === id);
+    if (!m || m.completed) return;
+    const updated = missions.map(ms => ms.id === id ? { ...ms, completed: true, completedAt: new Date().toISOString() } : ms);
+    saveMissions(updated); setMissions(updated);
+    awardXP(m.xpReward, { ...profile, missionsCompleted: profile.missionsCompleted + 1 }, habits, achievements);
+  };
+
+  const handleFocusMinutes = (minutes: number) => {
+    if (!profile) return;
+    const u = { ...profile, focusMinutes: profile.focusMinutes + minutes };
+    saveProfile(u); setProfile(u);
+    awardXP(minutes * 2, u, habits, achievements);
+  };
+
+  const handleUpdateCodename = (name: string) => { if (!profile) return; const u = { ...profile, codename: name }; saveProfile(u); setProfile(u); };
+  const handleOnboard = () => { if (!profile) return; const u = { ...profile, codename: onboardName.trim().toUpperCase() || 'OPERATIVE' }; saveProfile(u); setProfile(u); setOnboarded(true); };
+  const handleResetData = () => { localStorage.clear(); window.location.reload(); };
+
+  if (!mounted || !profile) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0A0A0F' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <div className="font-orbitron glitch-text" style={{ fontSize: 28, fontWeight: 900, color: '#00FF41', letterSpacing: '6px', textShadow: '0 0 20px rgba(0,255,65,0.5)' }}>GRID</div>
+          <div className="loader-dots" style={{ display: 'flex', gap: 8 }}><span /><span /><span /></div>
+          <div className="font-mono" style={{ fontSize: 11, color: '#6A6A8A', letterSpacing: '2px' }}>INITIALIZING SYSTEM...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!onboarded) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: '#0A0A0F' }}>
+        <div style={{ width: '100%', maxWidth: 360 }} className="fade-in">
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <div className="font-orbitron glitch-text" style={{ fontSize: 36, fontWeight: 900, color: '#00FF41', letterSpacing: '6px', marginBottom: 8 }}>GRID</div>
+            <div className="font-mono" style={{ fontSize: 11, color: '#6A6A8A', letterSpacing: '2px' }}>YOUR SOVEREIGN LIFE OPERATING SYSTEM</div>
+          </div>
+          <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <div className="font-orbitron" style={{ fontSize: 10, color: '#00D4FF', letterSpacing: '2px', marginBottom: 8 }}>ENTER CODENAME</div>
+              <input className="ng-input" placeholder="YOUR OPERATIVE NAME..." value={onboardName} onChange={e => setOnboardName(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && handleOnboard()} maxLength={16} autoFocus />
+            </div>
+            <div style={{ padding: 12, background: '#0A0A0F', border: '1px solid #2A2A3A' }}>
+              <div className="font-mono" style={{ fontSize: 11, color: '#6A6A8A', lineHeight: 1.9 }}>
+                ◆ Build daily habits. Earn XP.<br />
+                ◈ Complete missions. Level up.<br />
+                ❋ Cycle-synced supplement stack.<br />
+                ⚡ AI coach CIPHER.<br />
+                ▣ Reach LEGEND rank.
+              </div>
+            </div>
+            <button className="btn-green-solid" onClick={handleOnboard}>INITIALIZE GRID</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const NAV: { id: Tab; icon: string; label: string }[] = [
+    { id: 'dashboard', icon: '⬡', label: 'HUB' },
+    { id: 'habits', icon: '◈', label: 'HABITS' },
+    { id: 'missions', icon: '◆', label: 'MISSION' },
+    { id: 'body', icon: '❋', label: 'BODY' },
+    { id: 'coach', icon: '⚡', label: 'CIPHER' },
+    { id: 'profile', icon: '▣', label: 'PROFILE' },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div style={{ minHeight: '100vh', background: '#0A0A0F', maxWidth: 480, margin: '0 auto', position: 'relative' }}>
+      {xpPopups.map(popup => (
+        <div key={popup.id} className="font-orbitron" style={{ position: 'fixed', top: '45%', left: '50%', transform: 'translateX(-50%)', color: '#FFB800', fontSize: 22, fontWeight: 900, letterSpacing: '2px', textShadow: '0 0 10px rgba(255,184,0,0.8)', animation: 'slideUp 1.8s ease forwards', pointerEvents: 'none', zIndex: 60 }}>
+          +{popup.amount} XP
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      ))}
+      <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, padding: '0 16px', zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {toasts.map(t => (
+          <div key={t.id} className="achievement-popup">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 24 }}>{t.achievement.icon}</span>
+              <div>
+                <div className="font-orbitron" style={{ fontSize: 9, color: '#FFB800', letterSpacing: '1px' }}>ACHIEVEMENT UNLOCKED</div>
+                <div className="font-orbitron" style={{ fontSize: 13, color: '#E8E8F0', fontWeight: 900, letterSpacing: '1px' }}>{t.achievement.title}</div>
+                <div className="font-mono" style={{ fontSize: 10, color: '#6A6A8A' }}>{t.achievement.description} · +{t.achievement.xpReward} XP</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} missions={missions} achievements={achievements} onNavigate={t => setTab(t)} />}
+      {tab === 'habits' && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} />}
+      {tab === 'missions' && <MissionsTab missions={missions} onCompleteMission={handleCompleteMission} />}
+      {tab === 'body' && <BodyTab />}
+      {tab === 'coach' && <CoachTab profile={profile} onFocusMinutes={handleFocusMinutes} />}
+      {tab === 'profile' && <ProfileTab profile={profile} habits={habits} achievements={achievements} onUpdateCodename={handleUpdateCodename} onResetData={handleResetData} />}
+
+      <nav className="bottom-nav">
+        {NAV.map(item => (
+          <button key={item.id} onClick={() => setTab(item.id)} className={`nav-item ${tab === item.id ? 'active' : ''}`}>
+            <span className="nav-icon" style={{ fontSize: 15 }}>{item.icon}</span>
+            <span className="nav-label">{item.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

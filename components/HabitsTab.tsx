@@ -1,0 +1,187 @@
+'use client';
+import { useState } from 'react';
+import { Habit, HabitCategory, CATEGORY_COLORS, CATEGORY_ICONS } from '../lib/gameStore';
+
+interface Props {
+  habits: Habit[];
+  onCompleteHabit: (id: string) => void;
+  onAddHabit: (data: Omit<Habit, 'id' | 'streak' | 'completedToday' | 'lastCompleted' | 'totalCompletions' | 'createdAt'>) => void;
+  onDeleteHabit: (id: string) => void;
+}
+
+const PRESET_HABITS = [
+  { name: 'Morning sunlight walk', category: 'body' as HabitCategory, icon: '☀️', xpReward: 20 },
+  { name: 'Training session', category: 'body' as HabitCategory, icon: '🏋️', xpReward: 30 },
+  { name: 'Nadi Shodhana breathwork', category: 'mind' as HabitCategory, icon: '🌬️', xpReward: 15 },
+  { name: 'Read 20+ minutes', category: 'mind' as HabitCategory, icon: '📖', xpReward: 20 },
+  { name: 'Trading session review', category: 'trade' as HabitCategory, icon: '📊', xpReward: 25 },
+  { name: 'Pre-market checklist', category: 'trade' as HabitCategory, icon: '✅', xpReward: 15 },
+  { name: 'Work on a build project', category: 'build' as HabitCategory, icon: '🔧', xpReward: 25 },
+  { name: 'Evening gratitude log', category: 'spirit' as HabitCategory, icon: '🙏', xpReward: 10 },
+  { name: 'Meditation / qi gong', category: 'spirit' as HabitCategory, icon: '🌿', xpReward: 15 },
+  { name: 'Evening supplement stack', category: 'recovery' as HabitCategory, icon: '🌙', xpReward: 10 },
+  { name: 'Cold exposure / contrast', category: 'recovery' as HabitCategory, icon: '❄️', xpReward: 20 },
+];
+
+const CATEGORY_OPTIONS: { value: HabitCategory; label: string }[] = [
+  { value: 'body', label: '💪 BODY' },
+  { value: 'mind', label: '🧠 MIND' },
+  { value: 'trade', label: '📈 TRADE' },
+  { value: 'build', label: '🔧 BUILD' },
+  { value: 'spirit', label: '🌿 SPIRIT' },
+  { value: 'recovery', label: '🌙 RECOVERY' },
+];
+
+export default function HabitsTab({ habits, onCompleteHabit, onAddHabit, onDeleteHabit }: Props) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [showPresets, setShowPresets] = useState(false);
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState<HabitCategory>('body');
+  const [icon, setIcon] = useState('⚡');
+  const [xp, setXp] = useState(20);
+  const [filter, setFilter] = useState<HabitCategory | 'all'>('all');
+
+  const filtered = filter === 'all' ? habits : habits.filter(h => h.category === filter);
+  const completedToday = habits.filter(h => h.completedToday).length;
+
+  const handleAdd = () => {
+    if (!name.trim()) return;
+    onAddHabit({ name: name.trim(), category, icon, xpReward: xp });
+    setName(''); setIcon('⚡'); setXp(20); setShowAdd(false);
+  };
+
+  const addPreset = (preset: typeof PRESET_HABITS[0]) => {
+    const exists = habits.find(h => h.name === preset.name);
+    if (!exists) onAddHabit(preset);
+  };
+
+  return (
+    <div className="content-area" style={{ paddingBottom: 80 }}>
+      {/* Header */}
+      <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--ng-border)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-cyan)', fontSize: 16, letterSpacing: '3px' }}>HABITS</h2>
+            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+              {completedToday}/{habits.length} complete today
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowPresets(!showPresets)} className="btn-green" style={{ padding: '6px 12px', fontSize: 9 }}>PRESETS</button>
+            <button onClick={() => setShowAdd(!showAdd)} className="btn-green" style={{ padding: '6px 12px', fontSize: 9 }}>+ ADD</button>
+          </div>
+        </div>
+
+        {/* Category filter */}
+        <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+          {[{ value: 'all', label: 'ALL' }, ...CATEGORY_OPTIONS.map(c => ({ value: c.value, label: c.label.split(' ')[1] }))].map(opt => (
+            <button key={opt.value} onClick={() => setFilter(opt.value as any)} className="font-orbitron flex-shrink-0"
+              style={{ fontSize: 8, letterSpacing: '1px', padding: '4px 10px', border: `1px solid ${filter === opt.value ? 'var(--ng-cyan)' : 'var(--ng-border)'}`, color: filter === opt.value ? 'var(--ng-cyan)' : 'var(--ng-muted)', background: filter === opt.value ? 'rgba(0,212,255,0.08)' : 'transparent', borderRadius: 2 }}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-4 pt-3">
+
+        {/* Presets panel */}
+        {showPresets && (
+          <div className="card mb-4" style={{ borderColor: 'rgba(0,212,255,0.3)' }}>
+            <div className="font-orbitron mb-3" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>PRESET HABITS — TAP TO ADD</div>
+            {PRESET_HABITS.map(p => {
+              const exists = habits.find(h => h.name === p.name);
+              return (
+                <button key={p.name} onClick={() => addPreset(p)} disabled={!!exists}
+                  className="w-full text-left flex items-center gap-3 mb-2 p-2"
+                  style={{ background: exists ? 'rgba(0,255,65,0.06)' : 'var(--ng-bg)', border: `1px solid ${exists ? 'var(--ng-green)33' : 'var(--ng-border)'}`, borderRadius: 2, opacity: exists ? 0.6 : 1 }}>
+                  <span style={{ fontSize: 14 }}>{p.icon}</span>
+                  <span className="flex-1 font-mono" style={{ fontSize: 11, color: 'var(--ng-text)' }}>{p.name}</span>
+                  <span className="font-orbitron" style={{ fontSize: 9, color: CATEGORY_COLORS[p.category] }}>{exists ? '✓ ADDED' : `+${p.xpReward}xp`}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Add custom habit */}
+        {showAdd && (
+          <div className="card mb-4" style={{ borderColor: 'rgba(0,212,255,0.3)' }}>
+            <div className="font-orbitron mb-3" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>NEW HABIT</div>
+            <div className="flex gap-2 mb-2">
+              <input className="ng-input" style={{ width: 60, textAlign: 'center', fontSize: 18, padding: '8px' }} value={icon} onChange={e => setIcon(e.target.value)} placeholder="⚡" />
+              <input className="ng-input flex-1" placeholder="Habit name..." value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAdd()} />
+            </div>
+            <div className="flex gap-2 mb-3">
+              <select className="ng-select flex-1" value={category} onChange={e => setCategory(e.target.value as HabitCategory)}>
+                {CATEGORY_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>XP:</span>
+                <input type="number" className="ng-input" style={{ width: 60 }} value={xp} onChange={e => setXp(Number(e.target.value))} min={5} max={100} step={5} />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={handleAdd} className="btn-green-solid" style={{ flex: 1, padding: '8px' }}>ADD HABIT</button>
+              <button onClick={() => setShowAdd(false)} className="btn-red">CANCEL</button>
+            </div>
+          </div>
+        )}
+
+        {/* Habit list */}
+        {filtered.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="font-orbitron" style={{ fontSize: 12, color: 'var(--ng-muted)', letterSpacing: '2px' }}>NO HABITS YET</div>
+            <div className="font-mono mt-2" style={{ fontSize: 11, color: 'var(--ng-dimmer)' }}>Add presets or create your own</div>
+          </div>
+        ) : (
+          filtered.map(habit => (
+            <HabitCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onDelete={onDeleteHabit} />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function HabitCard({ habit, onComplete, onDelete }: { habit: Habit; onComplete: (id: string) => void; onDelete: (id: string) => void }) {
+  const [showDelete, setShowDelete] = useState(false);
+  const color = CATEGORY_COLORS[habit.category];
+
+  return (
+    <div className="mb-3" style={{ background: 'var(--ng-surface)', border: `1px solid ${habit.completedToday ? color + '44' : 'var(--ng-border)'}`, borderLeft: `3px solid ${color}`, borderRadius: 2, opacity: habit.completedToday ? 0.7 : 1, transition: 'all 0.2s' }}>
+      <div className="flex items-center gap-3 p-3">
+        {/* Complete button */}
+        <button onClick={() => !habit.completedToday && onComplete(habit.id)}
+          style={{ width: 32, height: 32, border: `2px solid ${habit.completedToday ? color : 'var(--ng-border)'}`, borderRadius: 2, background: habit.completedToday ? color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: habit.completedToday ? 'default' : 'pointer', flexShrink: 0, transition: 'all 0.2s' }}>
+          {habit.completedToday && <span style={{ color: '#000', fontWeight: 900, fontSize: 14 }}>✓</span>}
+        </button>
+
+        <span style={{ fontSize: 18, flexShrink: 0 }}>{habit.icon}</span>
+
+        <div className="flex-1 min-w-0">
+          <div className="font-mono" style={{ fontSize: 12, color: habit.completedToday ? 'var(--ng-muted)' : 'var(--ng-text)', textDecoration: habit.completedToday ? 'line-through' : 'none' }}>
+            {habit.name}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <span className="font-orbitron" style={{ fontSize: 8, color: color, letterSpacing: '1px' }}>{habit.category.toUpperCase()}</span>
+            <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '1px' }}>+{habit.xpReward}xp</span>
+            {habit.streak > 0 && <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-amber)' }}>🔥 {habit.streak}d</span>}
+            {habit.totalCompletions > 0 && <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)' }}>×{habit.totalCompletions}</span>}
+          </div>
+        </div>
+
+        <button onClick={() => setShowDelete(!showDelete)} style={{ color: 'var(--ng-dimmer)', fontSize: 16, background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>⋯</button>
+      </div>
+
+      {showDelete && (
+        <div className="px-3 pb-3 flex gap-2" style={{ borderTop: '1px solid var(--ng-border)' }}>
+          <div className="font-mono pt-2 flex-1" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+            {habit.totalCompletions} total · created {new Date(habit.createdAt).toLocaleDateString()}
+          </div>
+          <button onClick={() => { onDelete(habit.id); setShowDelete(false); }} className="btn-red" style={{ marginTop: 8 }}>DELETE</button>
+        </div>
+      )}
+    </div>
+  );
+}
