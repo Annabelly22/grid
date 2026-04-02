@@ -45,6 +45,7 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
   const [xp,       setXp]       = useState(20);
   const [filter,   setFilter]   = useState<HabitCategory | 'all'>('all');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(VIEW_KEY) as 'list' | 'grid' | null;
@@ -75,35 +76,34 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
     <div className="content-area" style={{ paddingBottom: 80 }}>
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--ng-border)' }}>
-        <div className="flex items-center justify-between mb-3">
+      <div className="px-4 pt-4 pb-3" style={{ borderBottom: '0.5px solid var(--ng-border)' }}>
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-cyan)', fontSize: 16, letterSpacing: '3px' }}>HABITS</h2>
-            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-cyan)', fontSize: 16 }}>HABITS</h2>
+              {filter !== 'all' && (
+                <span style={{ fontSize: 13, color: 'var(--ng-cyan)', fontWeight: 500 }}>/ {filter.toUpperCase()}</span>
+              )}
+            </div>
+            <div className="font-mono" style={{ fontSize: 13, color: 'var(--ng-muted)' }}>
               {completedToday}/{habits.length} complete today
             </div>
           </div>
           <div className="flex gap-2 items-center">
             {/* List / Grid toggle */}
-            <div style={{ display: 'flex', border: '1px solid var(--ng-border)', borderRadius: 8, overflow: 'hidden' }}>
-              <button onClick={() => changeView('list')} className="font-orbitron"
-                style={{ padding: '5px 9px', fontSize: 10, background: viewMode === 'list' ? 'rgba(0,212,255,0.12)' : 'transparent', color: viewMode === 'list' ? 'var(--ng-cyan)' : 'var(--ng-muted)', border: 'none', cursor: 'pointer' }}>☰</button>
-              <button onClick={() => changeView('grid')} className="font-orbitron"
-                style={{ padding: '5px 9px', fontSize: 10, background: viewMode === 'grid' ? 'rgba(0,212,255,0.12)' : 'transparent', color: viewMode === 'grid' ? 'var(--ng-cyan)' : 'var(--ng-muted)', border: 'none', cursor: 'pointer', borderLeft: '1px solid var(--ng-border)' }}>⊞</button>
+            <div style={{ display: 'flex', border: '0.5px solid var(--ng-border)', borderRadius: 8, overflow: 'hidden' }}>
+              <button onClick={() => changeView('list')}
+                style={{ padding: '6px 10px', fontSize: 13, background: viewMode === 'list' ? 'rgba(100,210,255,0.12)' : 'transparent', color: viewMode === 'list' ? 'var(--ng-cyan)' : 'var(--ng-muted)', border: 'none', cursor: 'pointer' }}>☰</button>
+              <button onClick={() => changeView('grid')}
+                style={{ padding: '6px 10px', fontSize: 13, background: viewMode === 'grid' ? 'rgba(100,210,255,0.12)' : 'transparent', color: viewMode === 'grid' ? 'var(--ng-cyan)' : 'var(--ng-muted)', border: 'none', cursor: 'pointer', borderLeft: '0.5px solid var(--ng-border)' }}>⊞</button>
             </div>
-            <button onClick={() => setShowPresets(!showPresets)} className="btn-green" style={{ padding: '6px 12px', fontSize: 9 }}>PRESETS</button>
-            <button onClick={() => setShowAdd(!showAdd)}       className="btn-green" style={{ padding: '6px 12px', fontSize: 9 }}>+ ADD</button>
-          </div>
-        </div>
-
-        {/* Category filter */}
-        <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-          {[{ value: 'all', label: 'ALL' }, ...CATEGORY_OPTIONS.map(c => ({ value: c.value, label: c.label.split(' ')[1] }))].map(opt => (
-            <button key={opt.value} onClick={() => setFilter(opt.value as any)} className="font-orbitron flex-shrink-0"
-              style={{ fontSize: 12, padding: '5px 12px', border: `1px solid ${filter === opt.value ? 'var(--ng-cyan)' : 'var(--ng-border)'}`, color: filter === opt.value ? 'var(--ng-cyan)' : 'var(--ng-muted)', background: filter === opt.value ? 'rgba(100,210,255,0.1)' : 'transparent', borderRadius: 20 }}>
-              {opt.label}
+            <button onClick={() => setShowPresets(!showPresets)} className="btn-green" style={{ padding: '7px 12px', fontSize: 12 }}>PRESETS</button>
+            <button onClick={() => setShowAdd(!showAdd)} className="btn-green" style={{ padding: '7px 12px', fontSize: 12 }}>+ ADD</button>
+            <button onClick={() => setMenuOpen(true)}
+              style={{ fontSize: 22, color: 'var(--ng-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px', lineHeight: 1 }}>
+              ☰
             </button>
-          ))}
+          </div>
         </div>
       </div>
 
@@ -208,6 +208,44 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
           </>
         )}
       </div>
+
+      {/* Category filter side drawer */}
+      {menuOpen && (
+        <>
+          <div className="side-drawer-backdrop" onClick={() => setMenuOpen(false)} />
+          <div className="side-drawer">
+            <div style={{ padding: '56px 20px 16px', borderBottom: '0.5px solid var(--ng-border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--ng-muted)', fontWeight: 600, marginBottom: 2 }}>HABITS</div>
+              <div style={{ fontSize: 13, color: 'var(--ng-text)', fontWeight: 700 }}>Filter by category</div>
+            </div>
+            {[
+              { value: 'all'      as const, label: 'All habits',  icon: '◈', color: 'var(--ng-cyan)'   },
+              { value: 'body'     as const, label: 'Body',         icon: '💪', color: CATEGORY_COLORS['body']     },
+              { value: 'mind'     as const, label: 'Mind',         icon: '🧠', color: CATEGORY_COLORS['mind']     },
+              { value: 'trade'    as const, label: 'Trade',        icon: '📈', color: CATEGORY_COLORS['trade']    },
+              { value: 'build'    as const, label: 'Build',        icon: '🔧', color: CATEGORY_COLORS['build']    },
+              { value: 'spirit'   as const, label: 'Spirit',       icon: '🌿', color: CATEGORY_COLORS['spirit']   },
+              { value: 'recovery' as const, label: 'Recovery',     icon: '🌙', color: CATEGORY_COLORS['recovery'] },
+            ].map(opt => (
+              <button key={opt.value} onClick={() => { setFilter(opt.value); setMenuOpen(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '15px 20px', width: '100%',
+                  background: filter === opt.value ? `${opt.color}12` : 'transparent',
+                  borderLeft: `3px solid ${filter === opt.value ? opt.color : 'transparent'}`,
+                  border: 'none', cursor: 'pointer',
+                  color: filter === opt.value ? opt.color : 'var(--ng-muted)',
+                  fontSize: 15, fontWeight: filter === opt.value ? 600 : 400,
+                  transition: 'background 0.15s',
+                }}>
+                <span style={{ fontSize: 18, width: 24, textAlign: 'center', flexShrink: 0 }}>{opt.icon}</span>
+                <span style={{ flex: 1, textAlign: 'left' }}>{opt.label}</span>
+                {filter === opt.value && <span style={{ fontSize: 13, color: opt.color }}>✓</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

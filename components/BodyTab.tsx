@@ -91,6 +91,7 @@ function Divider({ label, color }: { label: string; color: string }) {
 
 export default function BodyTab() {
   const [subTab,      setSubTab]      = useState<SubTab>('stack');
+  const [menuOpen,    setMenuOpen]    = useState(false);
   const [cycleStart,  setCycleStart]  = useState<string | null>(null);
   const [cycleInput,  setCycleInput]  = useState('');
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel>('medium');
@@ -144,46 +145,46 @@ export default function BodyTab() {
   return (
     <div className="content-area" style={{ paddingBottom: 80 }}>
       {/* Header */}
-      <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--ng-border)' }}>
-        <div className="flex items-start justify-between mb-3">
+      <div className="px-4 pt-4 pb-3" style={{ borderBottom: '0.5px solid var(--ng-border)' }}>
+        <div className="flex items-start justify-between">
           <div>
-            <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-green)', fontSize: 16, letterSpacing: '3px' }}>BODY</h2>
-            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
-              {phaseData ? `${phaseData.icon} ${phaseData.label} — Day ${dayOfCycle}` : 'SET CYCLE DATE TO PERSONALIZE'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-green)', fontSize: 16 }}>BODY</h2>
+              {(() => { const t = SUB_TABS.find(t => t.id === subTab)!; return <span style={{ fontSize: 13, color: t.color, fontWeight: 500 }}>/ {t.label}</span>; })()}
+            </div>
+            <div className="font-mono" style={{ fontSize: 13, color: 'var(--ng-muted)' }}>
+              {phaseData ? `${phaseData.icon} ${phaseData.label} — Day ${dayOfCycle}` : 'Set cycle date to personalise'}
             </div>
           </div>
-          <div className="flex flex-col gap-1 items-end">
-            <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>ENERGY</span>
-            <div className="flex gap-1">
-              {(['low', 'medium', 'high'] as EnergyLevel[]).map(e => {
-                const ec = e === 'high' ? 'var(--ng-green)' : e === 'medium' ? 'var(--ng-amber)' : 'var(--ng-red)';
-                return (
-                  <button key={e} onClick={() => saveEnergy(e)} className="font-orbitron"
-                    style={{ fontSize: 12, padding: '5px 10px', border: `1px solid ${energyLevel === e ? ec : 'var(--ng-border)'}`, color: energyLevel === e ? ec : 'var(--ng-muted)', background: energyLevel === e ? `${ec}15` : 'transparent', borderRadius: 20 }}>
-                    {e.toUpperCase()}
-                  </button>
-                );
-              })}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="flex flex-col gap-1 items-end">
+              <span style={{ fontSize: 11, color: 'var(--ng-muted)', fontWeight: 500 }}>ENERGY</span>
+              <div className="flex gap-1">
+                {(['low', 'medium', 'high'] as EnergyLevel[]).map(e => {
+                  const ec = e === 'high' ? 'var(--ng-green)' : e === 'medium' ? 'var(--ng-amber)' : 'var(--ng-red)';
+                  return (
+                    <button key={e} onClick={() => saveEnergy(e)}
+                      style={{ fontSize: 12, padding: '5px 10px', border: `1px solid ${energyLevel === e ? ec : 'var(--ng-border)'}`, color: energyLevel === e ? ec : 'var(--ng-muted)', background: energyLevel === e ? `${ec}15` : 'transparent', borderRadius: 20, cursor: 'pointer' }}>
+                      {e.toUpperCase()}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+            <button onClick={() => setMenuOpen(true)}
+              style={{ fontSize: 22, color: 'var(--ng-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px', lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+              ☰
+            </button>
           </div>
         </div>
 
         {phaseData && (
-          <div className="flex gap-1 mb-3">
+          <div className="flex gap-1 mt-3">
             {(['menstrual', 'follicular', 'ovulatory', 'luteal'] as CyclePhase[]).map(p => (
               <div key={p} className="flex-1 h-1 rounded-full" style={{ background: p === phase ? CYCLE_PHASES[p].color : 'var(--ng-border)', boxShadow: p === phase ? `0 0 6px ${CYCLE_PHASES[p].color}88` : 'none', transition: 'all 0.3s' }} />
             ))}
           </div>
         )}
-
-        <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-          {SUB_TABS.map(t => (
-            <button key={t.id} onClick={() => setSubTab(t.id)} className="flex-shrink-0 py-1.5 font-orbitron"
-              style={{ fontSize: 12, padding: '7px 14px', border: `1px solid ${subTab === t.id ? t.color : 'var(--ng-border)'}`, color: subTab === t.id ? t.color : 'var(--ng-muted)', background: subTab === t.id ? `${t.color}12` : 'transparent', borderRadius: 20, transition: 'all 0.2s' }}>
-              {t.icon} {t.label}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="px-4 pt-4">
@@ -492,6 +493,36 @@ export default function BodyTab() {
           </>
         )}
       </div>
+
+      {/* Side drawer */}
+      {menuOpen && (
+        <>
+          <div className="side-drawer-backdrop" onClick={() => setMenuOpen(false)} />
+          <div className="side-drawer">
+            <div style={{ padding: '56px 20px 16px', borderBottom: '0.5px solid var(--ng-border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--ng-muted)', fontWeight: 600, marginBottom: 2 }}>BODY</div>
+              <div style={{ fontSize: 13, color: 'var(--ng-text)', fontWeight: 700 }}>Sections</div>
+            </div>
+            {SUB_TABS.map(t => (
+              <button key={t.id} onClick={() => { setSubTab(t.id); setMenuOpen(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '15px 20px', width: '100%',
+                  background: subTab === t.id ? `${t.color}10` : 'transparent',
+                  borderLeft: `3px solid ${subTab === t.id ? t.color : 'transparent'}`,
+                  border: 'none', cursor: 'pointer',
+                  color: subTab === t.id ? t.color : 'var(--ng-muted)',
+                  fontSize: 15, fontWeight: subTab === t.id ? 600 : 400,
+                  transition: 'background 0.15s',
+                }}>
+                <span style={{ fontSize: 18, width: 24, textAlign: 'center', flexShrink: 0 }}>{t.icon}</span>
+                <span style={{ flex: 1, textAlign: 'left' }}>{t.label}</span>
+                {subTab === t.id && <span style={{ fontSize: 13, color: t.color }}>✓</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
