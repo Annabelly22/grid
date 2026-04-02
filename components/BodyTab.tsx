@@ -9,12 +9,15 @@ import {
 } from '../lib/supplementData';
 import FastingTimer from './FastingTimer';
 import GymTracker   from './GymTracker';
+import GymProgram   from './GymProgram';
 
 const CYCLE_KEY      = 'grid_cycle_start';
 const ENERGY_KEY     = 'grid_energy_level';
 const SUPP_VIEW_KEY  = 'grid_supplements_view';
 const OWNED_KEY      = 'grid_owned_supps';
-type SubTab = 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move';
+const STEPS_KEY      = 'grid_steps';
+const STEPS_GOAL     = 10000;
+type SubTab = 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move' | 'gym';
 
 function SupplementCard({ s, expanded, onToggle, owned, onToggleOwned }: {
   s: Supplement; expanded: boolean; onToggle: () => void;
@@ -127,6 +130,11 @@ export default function BodyTab() {
   const [teaFilter,   setTeaFilter]   = useState<TeaCategory | 'all'>('all');
   const [catFilter,   setCatFilter]   = useState<string>('all');
   const [ownedSupps,  setOwnedSupps]  = useState<Set<string>>(new Set());
+  const [steps,       setSteps]       = useState(0);
+  const [stepsInput,  setStepsInput]  = useState('');
+  const [showStepsInput, setShowStepsInput] = useState(false);
+
+  const stepsDateKey = () => new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     const sc = localStorage.getItem(CYCLE_KEY);
@@ -137,7 +145,28 @@ export default function BodyTab() {
     if (sv) setSuppView(sv);
     const ov = localStorage.getItem(OWNED_KEY);
     if (ov) setOwnedSupps(new Set(JSON.parse(ov)));
+    // Load today's steps
+    try {
+      const raw = localStorage.getItem(STEPS_KEY);
+      if (raw) {
+        const all: Record<string, number> = JSON.parse(raw);
+        setSteps(all[stepsDateKey()] || 0);
+      }
+    } catch {}
   }, []);
+
+  const saveSteps = (val: number) => {
+    const clamped = Math.max(0, Math.min(99999, val));
+    setSteps(clamped);
+    try {
+      const raw = localStorage.getItem(STEPS_KEY);
+      const all: Record<string, number> = raw ? JSON.parse(raw) : {};
+      all[stepsDateKey()] = clamped;
+      localStorage.setItem(STEPS_KEY, JSON.stringify(all));
+    } catch {}
+  };
+
+  const addSteps = (n: number) => saveSteps(steps + n);
 
   const changeSuppView = (v: 'list' | 'grid') => {
     setSuppView(v);
@@ -178,6 +207,7 @@ export default function BodyTab() {
     { id: 'log'   as SubTab, label: 'LOG',   icon: '⬡', color: 'var(--ng-amber)'  },
     { id: 'tea'   as SubTab, label: 'TEA',   icon: '❋', color: 'var(--ng-amber)'  },
     { id: 'move'  as SubTab, label: 'MOVE',  icon: '⚡', color: 'var(--ng-cyan)'   },
+    { id: 'gym'   as SubTab, label: 'GYM',   icon: '🏋️', color: '#FF453A'          },
   ];
 
   return (
@@ -508,8 +538,96 @@ export default function BodyTab() {
         {/* ═══ MOVE ═════════════════════════════════════════════ */}
         {subTab === 'move' && (
           <>
+            {/* ── Step counter hero ───────────────────────────── */}
+            {(() => {
+              const pct = Math.min(steps / STEPS_GOAL, 1);
+              const r = 58, cx = 70, cy = 70;
+              const circ = 2 * Math.PI * r;
+              const dash = circ * pct;
+              const goalReached = steps >= STEPS_GOAL;
+              return (
+                <div style={{ marginBottom: 24, padding: '20px 16px', background: goalReached ? 'rgba(48,209,88,0.06)' : 'rgba(0,212,255,0.04)', border: `0.5px solid ${goalReached ? 'var(--ng-green)' : 'var(--ng-cyan)'}33`, borderRadius: 16, textAlign: 'center' }}>
+                  <div className="font-orbitron" style={{ fontSize: 8, color: goalReached ? 'var(--ng-green)' : 'var(--ng-cyan)', letterSpacing: '3px', marginBottom: 16 }}>
+                    {goalReached ? '✓ DAILY GOAL REACHED' : 'STEP COUNTER'}
+                  </div>
+
+                  {/* SVG ring */}
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                    <svg width={140} height={140} viewBox="0 0 140 140">
+                      {/* Background ring */}
+                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--ng-border)" strokeWidth={8} />
+                      {/* Progress ring */}
+                      <circle cx={cx} cy={cy} r={r} fill="none"
+                        stroke={goalReached ? 'var(--ng-green)' : 'var(--ng-cyan)'}
+                        strokeWidth={8}
+                        strokeLinecap="round"
+                        strokeDasharray={`${dash} ${circ}`}
+                        strokeDashoffset={0}
+                        transform={`rotate(-90 ${cx} ${cy})`}
+                        style={{ transition: 'stroke-dasharray 0.5s ease', filter: `drop-shadow(0 0 8px ${goalReached ? 'var(--ng-green)' : 'var(--ng-cyan)'})` }}
+                      />
+                      {/* Center text */}
+                      <text x={cx} y={cy - 8} textAnchor="middle" fill="var(--ng-text)" fontSize={20} fontFamily="Orbitron, monospace" fontWeight={700}>
+                        {steps.toLocaleString()}
+                      </text>
+                      <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--ng-muted)" fontSize={9} fontFamily="Orbitron, monospace">
+                        STEPS
+                      </text>
+                      <text x={cx} y={cy + 26} textAnchor="middle" fill={goalReached ? 'var(--ng-green)' : 'var(--ng-cyan)'} fontSize={8} fontFamily="Orbitron, monospace">
+                        {Math.round(pct * 100)}% of 10k
+                      </text>
+                    </svg>
+                  </div>
+
+                  {/* Quick-add buttons */}
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 10 }}>
+                    {[1000, 2500, 5000].map(n => (
+                      <button key={n} onClick={() => addSteps(n)} className="font-orbitron"
+                        style={{ fontSize: 9, padding: '7px 12px', border: `1px solid ${goalReached ? 'var(--ng-green)' : 'var(--ng-cyan)'}55`, color: goalReached ? 'var(--ng-green)' : 'var(--ng-cyan)', background: 'transparent', borderRadius: 8, cursor: 'pointer', letterSpacing: '1px' }}>
+                        +{(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k
+                      </button>
+                    ))}
+                    <button onClick={() => setShowStepsInput(v => !v)} className="font-orbitron"
+                      style={{ fontSize: 9, padding: '7px 12px', border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'transparent', borderRadius: 8, cursor: 'pointer', letterSpacing: '1px' }}>
+                      SET
+                    </button>
+                    {steps > 0 && (
+                      <button onClick={() => saveSteps(0)} className="font-orbitron"
+                        style={{ fontSize: 9, padding: '7px 12px', border: '1px solid var(--ng-border)', color: 'var(--ng-dimmer)', background: 'transparent', borderRadius: 8, cursor: 'pointer', letterSpacing: '1px' }}>
+                        RESET
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Manual input */}
+                  {showStepsInput && (
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                      <input
+                        type="number"
+                        className="ng-input"
+                        placeholder="Enter steps"
+                        value={stepsInput}
+                        onChange={e => setStepsInput(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            const n = parseInt(stepsInput, 10);
+                            if (!isNaN(n)) { saveSteps(n); setStepsInput(''); setShowStepsInput(false); }
+                          }
+                        }}
+                        style={{ width: 140, textAlign: 'center', fontSize: 14, fontFamily: 'monospace' }}
+                      />
+                      <button className="btn-green" style={{ padding: '8px 14px' }} onClick={() => {
+                        const n = parseInt(stepsInput, 10);
+                        if (!isNaN(n)) { saveSteps(n); setStepsInput(''); setShowStepsInput(false); }
+                      }}>OK</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {phaseData && (
-              <div className="mb-5 p-3" style={{ background: phaseData.bg, border: `0.5px solid ${phaseData.color}33`, borderRadius: 10 }}>
+              <div className="mb-5 p-4" style={{ background: phaseData.bg, border: `0.5px solid ${phaseData.color}33`, borderRadius: 10 }}>
                 <div className="font-mono" style={{ fontSize: 10, color: phaseData.color }}>
                   {phaseData.icon} Phase recommendation: <strong>{phaseData.training}</strong>
                 </div>
@@ -547,6 +665,17 @@ export default function BodyTab() {
                 5. Bhramari breath when emotionally reactive
               </div>
             </div>
+          </>
+        )}
+
+        {/* ═══ GYM ══════════════════════════════════════════════ */}
+        {subTab === 'gym' && (
+          <>
+            <div style={{ padding: '4px 0 20px' }}>
+              <div className="font-orbitron" style={{ fontSize: 8, color: '#FF453A', letterSpacing: '3px', marginBottom: 4 }}>WORKOUT PROGRAM</div>
+              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Tap a day to open the session. Check off exercises as you go.</div>
+            </div>
+            <GymProgram />
           </>
         )}
       </div>
