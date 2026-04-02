@@ -26,7 +26,7 @@ const QUICK_PROMPTS = [
 export default function CoachTab({ profile, onFocusMinutes }: Props) {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: `CIPHER ONLINE.\n\nOperative ${profile.codename} — I have your full context. ${profile.xp} XP earned. Longest streak: ${profile.longestStreak} days.\n\nHow can I help you execute today?`,
+    content: `CIPHER ONLINE — ${profile.codename}.\n\n${profile.xp} XP · ${profile.longestStreak}d best streak.\n\nWhat do you need?`,
     id: 0,
   }]);
   const [input, setInput]           = useState('');

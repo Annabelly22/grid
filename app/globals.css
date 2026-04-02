@@ -18,6 +18,18 @@
   --ng-pink: #FF6B9D;
 }
 
+/* ── Light mode ─────────────────────────────────────────────── */
+[data-theme="light"] {
+  --ng-bg: #F0F0F6;
+  --ng-surface: #FFFFFF;
+  --ng-surface2: #E8E8F2;
+  --ng-border: #C8C8DC;
+  --ng-text: #1A1A2E;
+  --ng-muted: #5A5A7A;
+  --ng-dimmer: #A0A0C0;
+  /* accent colours stay the same — they work on both backgrounds */
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body { background: var(--ng-bg); color: var(--ng-text); font-family: 'JetBrains Mono', monospace; min-height: 100vh; overflow-x: hidden; }
 

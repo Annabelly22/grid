@@ -26,9 +26,10 @@ export default function App() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [toasts, setToasts] = useState<AchievementToast[]>([]);
   const [xpPopups, setXpPopups] = useState<XPPopup[]>([]);
-  const [mounted, setMounted] = useState(false);
-  const [onboarded, setOnboarded] = useState(true);
+  const [mounted,    setMounted]    = useState(false);
+  const [onboarded,  setOnboarded]  = useState(true);
   const [onboardName, setOnboardName] = useState('');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
     setMounted(true);
@@ -38,6 +39,8 @@ export default function App() {
     const a = loadAchievements();
     setProfile(p); setHabits(h); setMissions(m); setAchievements(a);
     if (!p.onboarded) setOnboarded(false);
+    const t = localStorage.getItem('grid_theme') as 'dark' | 'light' | null;
+    if (t) setTheme(t);
   }, []);
 
   const addXPPopup = (amount: number) => {
@@ -106,13 +109,35 @@ export default function App() {
     awardXP(minutes * 2, u, habits, achievements);
   };
 
+  const handleUncompleteHabit = (id: string) => {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const updated = habits.map(h => {
+      if (h.id !== id || !h.completedToday) return h;
+      return {
+        ...h,
+        completedToday: false,
+        lastCompleted: h.streak > 1 ? yesterday : null,
+        streak: Math.max(0, h.streak - 1),
+        totalCompletions: Math.max(0, h.totalCompletions - 1),
+      };
+    });
+    saveHabits(updated); setHabits(updated);
+  };
+
+  const handleToggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    localStorage.setItem('grid_theme', next);
+    document.documentElement.setAttribute('data-theme', next === 'light' ? 'light' : '');
+  };
+
   const handleUpdateCodename = (name: string) => { if (!profile) return; const u = { ...profile, codename: name }; saveProfile(u); setProfile(u); };
   const handleOnboard = () => { if (!profile) return; const u = { ...profile, codename: onboardName.trim().toUpperCase() || 'OPERATIVE', onboarded: true }; saveProfile(u); setProfile(u); setOnboarded(true); };
   const handleResetData = () => { localStorage.clear(); window.location.reload(); };
 
   if (!mounted || !profile) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0A0A0F' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--ng-bg)' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
           <GridLogo variant="lockup" size={56} />
           <div className="loader-dots" style={{ display: 'flex', gap: 8 }}><span /><span /><span /></div>
@@ -124,7 +149,7 @@ export default function App() {
 
   if (!onboarded) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: '#0A0A0F' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--ng-bg)' }}>
         <div style={{ width: '100%', maxWidth: 360 }} className="fade-in">
           <div style={{ textAlign: 'center', marginBottom: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
             <GridLogo variant="lockup" size={56} />
@@ -135,7 +160,7 @@ export default function App() {
               <div className="font-orbitron" style={{ fontSize: 10, color: '#00D4FF', letterSpacing: '2px', marginBottom: 8 }}>ENTER CODENAME</div>
               <input className="ng-input" placeholder="YOUR OPERATIVE NAME..." value={onboardName} onChange={e => setOnboardName(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && handleOnboard()} maxLength={16} autoFocus />
             </div>
-            <div style={{ padding: 12, background: '#0A0A0F', border: '1px solid #2A2A3A' }}>
+            <div style={{ padding: 12, background: 'var(--ng-bg)', border: '1px solid #2A2A3A' }}>
               <div className="font-mono" style={{ fontSize: 11, color: '#6A6A8A', lineHeight: 1.9 }}>
                 ◆ Build daily habits. Earn XP.<br />
                 ◈ Complete missions. Level up.<br />
@@ -161,7 +186,7 @@ export default function App() {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0A0A0F', display: 'flex' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--ng-bg)', display: 'flex' }}>
       {/* Desktop sidebar — hidden on mobile via CSS */}
       <nav className="desktop-sidebar">
         <div style={{ padding: '24px 20px 28px' }}>
@@ -208,11 +233,11 @@ export default function App() {
         </div>
 
         {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} onNavigate={t => setTab(t)} onCompleteHabit={handleCompleteHabit} />}
-        {tab === 'habits' && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} />}
+        {tab === 'habits' && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onUncompleteHabit={handleUncompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} />}
         {tab === 'missions' && <MissionsTab missions={missions} profile={profile} habits={habits} onCompleteMission={handleCompleteMission} />}
         {tab === 'body' && <BodyTab />}
         {tab === 'coach' && <CoachTab profile={profile} onFocusMinutes={handleFocusMinutes} />}
-        {tab === 'profile' && <ProfileTab profile={profile} habits={habits} achievements={achievements} onUpdateCodename={handleUpdateCodename} onResetData={handleResetData} />}
+        {tab === 'profile' && <ProfileTab profile={profile} habits={habits} achievements={achievements} theme={theme} onUpdateCodename={handleUpdateCodename} onToggleTheme={handleToggleTheme} onResetData={handleResetData} />}
 
         {/* Mobile bottom nav — hidden on desktop via CSS */}
         <nav className="bottom-nav">

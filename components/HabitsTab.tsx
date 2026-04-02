@@ -1,50 +1,64 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Habit, HabitCategory, CATEGORY_COLORS, CATEGORY_ICONS } from '../lib/gameStore';
+
+const VIEW_KEY = 'grid_habits_view';
 
 interface Props {
   habits: Habit[];
-  onCompleteHabit: (id: string) => void;
+  onCompleteHabit:   (id: string) => void;
+  onUncompleteHabit: (id: string) => void;
   onAddHabit: (data: Omit<Habit, 'id' | 'streak' | 'completedToday' | 'lastCompleted' | 'totalCompletions' | 'createdAt'>) => void;
   onDeleteHabit: (id: string) => void;
 }
 
 const PRESET_HABITS = [
-  { name: 'Morning sunlight walk', category: 'body' as HabitCategory, icon: '☀️', xpReward: 20 },
-  { name: 'Training session', category: 'body' as HabitCategory, icon: '🏋️', xpReward: 30 },
-  { name: 'Nadi Shodhana breathwork', category: 'mind' as HabitCategory, icon: '🌬️', xpReward: 15 },
-  { name: 'Read 20+ minutes', category: 'mind' as HabitCategory, icon: '📖', xpReward: 20 },
-  { name: 'Trading session review', category: 'trade' as HabitCategory, icon: '📊', xpReward: 25 },
-  { name: 'Pre-market checklist', category: 'trade' as HabitCategory, icon: '✅', xpReward: 15 },
-  { name: 'Work on a build project', category: 'build' as HabitCategory, icon: '🔧', xpReward: 25 },
-  { name: 'Evening gratitude log', category: 'spirit' as HabitCategory, icon: '🙏', xpReward: 10 },
-  { name: 'Meditation / qi gong', category: 'spirit' as HabitCategory, icon: '🌿', xpReward: 15 },
+  { name: 'Morning sunlight walk',    category: 'body'     as HabitCategory, icon: '☀️', xpReward: 20 },
+  { name: 'Training session',         category: 'body'     as HabitCategory, icon: '🏋️', xpReward: 30 },
+  { name: 'Nadi Shodhana breathwork', category: 'mind'     as HabitCategory, icon: '🌬️', xpReward: 15 },
+  { name: 'Read 20+ minutes',         category: 'mind'     as HabitCategory, icon: '📖', xpReward: 20 },
+  { name: 'Trading session review',   category: 'trade'    as HabitCategory, icon: '📊', xpReward: 25 },
+  { name: 'Pre-market checklist',     category: 'trade'    as HabitCategory, icon: '✅', xpReward: 15 },
+  { name: 'Work on a build project',  category: 'build'    as HabitCategory, icon: '🔧', xpReward: 25 },
+  { name: 'Evening gratitude log',    category: 'spirit'   as HabitCategory, icon: '🙏', xpReward: 10 },
+  { name: 'Meditation / qi gong',     category: 'spirit'   as HabitCategory, icon: '🌿', xpReward: 15 },
   { name: 'Evening supplement stack', category: 'recovery' as HabitCategory, icon: '🌙', xpReward: 10 },
   { name: 'Cold exposure / contrast', category: 'recovery' as HabitCategory, icon: '❄️', xpReward: 20 },
 ];
 
 const CATEGORY_OPTIONS: { value: HabitCategory; label: string }[] = [
-  { value: 'body', label: '💪 BODY' },
-  { value: 'mind', label: '🧠 MIND' },
-  { value: 'trade', label: '📈 TRADE' },
-  { value: 'build', label: '🔧 BUILD' },
-  { value: 'spirit', label: '🌿 SPIRIT' },
+  { value: 'body',     label: '💪 BODY'     },
+  { value: 'mind',     label: '🧠 MIND'     },
+  { value: 'trade',    label: '📈 TRADE'    },
+  { value: 'build',    label: '🔧 BUILD'    },
+  { value: 'spirit',   label: '🌿 SPIRIT'   },
   { value: 'recovery', label: '🌙 RECOVERY' },
 ];
 
-export default function HabitsTab({ habits, onCompleteHabit, onAddHabit, onDeleteHabit }: Props) {
-  const [showAdd, setShowAdd] = useState(false);
-  const [showPresets, setShowPresets] = useState(false);
+export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, onAddHabit, onDeleteHabit }: Props) {
+  const [showAdd,       setShowAdd]       = useState(false);
+  const [showPresets,   setShowPresets]   = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
-  const [name, setName] = useState('');
+  const [name,     setName]     = useState('');
   const [category, setCategory] = useState<HabitCategory>('body');
-  const [icon, setIcon] = useState('⚡');
-  const [xp, setXp] = useState(20);
-  const [filter, setFilter] = useState<HabitCategory | 'all'>('all');
+  const [icon,     setIcon]     = useState('⚡');
+  const [xp,       setXp]       = useState(20);
+  const [filter,   setFilter]   = useState<HabitCategory | 'all'>('all');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+
+  useEffect(() => {
+    const saved = localStorage.getItem(VIEW_KEY) as 'list' | 'grid' | null;
+    if (saved) setViewMode(saved);
+  }, []);
+
+  const changeView = (v: 'list' | 'grid') => {
+    setViewMode(v);
+    localStorage.setItem(VIEW_KEY, v);
+  };
 
   const filtered     = filter === 'all' ? habits : habits.filter(h => h.category === filter);
   const incomplete   = filtered.filter(h => !h.completedToday);
-  const completed    = filtered.filter(h => h.completedToday);
+  const completed    = filtered.filter(h =>  h.completedToday);
   const completedToday = habits.filter(h => h.completedToday).length;
 
   const handleAdd = () => {
@@ -54,13 +68,13 @@ export default function HabitsTab({ habits, onCompleteHabit, onAddHabit, onDelet
   };
 
   const addPreset = (preset: typeof PRESET_HABITS[0]) => {
-    const exists = habits.find(h => h.name === preset.name);
-    if (!exists) onAddHabit(preset);
+    if (!habits.find(h => h.name === preset.name)) onAddHabit(preset);
   };
 
   return (
     <div className="content-area" style={{ paddingBottom: 80 }}>
-      {/* Header */}
+
+      {/* ── Header ─────────────────────────────────────────── */}
       <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--ng-border)' }}>
         <div className="flex items-center justify-between mb-3">
           <div>
@@ -69,9 +83,16 @@ export default function HabitsTab({ habits, onCompleteHabit, onAddHabit, onDelet
               {completedToday}/{habits.length} complete today
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {/* List / Grid toggle */}
+            <div style={{ display: 'flex', border: '1px solid var(--ng-border)', borderRadius: 2, overflow: 'hidden' }}>
+              <button onClick={() => changeView('list')} className="font-orbitron"
+                style={{ padding: '5px 9px', fontSize: 10, background: viewMode === 'list' ? 'rgba(0,212,255,0.12)' : 'transparent', color: viewMode === 'list' ? 'var(--ng-cyan)' : 'var(--ng-muted)', border: 'none', cursor: 'pointer' }}>☰</button>
+              <button onClick={() => changeView('grid')} className="font-orbitron"
+                style={{ padding: '5px 9px', fontSize: 10, background: viewMode === 'grid' ? 'rgba(0,212,255,0.12)' : 'transparent', color: viewMode === 'grid' ? 'var(--ng-cyan)' : 'var(--ng-muted)', border: 'none', cursor: 'pointer', borderLeft: '1px solid var(--ng-border)' }}>⊞</button>
+            </div>
             <button onClick={() => setShowPresets(!showPresets)} className="btn-green" style={{ padding: '6px 12px', fontSize: 9 }}>PRESETS</button>
-            <button onClick={() => setShowAdd(!showAdd)} className="btn-green" style={{ padding: '6px 12px', fontSize: 9 }}>+ ADD</button>
+            <button onClick={() => setShowAdd(!showAdd)}       className="btn-green" style={{ padding: '6px 12px', fontSize: 9 }}>+ ADD</button>
           </div>
         </div>
 
@@ -131,7 +152,7 @@ export default function HabitsTab({ habits, onCompleteHabit, onAddHabit, onDelet
           </div>
         )}
 
-        {/* Habit list — incomplete first */}
+        {/* Empty state */}
         {filtered.length === 0 ? (
           <div className="text-center py-12">
             <div className="font-orbitron" style={{ fontSize: 12, color: 'var(--ng-muted)', letterSpacing: '2px' }}>NO HABITS YET</div>
@@ -146,10 +167,22 @@ export default function HabitsTab({ habits, onCompleteHabit, onAddHabit, onDelet
               </div>
             )}
 
-            {incomplete.map(habit => (
-              <HabitCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onDelete={onDeleteHabit} />
-            ))}
+            {/* Incomplete */}
+            {viewMode === 'list' ? (
+              incomplete.map(habit => (
+                <HabitCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onUncomplete={onUncompleteHabit} onDelete={onDeleteHabit} />
+              ))
+            ) : (
+              incomplete.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                  {incomplete.map(habit => (
+                    <HabitGridCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onUncomplete={onUncompleteHabit} onDelete={onDeleteHabit} />
+                  ))}
+                </div>
+              )
+            )}
 
+            {/* Completed — collapsible */}
             {completed.length > 0 && (
               <>
                 <button onClick={() => setShowCompleted(!showCompleted)} className="w-full font-orbitron mb-2"
@@ -157,9 +190,19 @@ export default function HabitsTab({ habits, onCompleteHabit, onAddHabit, onDelet
                   <span>✓ LOGGED TODAY ({completed.length})</span>
                   <span>{showCompleted ? '▲' : '▼'}</span>
                 </button>
-                {showCompleted && completed.map(habit => (
-                  <HabitCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onDelete={onDeleteHabit} />
-                ))}
+                {showCompleted && (
+                  viewMode === 'list' ? (
+                    completed.map(habit => (
+                      <HabitCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onUncomplete={onUncompleteHabit} onDelete={onDeleteHabit} />
+                    ))
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                      {completed.map(habit => (
+                        <HabitGridCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onUncomplete={onUncompleteHabit} onDelete={onDeleteHabit} />
+                      ))}
+                    </div>
+                  )
+                )}
               </>
             )}
           </>
@@ -169,16 +212,19 @@ export default function HabitsTab({ habits, onCompleteHabit, onAddHabit, onDelet
   );
 }
 
-function HabitCard({ habit, onComplete, onDelete }: { habit: Habit; onComplete: (id: string) => void; onDelete: (id: string) => void }) {
+// ── List card ────────────────────────────────────────────────
+function HabitCard({ habit, onComplete, onUncomplete, onDelete }: { habit: Habit; onComplete: (id: string) => void; onUncomplete: (id: string) => void; onDelete: (id: string) => void }) {
   const [showDelete, setShowDelete] = useState(false);
   const color = CATEGORY_COLORS[habit.category];
 
   return (
-    <div className="mb-3" style={{ background: 'var(--ng-surface)', border: `1px solid ${habit.completedToday ? color + '44' : 'var(--ng-border)'}`, borderLeft: `3px solid ${color}`, borderRadius: 2, opacity: habit.completedToday ? 0.7 : 1, transition: 'all 0.2s' }}>
+    <div className="mb-3" style={{ background: 'var(--ng-surface)', border: `1px solid ${habit.completedToday ? color + '44' : 'var(--ng-border)'}`, borderLeft: `3px solid ${color}`, borderRadius: 2, opacity: habit.completedToday ? 0.75 : 1, transition: 'all 0.2s' }}>
       <div className="flex items-center gap-3 p-3">
-        {/* Complete button */}
-        <button onClick={() => !habit.completedToday && onComplete(habit.id)}
-          style={{ width: 32, height: 32, border: `2px solid ${habit.completedToday ? color : 'var(--ng-border)'}`, borderRadius: 2, background: habit.completedToday ? color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: habit.completedToday ? 'default' : 'pointer', flexShrink: 0, transition: 'all 0.2s' }}>
+        {/* Toggle button */}
+        <button
+          onClick={() => habit.completedToday ? onUncomplete(habit.id) : onComplete(habit.id)}
+          title={habit.completedToday ? 'Tap to uncomplete' : 'Tap to complete'}
+          style={{ width: 32, height: 32, border: `2px solid ${habit.completedToday ? color : 'var(--ng-border)'}`, borderRadius: 2, background: habit.completedToday ? color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}>
           {habit.completedToday && <span style={{ color: '#000', fontWeight: 900, fontSize: 14 }}>✓</span>}
         </button>
 
@@ -205,6 +251,51 @@ function HabitCard({ habit, onComplete, onDelete }: { habit: Habit; onComplete: 
             {habit.totalCompletions} total · created {new Date(habit.createdAt).toLocaleDateString()}
           </div>
           <button onClick={() => { onDelete(habit.id); setShowDelete(false); }} className="btn-red" style={{ marginTop: 8 }}>DELETE</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Grid card ────────────────────────────────────────────────
+function HabitGridCard({ habit, onComplete, onUncomplete, onDelete }: { habit: Habit; onComplete: (id: string) => void; onUncomplete: (id: string) => void; onDelete: (id: string) => void }) {
+  const [showDelete, setShowDelete] = useState(false);
+  const color = CATEGORY_COLORS[habit.category];
+
+  return (
+    <div style={{ background: 'var(--ng-surface)', border: `1px solid ${habit.completedToday ? color + '44' : 'var(--ng-border)'}`, borderTop: `3px solid ${color}`, borderRadius: 2, opacity: habit.completedToday ? 0.75 : 1, transition: 'all 0.2s', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '12px 10px 8px', flex: 1 }}>
+        {/* Icon + menu row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+          <span style={{ fontSize: 22 }}>{habit.icon}</span>
+          <button onClick={() => setShowDelete(!showDelete)} style={{ color: 'var(--ng-dimmer)', fontSize: 14, background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}>⋯</button>
+        </div>
+
+        <div className="font-mono" style={{ fontSize: 11, color: habit.completedToday ? 'var(--ng-muted)' : 'var(--ng-text)', textDecoration: habit.completedToday ? 'line-through' : 'none', lineHeight: 1.4, marginBottom: 6 }}>
+          {habit.name}
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+          <span className="font-orbitron" style={{ fontSize: 7, color: color, letterSpacing: '1px' }}>{habit.category.toUpperCase()}</span>
+          <span className="font-orbitron" style={{ fontSize: 7, color: 'var(--ng-amber)', letterSpacing: '1px' }}>+{habit.xpReward}xp</span>
+          {habit.streak > 0 && <span className="font-mono" style={{ fontSize: 8, color: 'var(--ng-amber)' }}>🔥{habit.streak}d</span>}
+        </div>
+      </div>
+
+      {/* Checkbox */}
+      <button onClick={() => habit.completedToday ? onUncomplete(habit.id) : onComplete(habit.id)}
+        style={{ width: '100%', padding: '8px', background: habit.completedToday ? `${color}22` : 'transparent', border: 'none', borderTop: `1px solid ${habit.completedToday ? color + '44' : 'var(--ng-border)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <div style={{ width: 16, height: 16, border: `2px solid ${habit.completedToday ? color : 'var(--ng-border)'}`, borderRadius: 2, background: habit.completedToday ? color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {habit.completedToday && <span style={{ color: '#000', fontWeight: 900, fontSize: 10 }}>✓</span>}
+        </div>
+        <span className="font-orbitron" style={{ fontSize: 7, color: habit.completedToday ? color : 'var(--ng-dimmer)', letterSpacing: '1px' }}>
+          {habit.completedToday ? 'LOGGED' : 'LOG IT'}
+        </span>
+      </button>
+
+      {showDelete && (
+        <div className="px-2 pb-2" style={{ borderTop: '1px solid var(--ng-border)' }}>
+          <button onClick={() => { onDelete(habit.id); setShowDelete(false); }} className="btn-red w-full" style={{ marginTop: 6, fontSize: 8 }}>DELETE</button>
         </div>
       )}
     </div>

@@ -7,10 +7,13 @@ import {
   getSupplementsForContext, getMovementsForContext,
   CATEGORY_META, TIMING_META, Supplement,
 } from '../lib/supplementData';
+import FastingTimer from './FastingTimer';
+import GymTracker   from './GymTracker';
 
-const CYCLE_KEY = 'grid_cycle_start';
-const ENERGY_KEY = 'grid_energy_level';
-type SubTab = 'stack' | 'cycle' | 'tea' | 'move';
+const CYCLE_KEY      = 'grid_cycle_start';
+const ENERGY_KEY     = 'grid_energy_level';
+const SUPP_VIEW_KEY  = 'grid_supplements_view';
+type SubTab = 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move';
 
 function SupplementCard({ s, expanded, onToggle }: { s: Supplement; expanded: boolean; onToggle: () => void }) {
   const cat = CATEGORY_META[s.category];
@@ -54,6 +57,28 @@ function SupplementCard({ s, expanded, onToggle }: { s: Supplement; expanded: bo
   );
 }
 
+function SupplementGridCard({ s, expanded, onToggle }: { s: Supplement; expanded: boolean; onToggle: () => void }) {
+  const cat = CATEGORY_META[s.category];
+  return (
+    <div style={{ border: `1px solid ${expanded ? s.color : 'var(--ng-border)'}`, borderTop: `3px solid ${s.color}`, borderRadius: 2, background: 'var(--ng-surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <button className="w-full text-left p-2" onClick={onToggle} style={{ flex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+          <span className="font-orbitron" style={{ fontSize: 7, color: cat.color, letterSpacing: '1px' }}>{cat.icon} {cat.label}</span>
+          {s.priority === 'critical' && <span className="font-orbitron" style={{ fontSize: 7, color: 'var(--ng-red)' }}>!</span>}
+        </div>
+        <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-text)', fontWeight: 700, lineHeight: 1.3, marginBottom: 3 }}>{s.name}</div>
+        <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{s.dose}</div>
+        <div className="font-mono" style={{ fontSize: 9, color: s.color, marginTop: 3 }}>{s.purpose}</div>
+      </button>
+      {expanded && (
+        <div className="p-2" style={{ borderTop: '1px solid var(--ng-border)' }}>
+          <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-text)', lineHeight: 1.5 }}>{s.why}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Divider({ label, color }: { label: string; color: string }) {
   return (
     <div className="flex items-center gap-2 my-3">
@@ -65,21 +90,29 @@ function Divider({ label, color }: { label: string; color: string }) {
 }
 
 export default function BodyTab() {
-  const [subTab, setSubTab] = useState<SubTab>('stack');
-  const [cycleStart, setCycleStart] = useState<string | null>(null);
-  const [cycleInput, setCycleInput] = useState('');
+  const [subTab,      setSubTab]      = useState<SubTab>('stack');
+  const [cycleStart,  setCycleStart]  = useState<string | null>(null);
+  const [cycleInput,  setCycleInput]  = useState('');
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel>('medium');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [stackView, setStackView] = useState<'smart' | 'all' | 'timing'>('smart');
-  const [teaFilter, setTeaFilter] = useState<TeaCategory | 'all'>('all');
-  const [catFilter, setCatFilter] = useState<string>('all');
+  const [expandedId,  setExpandedId]  = useState<string | null>(null);
+  const [stackView,   setStackView]   = useState<'smart' | 'all' | 'timing'>('smart');
+  const [suppView,    setSuppView]    = useState<'list' | 'grid'>('list');
+  const [teaFilter,   setTeaFilter]   = useState<TeaCategory | 'all'>('all');
+  const [catFilter,   setCatFilter]   = useState<string>('all');
 
   useEffect(() => {
     const sc = localStorage.getItem(CYCLE_KEY);
     if (sc) { setCycleStart(sc); setCycleInput(sc); }
     const se = localStorage.getItem(ENERGY_KEY) as EnergyLevel | null;
     if (se) setEnergyLevel(se);
+    const sv = localStorage.getItem(SUPP_VIEW_KEY) as 'list' | 'grid' | null;
+    if (sv) setSuppView(sv);
   }, []);
+
+  const changeSuppView = (v: 'list' | 'grid') => {
+    setSuppView(v);
+    localStorage.setItem(SUPP_VIEW_KEY, v);
+  };
 
   const phase = getCyclePhase(cycleStart);
   const dayOfCycle = getDayOfCycle(cycleStart);
@@ -100,10 +133,12 @@ export default function BodyTab() {
   const movements = getMovementsForContext(phase, energyLevel);
 
   const SUB_TABS = [
-    { id: 'stack' as SubTab, label: 'STACK', icon: '◆', color: 'var(--ng-green)' },
+    { id: 'stack' as SubTab, label: 'STACK', icon: '◆', color: 'var(--ng-green)'  },
     { id: 'cycle' as SubTab, label: 'CYCLE', icon: '◈', color: 'var(--ng-purple)' },
-    { id: 'tea' as SubTab, label: 'TEA', icon: '❋', color: 'var(--ng-amber)' },
-    { id: 'move' as SubTab, label: 'MOVE', icon: '⚡', color: 'var(--ng-cyan)' },
+    { id: 'fast'  as SubTab, label: 'FAST',  icon: '⏱', color: 'var(--ng-cyan)'   },
+    { id: 'log'   as SubTab, label: 'LOG',   icon: '⬡', color: 'var(--ng-amber)'  },
+    { id: 'tea'   as SubTab, label: 'TEA',   icon: '❋', color: 'var(--ng-amber)'  },
+    { id: 'move'  as SubTab, label: 'MOVE',  icon: '⚡', color: 'var(--ng-cyan)'   },
   ];
 
   return (
@@ -141,10 +176,10 @@ export default function BodyTab() {
           </div>
         )}
 
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
           {SUB_TABS.map(t => (
-            <button key={t.id} onClick={() => setSubTab(t.id)} className="flex-1 py-1.5 font-orbitron"
-              style={{ fontSize: 9, letterSpacing: '1px', border: `1px solid ${subTab === t.id ? t.color : 'var(--ng-border)'}`, color: subTab === t.id ? t.color : 'var(--ng-muted)', background: subTab === t.id ? `${t.color}12` : 'transparent', borderRadius: 2, transition: 'all 0.2s' }}>
+            <button key={t.id} onClick={() => setSubTab(t.id)} className="flex-shrink-0 py-1.5 font-orbitron"
+              style={{ fontSize: 9, letterSpacing: '1px', padding: '6px 10px', border: `1px solid ${subTab === t.id ? t.color : 'var(--ng-border)'}`, color: subTab === t.id ? t.color : 'var(--ng-muted)', background: subTab === t.id ? `${t.color}12` : 'transparent', borderRadius: 2, transition: 'all 0.2s' }}>
               {t.icon} {t.label}
             </button>
           ))}
@@ -180,44 +215,61 @@ export default function BodyTab() {
               </div>
             )}
 
-            {/* View toggles */}
-            <div className="flex gap-1 mb-4">
-              {[
-                { id: 'smart', label: phase ? `PHASE STACK (${smartSupps.length})` : 'ALL SUPPLEMENTS' },
-                { id: 'all', label: 'FULL LIBRARY' },
-                { id: 'timing', label: 'DAILY TIMING' },
-              ].map(v => (
-                <button key={v.id} onClick={() => setStackView(v.id as any)} className="flex-1 py-1 font-orbitron"
-                  style={{ fontSize: 8, letterSpacing: '1px', border: `1px solid ${stackView === v.id ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: stackView === v.id ? 'var(--ng-green)' : 'var(--ng-muted)', background: stackView === v.id ? 'rgba(0,255,65,0.06)' : 'transparent', borderRadius: 2 }}>
-                  {v.label}
-                </button>
-              ))}
+            {/* View toggles + list/grid */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 16 }}>
+              <div className="flex gap-1 flex-1">
+                {[
+                  { id: 'smart',  label: phase ? `PHASE STACK (${smartSupps.length})` : 'ALL SUPPLEMENTS' },
+                  { id: 'all',    label: 'FULL LIBRARY' },
+                  { id: 'timing', label: 'DAILY TIMING' },
+                ].map(v => (
+                  <button key={v.id} onClick={() => setStackView(v.id as any)} className="flex-1 py-1 font-orbitron"
+                    style={{ fontSize: 8, letterSpacing: '1px', border: `1px solid ${stackView === v.id ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: stackView === v.id ? 'var(--ng-green)' : 'var(--ng-muted)', background: stackView === v.id ? 'rgba(0,255,65,0.06)' : 'transparent', borderRadius: 2 }}>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+              {/* List / grid toggle */}
+              {stackView !== 'timing' && (
+                <div style={{ display: 'flex', border: '1px solid var(--ng-border)', borderRadius: 2, overflow: 'hidden', flexShrink: 0 }}>
+                  <button onClick={() => changeSuppView('list')} className="font-orbitron"
+                    style={{ padding: '4px 8px', fontSize: 10, background: suppView === 'list' ? 'rgba(0,255,65,0.1)' : 'transparent', color: suppView === 'list' ? 'var(--ng-green)' : 'var(--ng-muted)', border: 'none', cursor: 'pointer' }}>☰</button>
+                  <button onClick={() => changeSuppView('grid')} className="font-orbitron"
+                    style={{ padding: '4px 8px', fontSize: 10, background: suppView === 'grid' ? 'rgba(0,255,65,0.1)' : 'transparent', color: suppView === 'grid' ? 'var(--ng-green)' : 'var(--ng-muted)', border: 'none', borderLeft: '1px solid var(--ng-border)', cursor: 'pointer' }}>⊞</button>
+                </div>
+              )}
             </div>
 
-            {stackView === 'smart' && (
-              <>
-                <Divider label="⬡ FOUNDATION — DAILY NON-NEGOTIABLES" color="var(--ng-cyan)" />
-                {SUPPLEMENTS.filter(s => s.category === 'foundation' && s.phases === 'all').map(s => (
-                  <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />
-                ))}
-                {phase && (
-                  <>
-                    <Divider label={`${phaseData?.icon} ${phaseData?.label} PHASE ADDITIONS`} color={phaseData?.color || 'var(--ng-green)'} />
-                    {smartSupps.filter(s => s.phases !== 'all').map(s => (
-                      <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />
-                    ))}
-                  </>
-                )}
-                <Divider label="◈ SEROTONIN + COGNITION" color="var(--ng-purple)" />
-                {SUPPLEMENTS.filter(s => s.category === 'serotonin' || (s.category === 'amino' && ['l-tyrosine', 'l-theanine', 'alpha-gpc'].includes(s.id))).map(s => (
-                  <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />
-                ))}
-                <Divider label="❋ ADAPTOGENS" color="var(--ng-amber)" />
-                {SUPPLEMENTS.filter(s => s.category === 'adaptogen').map(s => (
-                  <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />
-                ))}
-              </>
-            )}
+            {stackView === 'smart' && (() => {
+              const foundation  = SUPPLEMENTS.filter(s => s.category === 'foundation' && s.phases === 'all');
+              const phaseAdds   = phase ? smartSupps.filter(s => s.phases !== 'all') : [];
+              const cognitive   = SUPPLEMENTS.filter(s => s.category === 'serotonin' || (s.category === 'amino' && ['l-tyrosine', 'l-theanine', 'alpha-gpc'].includes(s.id)));
+              const adaptogens  = SUPPLEMENTS.filter(s => s.category === 'adaptogen');
+              const renderSupps = (list: Supplement[]) =>
+                suppView === 'list' ? (
+                  list.map(s => <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />)
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    {list.map(s => <SupplementGridCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />)}
+                  </div>
+                );
+              return (
+                <>
+                  <Divider label="⬡ FOUNDATION — DAILY NON-NEGOTIABLES" color="var(--ng-cyan)" />
+                  {renderSupps(foundation)}
+                  {phase && phaseAdds.length > 0 && (
+                    <>
+                      <Divider label={`${phaseData?.icon} ${phaseData?.label} PHASE ADDITIONS`} color={phaseData?.color || 'var(--ng-green)'} />
+                      {renderSupps(phaseAdds)}
+                    </>
+                  )}
+                  <Divider label="◈ SEROTONIN + COGNITION" color="var(--ng-purple)" />
+                  {renderSupps(cognitive)}
+                  <Divider label="❋ ADAPTOGENS" color="var(--ng-amber)" />
+                  {renderSupps(adaptogens)}
+                </>
+              );
+            })()}
 
             {stackView === 'all' && (
               <>
@@ -232,9 +284,13 @@ export default function BodyTab() {
                     );
                   })}
                 </div>
-                {filteredAll.map(s => (
-                  <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />
-                ))}
+                {suppView === 'list' ? (
+                  filteredAll.map(s => <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />)
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {filteredAll.map(s => <SupplementGridCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />)}
+                  </div>
+                )}
               </>
             )}
 
@@ -311,6 +367,28 @@ export default function BodyTab() {
                 </div>
               );
             })}
+          </>
+        )}
+
+        {/* ═══ FAST ════════════════════════════════════════════ */}
+        {subTab === 'fast' && (
+          <>
+            <div style={{ padding: '4px 0 20px' }}>
+              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-cyan)', letterSpacing: '3px', marginBottom: 4 }}>INTERMITTENT FASTING TRACKER</div>
+              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Circle fills over 24 hours. Each tick marks a phase transition.</div>
+            </div>
+            <FastingTimer />
+          </>
+        )}
+
+        {/* ═══ LOG ═════════════════════════════════════════════ */}
+        {subTab === 'log' && (
+          <>
+            <div style={{ padding: '4px 0 20px' }}>
+              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '3px', marginBottom: 4 }}>WEEKLY TRAINING LOG</div>
+              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Select an activity chip, then tap a day to log it. Tap again to remove.</div>
+            </div>
+            <GymTracker />
           </>
         )}
 

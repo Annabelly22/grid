@@ -6,11 +6,13 @@ interface Props {
   profile: UserProfile;
   habits: Habit[];
   achievements: Achievement[];
+  theme: 'dark' | 'light';
   onUpdateCodename: (name: string) => void;
+  onToggleTheme: () => void;
   onResetData: () => void;
 }
 
-export default function ProfileTab({ profile, habits, achievements, onUpdateCodename, onResetData }: Props) {
+export default function ProfileTab({ profile, habits, achievements, theme, onUpdateCodename, onToggleTheme, onResetData }: Props) {
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(profile.codename);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -37,7 +39,13 @@ export default function ProfileTab({ profile, habits, achievements, onUpdateCode
     <div className="content-area" style={{ paddingBottom: 80 }}>
       {/* Header */}
       <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--ng-border)' }}>
-        <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-cyan)', fontSize: 16, letterSpacing: '3px' }}>PROFILE</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-cyan)', fontSize: 16, letterSpacing: '3px' }}>PROFILE</h2>
+          <button onClick={onToggleTheme} className="font-orbitron"
+            style={{ padding: '5px 12px', fontSize: 9, letterSpacing: '2px', border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'transparent', borderRadius: 2, cursor: 'pointer' }}>
+            {theme === 'dark' ? '☀ LIGHT' : '☾ DARK'}
+          </button>
+        </div>
       </div>
 
       <div className="px-4 pt-4">
