@@ -196,13 +196,12 @@ export default function App() {
           <button key={item.id} onClick={() => setTab(item.id)}
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
-              padding: '12px 20px', width: '100%',
-              background: tab === item.id ? 'rgba(0,255,65,0.08)' : 'transparent',
+              padding: '13px 20px', width: '100%',
+              background: tab === item.id ? 'rgba(48,209,88,0.08)' : 'transparent',
               borderLeft: `3px solid ${tab === item.id ? 'var(--ng-green)' : 'transparent'}`,
               borderTop: 'none', borderRight: 'none', borderBottom: 'none',
               color: tab === item.id ? 'var(--ng-green)' : 'var(--ng-muted)',
-              cursor: 'pointer', fontFamily: "'Orbitron', sans-serif",
-              fontSize: 10, fontWeight: 700, letterSpacing: '2px',
+              cursor: 'pointer', fontSize: 13, fontWeight: 600,
             }}>
             <span style={{ fontSize: 15 }}>{item.icon}</span>
             {item.label}

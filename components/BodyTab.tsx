@@ -18,7 +18,7 @@ type SubTab = 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move';
 function SupplementCard({ s, expanded, onToggle }: { s: Supplement; expanded: boolean; onToggle: () => void }) {
   const cat = CATEGORY_META[s.category];
   return (
-    <div className="mb-2 transition-all" style={{ border: `1px solid ${expanded ? s.color : 'var(--ng-border)'}`, borderLeft: `3px solid ${s.color}`, borderRadius: 2, background: 'var(--ng-surface)', boxShadow: expanded ? `0 0 12px ${s.color}22` : 'none' }}>
+    <div className="mb-2 transition-all" style={{ border: `0.5px solid ${expanded ? s.color : 'var(--ng-border)'}`, borderLeft: `3px solid ${s.color}`, borderRadius: 12, background: 'var(--ng-surface)', boxShadow: expanded ? `0 2px 16px ${s.color}22` : 'none' }}>
       <button className="w-full text-left p-3" onClick={onToggle}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
@@ -60,7 +60,7 @@ function SupplementCard({ s, expanded, onToggle }: { s: Supplement; expanded: bo
 function SupplementGridCard({ s, expanded, onToggle }: { s: Supplement; expanded: boolean; onToggle: () => void }) {
   const cat = CATEGORY_META[s.category];
   return (
-    <div style={{ border: `1px solid ${expanded ? s.color : 'var(--ng-border)'}`, borderTop: `3px solid ${s.color}`, borderRadius: 2, background: 'var(--ng-surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ border: `0.5px solid ${expanded ? s.color : 'var(--ng-border)'}`, borderTop: `3px solid ${s.color}`, borderRadius: 12, background: 'var(--ng-surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <button className="w-full text-left p-2" onClick={onToggle} style={{ flex: 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
           <span className="font-orbitron" style={{ fontSize: 7, color: cat.color, letterSpacing: '1px' }}>{cat.icon} {cat.label}</span>
@@ -159,7 +159,7 @@ export default function BodyTab() {
                 const ec = e === 'high' ? 'var(--ng-green)' : e === 'medium' ? 'var(--ng-amber)' : 'var(--ng-red)';
                 return (
                   <button key={e} onClick={() => saveEnergy(e)} className="font-orbitron"
-                    style={{ fontSize: 8, letterSpacing: '1px', padding: '3px 8px', border: `1px solid ${energyLevel === e ? ec : 'var(--ng-border)'}`, color: energyLevel === e ? ec : 'var(--ng-muted)', background: energyLevel === e ? `${ec}11` : 'transparent', borderRadius: 2 }}>
+                    style={{ fontSize: 12, padding: '5px 10px', border: `1px solid ${energyLevel === e ? ec : 'var(--ng-border)'}`, color: energyLevel === e ? ec : 'var(--ng-muted)', background: energyLevel === e ? `${ec}15` : 'transparent', borderRadius: 20 }}>
                     {e.toUpperCase()}
                   </button>
                 );
@@ -179,7 +179,7 @@ export default function BodyTab() {
         <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
           {SUB_TABS.map(t => (
             <button key={t.id} onClick={() => setSubTab(t.id)} className="flex-shrink-0 py-1.5 font-orbitron"
-              style={{ fontSize: 9, letterSpacing: '1px', padding: '6px 10px', border: `1px solid ${subTab === t.id ? t.color : 'var(--ng-border)'}`, color: subTab === t.id ? t.color : 'var(--ng-muted)', background: subTab === t.id ? `${t.color}12` : 'transparent', borderRadius: 2, transition: 'all 0.2s' }}>
+              style={{ fontSize: 12, padding: '7px 14px', border: `1px solid ${subTab === t.id ? t.color : 'var(--ng-border)'}`, color: subTab === t.id ? t.color : 'var(--ng-muted)', background: subTab === t.id ? `${t.color}12` : 'transparent', borderRadius: 20, transition: 'all 0.2s' }}>
               {t.icon} {t.label}
             </button>
           ))}
@@ -192,7 +192,7 @@ export default function BodyTab() {
         {subTab === 'stack' && (
           <>
             {!cycleStart && (
-              <div className="p-3 mb-4" style={{ background: 'rgba(191,0,255,0.06)', border: '1px solid rgba(191,0,255,0.25)', borderRadius: 2 }}>
+              <div className="p-3 mb-4" style={{ background: 'rgba(191,90,242,0.08)', border: '0.5px solid rgba(191,90,242,0.25)', borderRadius: 12 }}>
                 <div className="font-orbitron font-bold mb-1" style={{ fontSize: 10, color: 'var(--ng-purple)', letterSpacing: '1px' }}>SET CYCLE DATE FOR PERSONALIZED STACK</div>
                 <div className="font-mono mb-2" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Log the first day of your last period to activate phase-specific supplements.</div>
                 <div className="flex gap-2">
@@ -203,7 +203,7 @@ export default function BodyTab() {
             )}
 
             {phaseData && (
-              <div className="p-3 mb-4" style={{ background: phaseData.bg, border: `1px solid ${phaseData.color}33`, borderRadius: 2 }}>
+              <div className="p-3 mb-4" style={{ background: phaseData.bg, border: `0.5px solid ${phaseData.color}33`, borderRadius: 12 }}>
                 <div className="flex items-center gap-2 mb-2">
                   <span style={{ fontSize: 18 }}>{phaseData.icon}</span>
                   <div>
@@ -224,14 +224,14 @@ export default function BodyTab() {
                   { id: 'timing', label: 'DAILY TIMING' },
                 ].map(v => (
                   <button key={v.id} onClick={() => setStackView(v.id as any)} className="flex-1 py-1 font-orbitron"
-                    style={{ fontSize: 8, letterSpacing: '1px', border: `1px solid ${stackView === v.id ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: stackView === v.id ? 'var(--ng-green)' : 'var(--ng-muted)', background: stackView === v.id ? 'rgba(0,255,65,0.06)' : 'transparent', borderRadius: 2 }}>
+                    style={{ fontSize: 12, border: `1px solid ${stackView === v.id ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: stackView === v.id ? 'var(--ng-green)' : 'var(--ng-muted)', background: stackView === v.id ? 'rgba(48,209,88,0.08)' : 'transparent', borderRadius: 8 }}>
                     {v.label}
                   </button>
                 ))}
               </div>
               {/* List / grid toggle */}
               {stackView !== 'timing' && (
-                <div style={{ display: 'flex', border: '1px solid var(--ng-border)', borderRadius: 2, overflow: 'hidden', flexShrink: 0 }}>
+                <div style={{ display: 'flex', border: '0.5px solid var(--ng-border)', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
                   <button onClick={() => changeSuppView('list')} className="font-orbitron"
                     style={{ padding: '4px 8px', fontSize: 10, background: suppView === 'list' ? 'rgba(0,255,65,0.1)' : 'transparent', color: suppView === 'list' ? 'var(--ng-green)' : 'var(--ng-muted)', border: 'none', cursor: 'pointer' }}>☰</button>
                   <button onClick={() => changeSuppView('grid')} className="font-orbitron"
@@ -278,7 +278,7 @@ export default function BodyTab() {
                     const meta = c === 'all' ? null : CATEGORY_META[c];
                     return (
                       <button key={c} onClick={() => setCatFilter(c)} className="whitespace-nowrap font-orbitron flex-shrink-0"
-                        style={{ fontSize: 8, letterSpacing: '1px', padding: '4px 10px', border: `1px solid ${catFilter === c ? (meta?.color || 'var(--ng-green)') : 'var(--ng-border)'}`, color: catFilter === c ? (meta?.color || 'var(--ng-green)') : 'var(--ng-muted)', background: catFilter === c ? `${meta?.color || 'var(--ng-green)'}12` : 'transparent', borderRadius: 2 }}>
+                        style={{ fontSize: 12, padding: '5px 12px', border: `1px solid ${catFilter === c ? (meta?.color || 'var(--ng-green)') : 'var(--ng-border)'}`, color: catFilter === c ? (meta?.color || 'var(--ng-green)') : 'var(--ng-muted)', background: catFilter === c ? `${meta?.color || 'var(--ng-green)'}12` : 'transparent', borderRadius: 20 }}>
                         {c === 'all' ? 'ALL' : `${meta?.icon} ${meta?.label}`}
                       </button>
                     );
@@ -398,7 +398,7 @@ export default function BodyTab() {
             <div className="flex gap-1 mb-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
               {teaCategories.map(c => (
                 <button key={c} onClick={() => setTeaFilter(c)} className="whitespace-nowrap font-orbitron flex-shrink-0"
-                  style={{ fontSize: 8, letterSpacing: '1px', padding: '4px 10px', border: `1px solid ${teaFilter === c ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: teaFilter === c ? 'var(--ng-amber)' : 'var(--ng-muted)', background: teaFilter === c ? 'rgba(255,184,0,0.08)' : 'transparent', borderRadius: 2 }}>
+                  style={{ fontSize: 12, padding: '5px 12px', border: `1px solid ${teaFilter === c ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: teaFilter === c ? 'var(--ng-amber)' : 'var(--ng-muted)', background: teaFilter === c ? 'rgba(255,159,10,0.1)' : 'transparent', borderRadius: 20 }}>
                   {c === 'all' ? 'ALL' : c.toUpperCase()}
                 </button>
               ))}

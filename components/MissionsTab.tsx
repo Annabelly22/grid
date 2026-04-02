@@ -105,7 +105,7 @@ export default function MissionsTab({ missions, profile, habits, onCompleteMissi
         {completed.length > 0 && (
           <>
             <button onClick={() => setShowCompleted(!showCompleted)} className="w-full font-orbitron mb-2"
-              style={{ padding: '9px 12px', fontSize: 9, letterSpacing: '2px', color: 'var(--ng-muted)', background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderRadius: 2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              style={{ padding: '12px 14px', fontSize: 13, color: 'var(--ng-muted)', background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>✓ DEBRIEF LOG ({completed.length})</span>
               <span>{showCompleted ? '▲' : '▼'}</span>
             </button>
@@ -130,9 +130,9 @@ function MissionCard({ mission, progress, onComplete }: {
   return (
     <div className="mb-3" style={{
       background: mission.completed ? 'var(--ng-bg)' : cfg.bg,
-      border: `1px solid ${mission.completed ? 'var(--ng-border)' : cfg.color + '33'}`,
+      border: `0.5px solid ${mission.completed ? 'var(--ng-border)' : cfg.color + '33'}`,
       borderLeft: `3px solid ${mission.completed ? 'var(--ng-border)' : cfg.color}`,
-      borderRadius: 2,
+      borderRadius: 12,
       opacity: mission.completed ? 0.5 : 1,
       transition: 'all 0.2s',
     }}>
@@ -141,7 +141,7 @@ function MissionCard({ mission, progress, onComplete }: {
           <div className="font-orbitron font-bold" style={{ fontSize: 12, color: mission.completed ? 'var(--ng-muted)' : 'var(--ng-text)', letterSpacing: '0.5px', textDecoration: mission.completed ? 'line-through' : 'none' }}>
             {mission.title}
           </div>
-          <span className="font-orbitron flex-shrink-0" style={{ fontSize: 8, color: cfg.color, border: `1px solid ${cfg.color}`, padding: '2px 6px', letterSpacing: '1px' }}>
+          <span className="font-orbitron flex-shrink-0" style={{ fontSize: 11, color: cfg.color, background: `${cfg.color}15`, padding: '3px 8px', borderRadius: 6 }}>
             {mission.difficulty}
           </span>
         </div>
@@ -171,7 +171,7 @@ function MissionCard({ mission, progress, onComplete }: {
 
           {!mission.completed && (
             <button onClick={() => onComplete(mission.id)} className="font-orbitron"
-              style={{ fontSize: 9, color: cfg.color, border: `1px solid ${cfg.color}`, padding: '4px 12px', background: 'transparent', cursor: 'pointer', letterSpacing: '1px', borderRadius: 2, transition: 'all 0.2s' }}>
+              style={{ fontSize: 13, color: cfg.color, border: `1.5px solid ${cfg.color}`, padding: '6px 14px', background: 'transparent', cursor: 'pointer', borderRadius: 8, transition: 'all 0.2s' }}>
               COMPLETE ✓
             </button>
           )}

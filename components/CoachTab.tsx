@@ -124,7 +124,7 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
                 <button
                   onClick={() => { setFocusActive(false); setFocusTime(0); }}
                   className="font-orbitron"
-                  style={{ fontSize: 9, padding: '5px 10px', border: '1px solid var(--ng-red)', color: 'var(--ng-red)', background: 'transparent', cursor: 'pointer', borderRadius: 2, letterSpacing: '1px' }}>
+                  style={{ fontSize: 13, padding: '7px 14px', border: '1.5px solid var(--ng-red)', color: 'var(--ng-red)', background: 'transparent', cursor: 'pointer', borderRadius: 8 }}>
                   ■ STOP
                 </button>
               </>
@@ -133,7 +133,7 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
                 <div className="flex gap-1">
                   {[25, 50, 90].map(d => (
                     <button key={d} onClick={() => setFocusDuration(d)} className="font-orbitron"
-                      style={{ fontSize: 8, padding: '4px 7px', border: `1px solid ${focusDuration === d ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: focusDuration === d ? 'var(--ng-amber)' : 'var(--ng-muted)', background: focusDuration === d ? 'rgba(255,184,0,0.08)' : 'transparent', cursor: 'pointer', borderRadius: 2 }}>
+                      style={{ fontSize: 12, padding: '6px 10px', border: `1px solid ${focusDuration === d ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: focusDuration === d ? 'var(--ng-amber)' : 'var(--ng-muted)', background: focusDuration === d ? 'rgba(255,159,10,0.1)' : 'transparent', cursor: 'pointer', borderRadius: 8 }}>
                       {d}m
                     </button>
                   ))}
@@ -141,7 +141,7 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
                 <button
                   onClick={() => setFocusActive(true)}
                   className="font-orbitron"
-                  style={{ fontSize: 9, padding: '5px 10px', border: '1px solid var(--ng-amber)', color: 'var(--ng-amber)', background: 'transparent', cursor: 'pointer', borderRadius: 2, letterSpacing: '1px' }}>
+                  style={{ fontSize: 13, padding: '7px 14px', border: '1.5px solid var(--ng-amber)', color: 'var(--ng-amber)', background: 'transparent', cursor: 'pointer', borderRadius: 8 }}>
                   ▷
                 </button>
               </>
@@ -182,7 +182,7 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
         <div className="flex gap-1 overflow-x-auto pb-2 mb-2" style={{ scrollbarWidth: 'none' }}>
           {QUICK_PROMPTS.map(p => (
             <button key={p} onClick={() => sendMessage(p)} className="font-mono flex-shrink-0"
-              style={{ fontSize: 9, padding: '4px 10px', border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'transparent', cursor: 'pointer', borderRadius: 2, whiteSpace: 'nowrap' }}>
+              style={{ fontSize: 12, padding: '7px 14px', border: '0.5px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'var(--ng-surface)', cursor: 'pointer', borderRadius: 20, whiteSpace: 'nowrap' }}>
               {p}
             </button>
           ))}
@@ -198,7 +198,7 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
           />
           <button onClick={() => sendMessage()} disabled={loading || !input.trim()}
-            style={{ width: 44, background: input.trim() ? 'var(--ng-green)' : 'var(--ng-border)', border: 'none', color: '#000', cursor: input.trim() ? 'pointer' : 'default', borderRadius: 2, fontWeight: 900, fontSize: 16, flexShrink: 0, transition: 'all 0.2s' }}>
+            style={{ width: 44, background: input.trim() ? 'var(--ng-green)' : 'var(--ng-surface2)', border: 'none', color: input.trim() ? '#000' : 'var(--ng-muted)', cursor: input.trim() ? 'pointer' : 'default', borderRadius: 10, fontWeight: 700, fontSize: 16, flexShrink: 0, transition: 'all 0.2s' }}>
             ▷
           </button>
         </div>

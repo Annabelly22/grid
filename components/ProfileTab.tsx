@@ -42,7 +42,7 @@ export default function ProfileTab({ profile, habits, achievements, theme, onUpd
         <div className="flex items-center justify-between">
           <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-cyan)', fontSize: 16, letterSpacing: '3px' }}>PROFILE</h2>
           <button onClick={onToggleTheme} className="font-orbitron"
-            style={{ padding: '5px 12px', fontSize: 9, letterSpacing: '2px', border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'transparent', borderRadius: 2, cursor: 'pointer' }}>
+            style={{ padding: '8px 14px', fontSize: 13, border: '0.5px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'transparent', borderRadius: 8, cursor: 'pointer' }}>
             {theme === 'dark' ? '☀ LIGHT' : '☾ DARK'}
           </button>
         </div>
@@ -97,7 +97,7 @@ export default function ProfileTab({ profile, habits, achievements, theme, onUpd
               { label: 'MISSIONS DONE', value: profile.missionsCompleted },
               { label: 'FOCUS MINUTES', value: profile.focusMinutes },
             ].map(stat => (
-              <div key={stat.label} style={{ background: 'var(--ng-bg)', border: '1px solid var(--ng-border)', padding: '8px', borderRadius: 2 }}>
+              <div key={stat.label} style={{ background: 'var(--ng-surface2)', border: '0.5px solid var(--ng-border)', padding: '12px', borderRadius: 10 }}>
                 <div className="font-orbitron" style={{ fontSize: 7, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{stat.label}</div>
                 <div className="font-orbitron font-bold" style={{ fontSize: 16, color: 'var(--ng-text)' }}>{stat.value}</div>
               </div>
@@ -131,7 +131,7 @@ export default function ProfileTab({ profile, habits, achievements, theme, onUpd
           </div>
 
           {unlockedAchievements.map(a => (
-            <div key={a.id} className="flex items-center gap-3 mb-2 p-2" style={{ background: 'rgba(255,184,0,0.06)', border: '1px solid rgba(255,184,0,0.2)', borderRadius: 2 }}>
+            <div key={a.id} className="flex items-center gap-3 mb-2 p-2" style={{ background: 'rgba(255,159,10,0.08)', border: '0.5px solid rgba(255,159,10,0.2)', borderRadius: 10 }}>
               <span style={{ fontSize: 20 }}>{a.icon}</span>
               <div className="flex-1">
                 <div className="font-orbitron font-bold" style={{ fontSize: 10, color: 'var(--ng-amber)', letterSpacing: '0.5px' }}>{a.title}</div>
@@ -142,7 +142,7 @@ export default function ProfileTab({ profile, habits, achievements, theme, onUpd
           ))}
 
           {lockedAchievements.map(a => (
-            <div key={a.id} className="flex items-center gap-3 mb-2 p-2" style={{ background: 'var(--ng-bg)', border: '1px solid var(--ng-border)', borderRadius: 2, opacity: 0.5 }}>
+            <div key={a.id} className="flex items-center gap-3 mb-2 p-2" style={{ background: 'var(--ng-surface2)', border: '0.5px solid var(--ng-border)', borderRadius: 10, opacity: 0.4 }}>
               <span style={{ fontSize: 20, filter: 'grayscale(1)' }}>{a.icon}</span>
               <div className="flex-1">
                 <div className="font-orbitron font-bold" style={{ fontSize: 10, color: 'var(--ng-muted)', letterSpacing: '0.5px' }}>{a.title}</div>

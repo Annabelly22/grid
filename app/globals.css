@@ -1,69 +1,175 @@
 @import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;700&display=swap');
-
 :root {
-  --ng-bg: #0A0A0F;
-  --ng-surface: #111118;
-  --ng-surface2: #1A1A24;
-  --ng-border: #2A2A3A;
-  --ng-text: #E8E8F0;
-  --ng-muted: #6A6A8A;
-  --ng-dimmer: #3A3A55;
-  --ng-green: #00FF41;
-  --ng-cyan: #00D4FF;
-  --ng-purple: #BF00FF;
-  --ng-amber: #FFB800;
-  --ng-red: #FF4757;
-  --ng-pink: #FF6B9D;
+  /* iOS dark palette */
+  --ng-bg: #000000;
+  --ng-surface: #1C1C1E;
+  --ng-surface2: #2C2C2E;
+  --ng-border: rgba(84, 84, 88, 0.35);
+  --ng-text: #FFFFFF;
+  --ng-muted: #8E8E93;
+  --ng-dimmer: #48484A;
+  /* iOS system accent colors */
+  --ng-green: #30D158;
+  --ng-cyan: #64D2FF;
+  --ng-purple: #BF5AF2;
+  --ng-amber: #FF9F0A;
+  --ng-red: #FF453A;
+  --ng-pink: #FF375F;
 }
 
 /* ── Light mode ─────────────────────────────────────────────── */
 [data-theme="light"] {
-  --ng-bg: #F0F0F6;
+  --ng-bg: #F2F2F7;
   --ng-surface: #FFFFFF;
-  --ng-surface2: #E8E8F2;
-  --ng-border: #C8C8DC;
-  --ng-text: #1A1A2E;
-  --ng-muted: #5A5A7A;
-  --ng-dimmer: #A0A0C0;
-  /* accent colours stay the same — they work on both backgrounds */
+  --ng-surface2: #F2F2F7;
+  --ng-border: rgba(60, 60, 67, 0.18);
+  --ng-text: #000000;
+  --ng-muted: #6C6C70;
+  --ng-dimmer: #C7C7CC;
+  --ng-green: #34C759;
+  --ng-cyan: #32ADE6;
+  --ng-purple: #AF52DE;
+  --ng-amber: #FF9500;
+  --ng-red: #FF3B30;
+  --ng-pink: #FF2D55;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { background: var(--ng-bg); color: var(--ng-text); font-family: 'JetBrains Mono', monospace; min-height: 100vh; overflow-x: hidden; }
+/* ── Base ───────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  /* SF Pro system font — overrides all inline fontFamily declarations */
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif !important;
+}
 
-.font-orbitron { font-family: 'Orbitron', sans-serif; }
-.font-mono { font-family: 'JetBrains Mono', monospace; }
+html, body {
+  background: var(--ng-bg);
+  color: var(--ng-text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-.card { background: var(--ng-surface); border: 1px solid var(--ng-border); border-radius: 2px; padding: 12px; }
+/* Semantic classes */
+.font-orbitron { font-weight: 600; }
+.font-mono, code, pre {
+  font-family: "SF Mono", ui-monospace, Menlo, Monaco, "Courier New", monospace !important;
+}
 
-.ng-input { background: var(--ng-bg); border: 1px solid var(--ng-border); color: var(--ng-text); font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 10px 12px; border-radius: 2px; outline: none; width: 100%; transition: border-color 0.2s; }
-.ng-input:focus { border-color: var(--ng-green); }
-.ng-input::placeholder { color: var(--ng-dimmer); }
+/* ── Apple normalisation via attribute selectors ────────────── */
+/* Tame aggressive inline letter-spacing */
+[style*="letter-spacing: 3px"]  { letter-spacing: 0.4px !important; }
+[style*="letter-spacing: 2px"]  { letter-spacing: 0.2px !important; }
+[style*="letter-spacing: 1px"]  { letter-spacing: 0 !important; }
+/* Soften extreme font weight */
+[style*="font-weight: 900"]     { font-weight: 700 !important; }
 
-.ng-textarea { background: var(--ng-bg); border: 1px solid var(--ng-border); color: var(--ng-text); font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 10px 12px; border-radius: 2px; outline: none; width: 100%; resize: none; transition: border-color 0.2s; line-height: 1.6; }
-.ng-textarea:focus { border-color: var(--ng-cyan); }
-.ng-textarea::placeholder { color: var(--ng-dimmer); }
+/* ── Card ───────────────────────────────────────────────────── */
+.card {
+  background: var(--ng-surface);
+  border: 0.5px solid var(--ng-border);
+  border-radius: 16px;
+  padding: 16px;
+}
 
-.ng-select { background: var(--ng-bg); border: 1px solid var(--ng-border); color: var(--ng-text); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 8px 10px; border-radius: 2px; outline: none; width: 100%; }
+/* ── Form elements ──────────────────────────────────────────── */
+.ng-input {
+  background: rgba(118, 118, 128, 0.12);
+  border: none;
+  color: var(--ng-text);
+  font-size: 15px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  outline: none;
+  width: 100%;
+  transition: background 0.2s;
+}
+.ng-input:focus  { background: rgba(118, 118, 128, 0.2); }
+.ng-input::placeholder { color: var(--ng-muted); }
 
-.btn-green { background: transparent; border: 1px solid var(--ng-green); color: var(--ng-green); font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 2px; padding: 8px 16px; border-radius: 2px; cursor: pointer; transition: all 0.2s; }
-.btn-green:hover { background: rgba(0,255,65,0.1); }
-.btn-green-solid { background: var(--ng-green); border: 1px solid var(--ng-green); color: #000; font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 900; letter-spacing: 2px; padding: 12px 24px; border-radius: 2px; cursor: pointer; width: 100%; transition: all 0.2s; }
-.btn-green-solid:hover { background: #00cc34; }
-.btn-red { background: transparent; border: 1px solid var(--ng-red); color: var(--ng-red); font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 1px; padding: 6px 12px; border-radius: 2px; cursor: pointer; }
+.ng-textarea {
+  background: rgba(118, 118, 128, 0.12);
+  border: none;
+  color: var(--ng-text);
+  font-size: 15px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  outline: none;
+  width: 100%;
+  resize: none;
+  transition: background 0.2s;
+  line-height: 1.5;
+}
+.ng-textarea:focus { background: rgba(118, 118, 128, 0.2); }
+.ng-textarea::placeholder { color: var(--ng-muted); }
 
-/* iOS PWA safe area support */
+.ng-select {
+  background: rgba(118, 118, 128, 0.12);
+  border: none;
+  color: var(--ng-text);
+  font-size: 15px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  outline: none;
+  width: 100%;
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.btn-green {
+  background: transparent;
+  border: 1.5px solid var(--ng-green);
+  color: var(--ng-green);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  padding: 9px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-green:hover { background: rgba(48, 209, 88, 0.1); }
+
+.btn-green-solid {
+  background: var(--ng-green);
+  border: none;
+  color: #000000;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  padding: 14px 24px;
+  border-radius: 12px;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity 0.15s;
+  min-height: 48px;
+}
+.btn-green-solid:active { opacity: 0.8; }
+
+.btn-red {
+  background: transparent;
+  border: 1.5px solid var(--ng-red);
+  color: var(--ng-red);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  padding: 9px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* ── iOS PWA safe area ──────────────────────────────────────── */
 .content-area {
   overflow-y: auto;
-  height: calc(100vh - 60px - env(safe-area-inset-bottom));
-  /* iOS PWA: account for notch at top */
+  height: calc(100vh - 49px - env(safe-area-inset-bottom));
   padding-top: env(safe-area-inset-top);
   -webkit-overflow-scrolling: touch;
 }
 
-/* Bottom nav — sits above iOS home indicator */
+/* ── Bottom nav ─────────────────────────────────────────────── */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -71,17 +177,19 @@ html, body { background: var(--ng-bg); color: var(--ng-text); font-family: 'JetB
   transform: translateX(-50%);
   width: 100%;
   max-width: 480px;
-  /* nav buttons sit in the 60px zone; safe area padding is below */
-  height: calc(60px + env(safe-area-inset-bottom));
+  height: calc(49px + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  background: var(--ng-surface);
-  border-top: 1px solid var(--ng-border);
+  background: rgba(28, 28, 30, 0.88);
+  border-top: 0.5px solid var(--ng-border);
   display: flex;
   align-items: stretch;
   z-index: 100;
-  /* Frosted glass effect on iOS */
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   backdrop-filter: blur(20px) saturate(180%);
+}
+
+[data-theme="light"] .bottom-nav {
+  background: rgba(249, 249, 249, 0.88);
 }
 
 .nav-item {
@@ -90,42 +198,76 @@ html, body { background: var(--ng-bg); color: var(--ng-text); font-family: 'JetB
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   background: transparent;
   border: none;
   color: var(--ng-muted);
   cursor: pointer;
-  transition: color 0.2s, transform 0.1s;
-  font-family: 'Orbitron', sans-serif;
-  /* iOS tap area */
+  transition: color 0.15s;
   min-height: 44px;
-  padding-bottom: 4px;
+  padding-bottom: 2px;
 }
-.nav-item:active { transform: scale(0.92); }
+.nav-item:active { opacity: 0.6; }
 .nav-item.active { color: var(--ng-green); }
-.nav-item.active .nav-icon { text-shadow: 0 0 8px rgba(0,255,65,0.7); }
-.nav-label { font-size: 9px; letter-spacing: 1px; font-weight: 700; }
+.nav-label { font-size: 10px; font-weight: 500; letter-spacing: 0; }
 
-.achievement-popup { background: var(--ng-surface); border: 1px solid var(--ng-amber); border-left: 3px solid var(--ng-amber); padding: 12px 16px; border-radius: 2px; box-shadow: 0 0 20px rgba(255,184,0,0.2); animation: slideDown 0.3s ease forwards; }
+/* ── Achievement popup ──────────────────────────────────────── */
+.achievement-popup {
+  background: var(--ng-surface);
+  border: 0.5px solid rgba(255, 159, 10, 0.4);
+  padding: 14px 16px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: slideDown 0.3s ease forwards;
+}
 
-.loader-dots span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ng-green); animation: pulse-dot 1.2s ease-in-out infinite; }
+/* ── Loader ─────────────────────────────────────────────────── */
+.loader-dots span {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ng-green);
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
 .loader-dots span:nth-child(2) { animation-delay: 0.2s; }
 .loader-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-.chat-bubble-user { background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); border-radius: 2px; padding: 10px 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ng-text); line-height: 1.6; align-self: flex-end; max-width: 85%; }
-.chat-bubble-ai { background: var(--ng-surface); border: 1px solid var(--ng-border); border-left: 2px solid var(--ng-green); border-radius: 2px; padding: 10px 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ng-text); line-height: 1.8; align-self: flex-start; max-width: 92%; white-space: pre-wrap; }
+/* ── Chat bubbles (iMessage-style) ──────────────────────────── */
+.chat-bubble-user {
+  background: var(--ng-green);
+  border-radius: 18px 18px 4px 18px;
+  padding: 10px 14px;
+  font-size: 15px;
+  color: #000000;
+  line-height: 1.5;
+  align-self: flex-end;
+  max-width: 85%;
+}
+.chat-bubble-ai {
+  background: var(--ng-surface2);
+  border-radius: 18px 18px 18px 4px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: var(--ng-text);
+  line-height: 1.6;
+  align-self: flex-start;
+  max-width: 92%;
+  white-space: pre-wrap;
+}
 
-.xp-bar { height: 3px; background: var(--ng-border); border-radius: 2px; overflow: hidden; }
+/* ── XP bar ─────────────────────────────────────────────────── */
+.xp-bar { height: 4px; background: rgba(118, 118, 128, 0.2); border-radius: 2px; overflow: hidden; }
 .xp-fill { height: 100%; background: linear-gradient(90deg, var(--ng-green), var(--ng-cyan)); transition: width 0.5s ease; }
 
+/* ── Utilities ──────────────────────────────────────────────── */
 .fade-in { animation: fadeIn 0.4s ease forwards; }
-.glitch-text { animation: glitch 3s infinite; }
 
 ::-webkit-scrollbar { width: 3px; height: 3px; }
-::-webkit-scrollbar-track { background: var(--ng-bg); }
-::-webkit-scrollbar-thumb { background: var(--ng-border); border-radius: 2px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(84, 84, 88, 0.4); border-radius: 2px; }
 
-/* Desktop layout */
+/* ── Desktop layout ─────────────────────────────────────────── */
 .desktop-sidebar { display: none; }
 .main-content { width: 100%; max-width: 480px; margin: 0 auto; position: relative; }
 
@@ -133,10 +275,10 @@ html, body { background: var(--ng-bg); color: var(--ng-text); font-family: 'JetB
   .desktop-sidebar {
     display: flex;
     flex-direction: column;
-    width: 200px;
+    width: 220px;
     flex-shrink: 0;
     background: var(--ng-surface);
-    border-right: 1px solid var(--ng-border);
+    border-right: 0.5px solid var(--ng-border);
     position: fixed;
     height: 100vh;
     top: 0;
@@ -145,11 +287,11 @@ html, body { background: var(--ng-bg); color: var(--ng-text); font-family: 'JetB
   }
   .bottom-nav { display: none; }
   .content-area { height: 100vh; padding-bottom: 0; }
-  .main-content { max-width: none; margin-left: 200px; flex: 1; }
+  .main-content { max-width: none; margin-left: 220px; flex: 1; }
 }
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp { from { transform: translateX(-50%) translateY(0); opacity: 1; } to { transform: translateX(-50%) translateY(-80px); opacity: 0; } }
+/* ── Animations ─────────────────────────────────────────────── */
+@keyframes fadeIn    { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp   { from { transform: translateX(-50%) translateY(0); opacity: 1; } to { transform: translateX(-50%) translateY(-80px); opacity: 0; } }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pulse-dot { 0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; } 40% { transform: scale(1.2); opacity: 1; } }
-@keyframes glitch { 0% { text-shadow: 2px 0 var(--ng-cyan), -2px 0 var(--ng-red); } 25% { text-shadow: -2px 0 var(--ng-cyan), 2px 0 var(--ng-red); } 75% { text-shadow: 0 0 8px var(--ng-green); } 100% { text-shadow: 2px 0 var(--ng-cyan), -2px 0 var(--ng-red); } }

@@ -85,7 +85,7 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
           </div>
           <div className="flex gap-2 items-center">
             {/* List / Grid toggle */}
-            <div style={{ display: 'flex', border: '1px solid var(--ng-border)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', border: '1px solid var(--ng-border)', borderRadius: 8, overflow: 'hidden' }}>
               <button onClick={() => changeView('list')} className="font-orbitron"
                 style={{ padding: '5px 9px', fontSize: 10, background: viewMode === 'list' ? 'rgba(0,212,255,0.12)' : 'transparent', color: viewMode === 'list' ? 'var(--ng-cyan)' : 'var(--ng-muted)', border: 'none', cursor: 'pointer' }}>☰</button>
               <button onClick={() => changeView('grid')} className="font-orbitron"
@@ -100,7 +100,7 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
         <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
           {[{ value: 'all', label: 'ALL' }, ...CATEGORY_OPTIONS.map(c => ({ value: c.value, label: c.label.split(' ')[1] }))].map(opt => (
             <button key={opt.value} onClick={() => setFilter(opt.value as any)} className="font-orbitron flex-shrink-0"
-              style={{ fontSize: 8, letterSpacing: '1px', padding: '4px 10px', border: `1px solid ${filter === opt.value ? 'var(--ng-cyan)' : 'var(--ng-border)'}`, color: filter === opt.value ? 'var(--ng-cyan)' : 'var(--ng-muted)', background: filter === opt.value ? 'rgba(0,212,255,0.08)' : 'transparent', borderRadius: 2 }}>
+              style={{ fontSize: 12, padding: '5px 12px', border: `1px solid ${filter === opt.value ? 'var(--ng-cyan)' : 'var(--ng-border)'}`, color: filter === opt.value ? 'var(--ng-cyan)' : 'var(--ng-muted)', background: filter === opt.value ? 'rgba(100,210,255,0.1)' : 'transparent', borderRadius: 20 }}>
               {opt.label}
             </button>
           ))}
@@ -186,7 +186,7 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
             {completed.length > 0 && (
               <>
                 <button onClick={() => setShowCompleted(!showCompleted)} className="w-full font-orbitron mb-2"
-                  style={{ padding: '9px 12px', fontSize: 9, letterSpacing: '2px', color: 'var(--ng-green)', background: 'rgba(0,255,65,0.04)', border: '1px solid rgba(0,255,65,0.2)', borderRadius: 2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  style={{ padding: '12px 14px', fontSize: 13, color: 'var(--ng-green)', background: 'rgba(48,209,88,0.06)', border: '0.5px solid rgba(48,209,88,0.2)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span>✓ LOGGED TODAY ({completed.length})</span>
                   <span>{showCompleted ? '▲' : '▼'}</span>
                 </button>
@@ -218,13 +218,13 @@ function HabitCard({ habit, onComplete, onUncomplete, onDelete }: { habit: Habit
   const color = CATEGORY_COLORS[habit.category];
 
   return (
-    <div className="mb-3" style={{ background: 'var(--ng-surface)', border: `1px solid ${habit.completedToday ? color + '44' : 'var(--ng-border)'}`, borderLeft: `3px solid ${color}`, borderRadius: 2, opacity: habit.completedToday ? 0.75 : 1, transition: 'all 0.2s' }}>
+    <div className="mb-3" style={{ background: 'var(--ng-surface)', border: `0.5px solid ${habit.completedToday ? color + '44' : 'var(--ng-border)'}`, borderLeft: `3px solid ${color}`, borderRadius: 12, opacity: habit.completedToday ? 0.7 : 1, transition: 'all 0.2s' }}>
       <div className="flex items-center gap-3 p-3">
         {/* Toggle button */}
         <button
           onClick={() => habit.completedToday ? onUncomplete(habit.id) : onComplete(habit.id)}
           title={habit.completedToday ? 'Tap to uncomplete' : 'Tap to complete'}
-          style={{ width: 32, height: 32, border: `2px solid ${habit.completedToday ? color : 'var(--ng-border)'}`, borderRadius: 2, background: habit.completedToday ? color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}>
+          style={{ width: 28, height: 28, border: `1.5px solid ${habit.completedToday ? color : 'var(--ng-border)'}`, borderRadius: 8, background: habit.completedToday ? color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}>
           {habit.completedToday && <span style={{ color: '#000', fontWeight: 900, fontSize: 14 }}>✓</span>}
         </button>
 
@@ -263,7 +263,7 @@ function HabitGridCard({ habit, onComplete, onUncomplete, onDelete }: { habit: H
   const color = CATEGORY_COLORS[habit.category];
 
   return (
-    <div style={{ background: 'var(--ng-surface)', border: `1px solid ${habit.completedToday ? color + '44' : 'var(--ng-border)'}`, borderTop: `3px solid ${color}`, borderRadius: 2, opacity: habit.completedToday ? 0.75 : 1, transition: 'all 0.2s', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: 'var(--ng-surface)', border: `0.5px solid ${habit.completedToday ? color + '44' : 'var(--ng-border)'}`, borderTop: `3px solid ${color}`, borderRadius: 12, opacity: habit.completedToday ? 0.7 : 1, transition: 'all 0.2s', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '12px 10px 8px', flex: 1 }}>
         {/* Icon + menu row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>

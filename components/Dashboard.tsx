@@ -123,7 +123,7 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
 
         {/* ── Streak hero — ambient, no hard border ──────────── */}
         {topStreak > 0 ? (
-          <div style={{ padding: '20px 16px 24px', marginBottom: 24, background: 'linear-gradient(135deg, rgba(255,184,0,0.07) 0%, rgba(255,184,0,0.02) 100%)', borderRadius: 3 }}>
+          <div style={{ padding: '20px 16px 24px', marginBottom: 24, background: 'linear-gradient(135deg, rgba(255,184,0,0.07) 0%, rgba(255,184,0,0.02) 100%)', borderRadius: 16 }}>
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '3px', marginBottom: 8, opacity: 0.8 }}>ACTIVE STREAK</div>
@@ -142,7 +142,7 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
             </div>
           </div>
         ) : (
-          <div style={{ padding: '20px 16px 24px', marginBottom: 24, background: 'rgba(255,255,255,0.02)', borderRadius: 3 }}>
+          <div style={{ padding: '20px 16px 24px', marginBottom: 24, background: 'rgba(255,255,255,0.02)', borderRadius: 16 }}>
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '3px', marginBottom: 6 }}>NO ACTIVE STREAK</div>
@@ -191,7 +191,7 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
             </div>
 
             {/* Grouped habit list — single container, dividers between items */}
-            <div style={{ background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderRadius: 12, overflow: 'hidden' }}>
               {incomplete.map((h, i) => {
                 const color = CATEGORY_COLORS[h.category];
                 return (
@@ -240,7 +240,7 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
         {/* ── Phase context strip ────────────────────────────── */}
         {phaseData && (
           <button onClick={() => onNavigate('body')} className="w-full text-left"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: phaseData.bg, borderRadius: 3, cursor: 'pointer', marginBottom: 24 }}>
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: phaseData.bg, borderRadius: 12, cursor: 'pointer', marginBottom: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 16 }}>{phaseData.icon}</span>
               <div>

@@ -6,20 +6,20 @@ const TRACKER_KEY = 'grid_workout_week';
 interface Activity { id: string; label: string; icon: string; color: string; }
 
 const ACTIVITIES: Activity[] = [
-  { id: 'gym',   label: 'GYM',   icon: '🏋️', color: '#FF4757' },
-  { id: 'run',   label: 'RUN',   icon: '🏃', color: '#00FF41' },
-  { id: 'yoga',  label: 'YOGA',  icon: '🧘', color: '#BF00FF' },
-  { id: 'swim',  label: 'SWIM',  icon: '🏊', color: '#00D4FF' },
-  { id: 'cycle', label: 'CYCLE', icon: '🚴', color: '#FFB800' },
-  { id: 'hike',  label: 'HIKE',  icon: '🥾', color: '#FF8C00' },
-  { id: 'rest',  label: 'REST',  icon: '😴', color: '#6A6A8A' },
+  { id: 'gym',   label: 'GYM',   icon: '🏋️', color: '#FF453A' },
+  { id: 'run',   label: 'RUN',   icon: '🏃', color: '#30D158' },
+  { id: 'yoga',  label: 'YOGA',  icon: '🧘', color: '#BF5AF2' },
+  { id: 'swim',  label: 'SWIM',  icon: '🏊', color: '#64D2FF' },
+  { id: 'cycle', label: 'CYCLE', icon: '🚴', color: '#FF9F0A' },
+  { id: 'hike',  label: 'HIKE',  icon: '🥾', color: '#FF6B2B' },
+  { id: 'rest',  label: 'REST',  icon: '😴', color: '#8E8E93' },
 ];
 
 const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 function getWeekDates(): Date[] {
   const today = new Date();
-  const dow   = today.getDay(); // 0 = Sun
+  const dow   = today.getDay();
   const monday = new Date(today);
   monday.setDate(today.getDate() - ((dow + 6) % 7));
   return Array.from({ length: 7 }, (_, i) => {
@@ -69,24 +69,23 @@ export default function GymTracker() {
   return (
     <div>
       {/* Instruction */}
-      <div className="font-mono" style={{ fontSize: 10, color: sel ? sel.color : 'var(--ng-muted)', marginBottom: 14, minHeight: 16 }}>
+      <div className="font-mono" style={{ fontSize: 13, color: sel ? sel.color : 'var(--ng-muted)', marginBottom: 16, minHeight: 20 }}>
         {sel
-          ? `◆ ${sel.icon} ${sel.label} selected — tap a day to log it`
+          ? `${sel.icon} ${sel.label} selected — tap a day to log it`
           : 'Select an activity, then tap a day to log it.'}
       </div>
 
       {/* Activity chips */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
         {ACTIVITIES.map(a => (
           <button key={a.id} onClick={() => setSelected(selected === a.id ? null : a.id)}
-            className="font-orbitron"
+            className="font-mono"
             style={{
-              padding: '6px 10px', fontSize: 9, letterSpacing: '1px',
+              padding: '8px 14px', fontSize: 13,
               border:  `1px solid ${selected === a.id ? a.color : 'var(--ng-border)'}`,
               color:   selected === a.id ? a.color : 'var(--ng-muted)',
-              background: selected === a.id ? `${a.color}18` : 'transparent',
-              borderRadius: 2, cursor: 'pointer',
-              boxShadow: selected === a.id ? `0 0 8px ${a.color}44` : 'none',
+              background: selected === a.id ? `${a.color}15` : 'var(--ng-surface)',
+              borderRadius: 20, cursor: 'pointer',
               transition: 'all 0.15s',
             }}>
             {a.icon} {a.label}
@@ -95,7 +94,7 @@ export default function GymTracker() {
       </div>
 
       {/* Week grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
         {week.map((d, i) => {
           const k          = dateKey(d);
           const activities = log[k] || [];
@@ -107,19 +106,19 @@ export default function GymTracker() {
               onClick={() => !isFuture && handleDayTap(d)}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
-                padding: '8px 3px', gap: 3,
-                background: isToday ? 'rgba(0,255,65,0.06)' : 'var(--ng-surface)',
-                border: `1px solid ${isToday ? 'var(--ng-green)' : (selected && !isFuture ? 'var(--ng-dimmer)' : 'var(--ng-border)')}`,
-                borderRadius: 2,
+                padding: '10px 4px', gap: 4,
+                background: isToday ? 'rgba(48,209,88,0.08)' : 'var(--ng-surface)',
+                border: `0.5px solid ${isToday ? 'var(--ng-green)' : (selected && !isFuture ? 'var(--ng-dimmer)' : 'var(--ng-border)')}`,
+                borderRadius: 10,
                 cursor: isFuture ? 'default' : 'pointer',
-                opacity: isFuture ? 0.35 : 1,
-                minHeight: 86,
+                opacity: isFuture ? 0.3 : 1,
+                minHeight: 88,
                 transition: 'border-color 0.15s',
               }}>
-              <span className="font-orbitron" style={{ fontSize: 7, color: isToday ? 'var(--ng-green)' : 'var(--ng-muted)', letterSpacing: '0.5px' }}>
+              <span className="font-mono" style={{ fontSize: 9, color: isToday ? 'var(--ng-green)' : 'var(--ng-muted)', fontWeight: 600 }}>
                 {DAY_LABELS[i]}
               </span>
-              <span className="font-orbitron" style={{ fontSize: 12, color: isToday ? 'var(--ng-green)' : 'var(--ng-text)', fontWeight: 700, lineHeight: 1.2 }}>
+              <span className="font-mono" style={{ fontSize: 14, color: isToday ? 'var(--ng-green)' : 'var(--ng-text)', fontWeight: 700, lineHeight: 1.2 }}>
                 {d.getDate()}
               </span>
 
@@ -128,10 +127,9 @@ export default function GymTracker() {
                   activities.map(actId => {
                     const act = ACTIVITIES.find(a => a.id === actId);
                     if (!act) return null;
-                    const isSelectedAct = selected === actId;
                     return (
                       <div key={actId} title={act.label}
-                        style={{ fontSize: 13, lineHeight: 1, opacity: isSelectedAct ? 0.6 : 1 }}>
+                        style={{ fontSize: 14, lineHeight: 1, opacity: selected === actId ? 0.5 : 1 }}>
                         {act.icon}
                       </div>
                     );
@@ -147,16 +145,16 @@ export default function GymTracker() {
 
       {/* Week summary */}
       {week.some(d => (log[dateKey(d)] || []).length > 0) && (
-        <div style={{ marginTop: 16 }}>
-          <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '2px', marginBottom: 8 }}>THIS WEEK</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 18 }}>
+          <div className="font-mono" style={{ fontSize: 12, color: 'var(--ng-muted)', fontWeight: 600, marginBottom: 10 }}>THIS WEEK</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {ACTIVITIES.map(a => {
               const count = week.filter(d => (log[dateKey(d)] || []).includes(a.id)).length;
               if (count === 0) return null;
               return (
-                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', background: `${a.color}11`, border: `1px solid ${a.color}33`, borderRadius: 2 }}>
-                  <span style={{ fontSize: 12 }}>{a.icon}</span>
-                  <span className="font-orbitron" style={{ fontSize: 9, color: a.color, letterSpacing: '1px' }}>×{count}</span>
+                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: `${a.color}12`, border: `0.5px solid ${a.color}44`, borderRadius: 20 }}>
+                  <span style={{ fontSize: 14 }}>{a.icon}</span>
+                  <span className="font-mono" style={{ fontSize: 13, color: a.color, fontWeight: 600 }}>×{count}</span>
                 </div>
               );
             })}
