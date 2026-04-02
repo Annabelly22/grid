@@ -38,7 +38,7 @@ export default function ProfileTab({ profile, habits, achievements, theme, onUpd
   return (
     <div className="content-area" style={{ paddingBottom: 80 }}>
       {/* Header */}
-      <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--ng-border)' }}>
+      <div className="px-4 pt-4 pb-4" style={{ borderBottom: '0.5px solid var(--ng-border)' }}>
         <div className="flex items-center justify-between">
           <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-cyan)', fontSize: 16, letterSpacing: '3px' }}>PROFILE</h2>
           <button onClick={onToggleTheme} className="font-orbitron"
@@ -48,7 +48,7 @@ export default function ProfileTab({ profile, habits, achievements, theme, onUpd
         </div>
       </div>
 
-      <div className="px-4 pt-4">
+      <div className="px-4 pt-5">
 
         {/* Identity card */}
         <div className="card mb-4" style={{ borderColor: 'var(--ng-green)33', background: 'rgba(0,255,65,0.03)' }}>
@@ -108,9 +108,9 @@ export default function ProfileTab({ profile, habits, achievements, theme, onUpd
         {/* Category breakdown */}
         {catStats.length > 0 && (
           <div className="card mb-4">
-            <div className="font-orbitron mb-3" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '2px' }}>CATEGORY PERFORMANCE</div>
+            <div className="font-orbitron mb-4" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '2px' }}>CATEGORY PERFORMANCE</div>
             {catStats.map(({ cat, count, completions, bestStreak }) => (
-              <div key={cat} className="flex items-center gap-3 mb-2 p-2" style={{ background: 'var(--ng-bg)', border: `1px solid ${CATEGORY_COLORS[cat]}22`, borderLeft: `2px solid ${CATEGORY_COLORS[cat]}` }}>
+              <div key={cat} className="flex items-center gap-3 mb-3 p-3" style={{ background: 'var(--ng-bg)', border: `0.5px solid ${CATEGORY_COLORS[cat]}22`, borderLeft: `3px solid ${CATEGORY_COLORS[cat]}`, borderRadius: 8 }}>
                 <span style={{ fontSize: 14 }}>{CATEGORY_ICONS[cat]}</span>
                 <div className="flex-1">
                   <div className="font-orbitron" style={{ fontSize: 10, color: CATEGORY_COLORS[cat], letterSpacing: '1px' }}>{cat.toUpperCase()}</div>
@@ -131,7 +131,7 @@ export default function ProfileTab({ profile, habits, achievements, theme, onUpd
           </div>
 
           {unlockedAchievements.map(a => (
-            <div key={a.id} className="flex items-center gap-3 mb-2 p-2" style={{ background: 'rgba(255,159,10,0.08)', border: '0.5px solid rgba(255,159,10,0.2)', borderRadius: 10 }}>
+            <div key={a.id} className="flex items-center gap-3 mb-3 p-3" style={{ background: 'rgba(255,159,10,0.08)', border: '0.5px solid rgba(255,159,10,0.2)', borderRadius: 10 }}>
               <span style={{ fontSize: 20 }}>{a.icon}</span>
               <div className="flex-1">
                 <div className="font-orbitron font-bold" style={{ fontSize: 10, color: 'var(--ng-amber)', letterSpacing: '0.5px' }}>{a.title}</div>
@@ -142,7 +142,7 @@ export default function ProfileTab({ profile, habits, achievements, theme, onUpd
           ))}
 
           {lockedAchievements.map(a => (
-            <div key={a.id} className="flex items-center gap-3 mb-2 p-2" style={{ background: 'var(--ng-surface2)', border: '0.5px solid var(--ng-border)', borderRadius: 10, opacity: 0.4 }}>
+            <div key={a.id} className="flex items-center gap-3 mb-3 p-3" style={{ background: 'var(--ng-surface2)', border: '0.5px solid var(--ng-border)', borderRadius: 10, opacity: 0.4 }}>
               <span style={{ fontSize: 20, filter: 'grayscale(1)' }}>{a.icon}</span>
               <div className="flex-1">
                 <div className="font-orbitron font-bold" style={{ fontSize: 10, color: 'var(--ng-muted)', letterSpacing: '0.5px' }}>{a.title}</div>

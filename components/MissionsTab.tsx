@@ -61,14 +61,14 @@ export default function MissionsTab({ missions, profile, habits, onCompleteMissi
   return (
     <div className="content-area" style={{ paddingBottom: 80 }}>
       {/* Header */}
-      <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--ng-border)' }}>
-        <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-purple)', fontSize: 16, letterSpacing: '3px' }}>MISSIONS</h2>
-        <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+      <div className="px-4 pt-4 pb-4" style={{ borderBottom: '0.5px solid var(--ng-border)' }}>
+        <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-purple)', fontSize: 16 }}>MISSIONS</h2>
+        <div className="font-mono" style={{ fontSize: 13, color: 'var(--ng-muted)', marginTop: 4 }}>
           {completed.length}/{missions.length} complete · {xpAvailable.toLocaleString()} XP available
         </div>
       </div>
 
-      <div className="px-4 pt-4">
+      <div className="px-4 pt-5">
 
         {/* Active missions */}
         {pending.length > 0 && (
@@ -128,7 +128,7 @@ function MissionCard({ mission, progress, onComplete }: {
   const pct = progress ? Math.round((progress.current / progress.max) * 100) : 0;
 
   return (
-    <div className="mb-3" style={{
+    <div className="mb-4" style={{
       background: mission.completed ? 'var(--ng-bg)' : cfg.bg,
       border: `0.5px solid ${mission.completed ? 'var(--ng-border)' : cfg.color + '33'}`,
       borderLeft: `3px solid ${mission.completed ? 'var(--ng-border)' : cfg.color}`,
@@ -136,7 +136,7 @@ function MissionCard({ mission, progress, onComplete }: {
       opacity: mission.completed ? 0.5 : 1,
       transition: 'all 0.2s',
     }}>
-      <div className="p-3">
+      <div className="p-4">
         <div className="flex items-start justify-between gap-2 mb-1">
           <div className="font-orbitron font-bold" style={{ fontSize: 12, color: mission.completed ? 'var(--ng-muted)' : 'var(--ng-text)', letterSpacing: '0.5px', textDecoration: mission.completed ? 'line-through' : 'none' }}>
             {mission.title}

@@ -76,7 +76,7 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
     <div className="content-area" style={{ paddingBottom: 80 }}>
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="px-4 pt-4 pb-3" style={{ borderBottom: '0.5px solid var(--ng-border)' }}>
+      <div className="px-4 pt-4 pb-4" style={{ borderBottom: '0.5px solid var(--ng-border)' }}>
         <div className="flex items-center justify-between">
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -107,7 +107,7 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
         </div>
       </div>
 
-      <div className="px-4 pt-3">
+      <div className="px-4 pt-4">
 
         {/* Presets panel */}
         {showPresets && (
@@ -118,7 +118,7 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
               return (
                 <button key={p.name} onClick={() => addPreset(p)} disabled={!!exists}
                   className="w-full text-left flex items-center gap-3 mb-2 p-2"
-                  style={{ background: exists ? 'rgba(0,255,65,0.06)' : 'var(--ng-bg)', border: `1px solid ${exists ? 'var(--ng-green)33' : 'var(--ng-border)'}`, borderRadius: 2, opacity: exists ? 0.6 : 1 }}>
+                  style={{ background: exists ? 'rgba(0,255,65,0.06)' : 'var(--ng-bg)', border: `0.5px solid ${exists ? 'var(--ng-green)33' : 'var(--ng-border)'}`, borderRadius: 8, opacity: exists ? 0.6 : 1 }}>
                   <span style={{ fontSize: 14 }}>{p.icon}</span>
                   <span className="flex-1 font-mono" style={{ fontSize: 11, color: 'var(--ng-text)' }}>{p.name}</span>
                   <span className="font-orbitron" style={{ fontSize: 9, color: CATEGORY_COLORS[p.category] }}>{exists ? '✓ ADDED' : `+${p.xpReward}xp`}</span>
@@ -185,8 +185,8 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
             {/* Completed — collapsible */}
             {completed.length > 0 && (
               <>
-                <button onClick={() => setShowCompleted(!showCompleted)} className="w-full font-orbitron mb-2"
-                  style={{ padding: '12px 14px', fontSize: 13, color: 'var(--ng-green)', background: 'rgba(48,209,88,0.06)', border: '0.5px solid rgba(48,209,88,0.2)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <button onClick={() => setShowCompleted(!showCompleted)} className="w-full font-orbitron mb-3"
+                  style={{ marginTop: incomplete.length > 0 ? 8 : 0, padding: '12px 14px', fontSize: 13, color: 'var(--ng-green)', background: 'rgba(48,209,88,0.06)', border: '0.5px solid rgba(48,209,88,0.2)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span>✓ LOGGED TODAY ({completed.length})</span>
                   <span>{showCompleted ? '▲' : '▼'}</span>
                 </button>

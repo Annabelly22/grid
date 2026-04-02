@@ -85,7 +85,7 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
     <div className="content-area" style={{ paddingBottom: 80 }}>
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--ng-border)' }}>
+      <div className="px-4 pt-4 pb-4" style={{ borderBottom: '0.5px solid var(--ng-border)' }}>
         <div className="flex items-center justify-between">
           <GridLogo variant="lockup" size={36} />
           <div className="text-right">

@@ -5,7 +5,7 @@ import {
   CYCLE_PHASES, SUPPLEMENTS, TEAS, MOVEMENTS,
   getCyclePhase, getDayOfCycle,
   getSupplementsForContext, getMovementsForContext,
-  CATEGORY_META, TIMING_META, Supplement,
+  CATEGORY_META, TIMING_META, Supplement, SUPPLEMENT_CONFLICTS,
 } from '../lib/supplementData';
 import FastingTimer from './FastingTimer';
 import GymTracker   from './GymTracker';
@@ -13,18 +13,23 @@ import GymTracker   from './GymTracker';
 const CYCLE_KEY      = 'grid_cycle_start';
 const ENERGY_KEY     = 'grid_energy_level';
 const SUPP_VIEW_KEY  = 'grid_supplements_view';
+const OWNED_KEY      = 'grid_owned_supps';
 type SubTab = 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move';
 
-function SupplementCard({ s, expanded, onToggle }: { s: Supplement; expanded: boolean; onToggle: () => void }) {
+function SupplementCard({ s, expanded, onToggle, owned, onToggleOwned }: {
+  s: Supplement; expanded: boolean; onToggle: () => void;
+  owned: boolean; onToggleOwned: () => void;
+}) {
   const cat = CATEGORY_META[s.category];
   return (
-    <div className="mb-2 transition-all" style={{ border: `0.5px solid ${expanded ? s.color : 'var(--ng-border)'}`, borderLeft: `3px solid ${s.color}`, borderRadius: 12, background: 'var(--ng-surface)', boxShadow: expanded ? `0 2px 16px ${s.color}22` : 'none' }}>
+    <div className="mb-3 transition-all" style={{ border: `0.5px solid ${expanded ? s.color : 'var(--ng-border)'}`, borderLeft: `3px solid ${s.color}`, borderRadius: 12, background: 'var(--ng-surface)', boxShadow: expanded ? `0 2px 16px ${s.color}22` : 'none' }}>
       <button className="w-full text-left p-3" onClick={onToggle}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className="font-orbitron font-bold" style={{ color: 'var(--ng-text)', fontSize: 12, letterSpacing: '0.5px' }}>{s.name}</span>
               {s.priority === 'critical' && <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-red)', border: '1px solid var(--ng-red)', padding: '1px 5px', letterSpacing: '1px' }}>CRITICAL</span>}
+              {owned && <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-green)', border: '1px solid var(--ng-green)', padding: '1px 5px', letterSpacing: '1px' }}>✓ HAVE IT</span>}
             </div>
             <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>{s.dose}</div>
           </div>
@@ -46,25 +51,42 @@ function SupplementCard({ s, expanded, onToggle }: { s: Supplement; expanded: bo
               </span>
             ))}
           </div>
+          {s.cycleNote && (
+            <div className="mt-2 p-2 flex items-center gap-2" style={{ background: 'rgba(255,159,10,0.06)', border: '1px solid rgba(255,159,10,0.25)', borderRadius: 8 }}>
+              <span style={{ fontSize: 12 }}>⟳</span>
+              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-amber)', lineHeight: 1.4 }}><strong>CYCLE:</strong> {s.cycleNote}</div>
+            </div>
+          )}
           {s.warning && (
-            <div className="mt-2 p-2" style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.3)' }}>
+            <div className="mt-2 p-2" style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.3)', borderRadius: 8 }}>
               <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-red)', lineHeight: 1.5 }}>⚠ {s.warning}</div>
             </div>
           )}
+          <button
+            onClick={e => { e.stopPropagation(); onToggleOwned(); }}
+            style={{ marginTop: 10, width: '100%', padding: '8px', fontSize: 11, fontWeight: 600, border: `1px solid ${owned ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: owned ? 'var(--ng-green)' : 'var(--ng-muted)', background: owned ? 'rgba(48,209,88,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s' }}>
+            {owned ? '✓ IN MY STACK — tap to remove' : '+ I HAVE THIS'}
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-function SupplementGridCard({ s, expanded, onToggle }: { s: Supplement; expanded: boolean; onToggle: () => void }) {
+function SupplementGridCard({ s, expanded, onToggle, owned, onToggleOwned }: {
+  s: Supplement; expanded: boolean; onToggle: () => void;
+  owned: boolean; onToggleOwned: () => void;
+}) {
   const cat = CATEGORY_META[s.category];
   return (
     <div style={{ border: `0.5px solid ${expanded ? s.color : 'var(--ng-border)'}`, borderTop: `3px solid ${s.color}`, borderRadius: 12, background: 'var(--ng-surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <button className="w-full text-left p-2" onClick={onToggle} style={{ flex: 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
           <span className="font-orbitron" style={{ fontSize: 7, color: cat.color, letterSpacing: '1px' }}>{cat.icon} {cat.label}</span>
-          {s.priority === 'critical' && <span className="font-orbitron" style={{ fontSize: 7, color: 'var(--ng-red)' }}>!</span>}
+          <div style={{ display: 'flex', gap: 3 }}>
+            {owned && <span style={{ fontSize: 7, color: 'var(--ng-green)' }}>✓</span>}
+            {s.priority === 'critical' && <span className="font-orbitron" style={{ fontSize: 7, color: 'var(--ng-red)' }}>!</span>}
+          </div>
         </div>
         <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-text)', fontWeight: 700, lineHeight: 1.3, marginBottom: 3 }}>{s.name}</div>
         <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{s.dose}</div>
@@ -73,6 +95,10 @@ function SupplementGridCard({ s, expanded, onToggle }: { s: Supplement; expanded
       {expanded && (
         <div className="p-2" style={{ borderTop: '1px solid var(--ng-border)' }}>
           <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-text)', lineHeight: 1.5 }}>{s.why}</div>
+          <button onClick={e => { e.stopPropagation(); onToggleOwned(); }}
+            style={{ marginTop: 6, width: '100%', padding: '5px', fontSize: 9, fontWeight: 600, border: `1px solid ${owned ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: owned ? 'var(--ng-green)' : 'var(--ng-muted)', background: owned ? 'rgba(48,209,88,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer' }}>
+            {owned ? '✓ HAVE IT' : '+ ADD'}
+          </button>
         </div>
       )}
     </div>
@@ -81,7 +107,7 @@ function SupplementGridCard({ s, expanded, onToggle }: { s: Supplement; expanded
 
 function Divider({ label, color }: { label: string; color: string }) {
   return (
-    <div className="flex items-center gap-2 my-3">
+    <div className="flex items-center gap-2" style={{ marginTop: 28, marginBottom: 12 }}>
       <div className="h-px flex-1" style={{ background: 'var(--ng-border)' }} />
       <span className="font-orbitron" style={{ fontSize: 9, color, letterSpacing: '2px' }}>{label}</span>
       <div className="h-px flex-1" style={{ background: 'var(--ng-border)' }} />
@@ -100,6 +126,7 @@ export default function BodyTab() {
   const [suppView,    setSuppView]    = useState<'list' | 'grid'>('list');
   const [teaFilter,   setTeaFilter]   = useState<TeaCategory | 'all'>('all');
   const [catFilter,   setCatFilter]   = useState<string>('all');
+  const [ownedSupps,  setOwnedSupps]  = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const sc = localStorage.getItem(CYCLE_KEY);
@@ -108,11 +135,22 @@ export default function BodyTab() {
     if (se) setEnergyLevel(se);
     const sv = localStorage.getItem(SUPP_VIEW_KEY) as 'list' | 'grid' | null;
     if (sv) setSuppView(sv);
+    const ov = localStorage.getItem(OWNED_KEY);
+    if (ov) setOwnedSupps(new Set(JSON.parse(ov)));
   }, []);
 
   const changeSuppView = (v: 'list' | 'grid') => {
     setSuppView(v);
     localStorage.setItem(SUPP_VIEW_KEY, v);
+  };
+
+  const toggleOwned = (id: string) => {
+    setOwnedSupps(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      localStorage.setItem(OWNED_KEY, JSON.stringify([...next]));
+      return next;
+    });
   };
 
   const phase = getCyclePhase(cycleStart);
@@ -187,13 +225,13 @@ export default function BodyTab() {
         )}
       </div>
 
-      <div className="px-4 pt-4">
+      <div className="px-4 pt-5">
 
         {/* ═══ STACK ════════════════════════════════════════════ */}
         {subTab === 'stack' && (
           <>
             {!cycleStart && (
-              <div className="p-3 mb-4" style={{ background: 'rgba(191,90,242,0.08)', border: '0.5px solid rgba(191,90,242,0.25)', borderRadius: 12 }}>
+              <div className="p-4 mb-5" style={{ background: 'rgba(191,90,242,0.08)', border: '0.5px solid rgba(191,90,242,0.25)', borderRadius: 12 }}>
                 <div className="font-orbitron font-bold mb-1" style={{ fontSize: 10, color: 'var(--ng-purple)', letterSpacing: '1px' }}>SET CYCLE DATE FOR PERSONALIZED STACK</div>
                 <div className="font-mono mb-2" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Log the first day of your last period to activate phase-specific supplements.</div>
                 <div className="flex gap-2">
@@ -204,7 +242,7 @@ export default function BodyTab() {
             )}
 
             {phaseData && (
-              <div className="p-3 mb-4" style={{ background: phaseData.bg, border: `0.5px solid ${phaseData.color}33`, borderRadius: 12 }}>
+              <div className="p-4 mb-5" style={{ background: phaseData.bg, border: `0.5px solid ${phaseData.color}33`, borderRadius: 12 }}>
                 <div className="flex items-center gap-2 mb-2">
                   <span style={{ fontSize: 18 }}>{phaseData.icon}</span>
                   <div>
@@ -217,7 +255,7 @@ export default function BodyTab() {
             )}
 
             {/* View toggles + list/grid */}
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 20 }}>
               <div className="flex gap-1 flex-1">
                 {[
                   { id: 'smart',  label: phase ? `PHASE STACK (${smartSupps.length})` : 'ALL SUPPLEMENTS' },
@@ -248,10 +286,10 @@ export default function BodyTab() {
               const adaptogens  = SUPPLEMENTS.filter(s => s.category === 'adaptogen');
               const renderSupps = (list: Supplement[]) =>
                 suppView === 'list' ? (
-                  list.map(s => <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />)
+                  list.map(s => <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} />)
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-                    {list.map(s => <SupplementGridCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />)}
+                    {list.map(s => <SupplementGridCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} />)}
                   </div>
                 );
               return (
@@ -286,10 +324,10 @@ export default function BodyTab() {
                   })}
                 </div>
                 {suppView === 'list' ? (
-                  filteredAll.map(s => <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />)
+                  filteredAll.map(s => <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} />)
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    {filteredAll.map(s => <SupplementGridCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} />)}
+                    {filteredAll.map(s => <SupplementGridCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} />)}
                   </div>
                 )}
               </>
@@ -304,7 +342,7 @@ export default function BodyTab() {
                   { time: 'AFTERNOON', icon: '☀️', color: 'var(--ng-purple)', items: ['L-Theanine 100–200mg', 'Holy Basil (Tulsi) 300–600mg', '→ Tulsi tea ritual (2–4PM)', 'Vitex — Chasteberry (luteal)'] },
                   { time: 'EVENING', icon: '🌙', color: 'var(--ng-purple)', items: ['Magnesium Glycinate 300–400mg', 'Ashwagandha 300–600mg (luteal)', '5-HTP 50–100mg (luteal/menstrual)', 'L-Glutamine 5–10g', 'Reishi Mushroom', '→ Chamomile + Lavender tea', '→ Screens off 30 min after this stack'] },
                 ].map(block => (
-                  <div key={block.time} className="card p-3 mb-3" style={{ borderLeft: `3px solid ${block.color}` }}>
+                  <div key={block.time} className="card p-4 mb-4" style={{ borderLeft: `3px solid ${block.color}` }}>
                     <div className="flex items-center gap-2 mb-2">
                       <span style={{ fontSize: 14 }}>{block.icon}</span>
                       <span className="font-orbitron font-bold" style={{ fontSize: 11, color: block.color, letterSpacing: '2px' }}>{block.time}</span>
@@ -320,7 +358,26 @@ export default function BodyTab() {
               </div>
             )}
 
-            <div className="mt-4 p-3" style={{ background: 'var(--ng-bg)', border: '1px solid var(--ng-border)', borderRadius: 2 }}>
+            {/* DON'T TAKE TOGETHER section */}
+            <div className="mt-6">
+              <Divider label="⚠ DON'T TAKE TOGETHER" color="var(--ng-red)" />
+              {SUPPLEMENT_CONFLICTS.map((conflict, i) => (
+                <div key={i} className="mb-2 p-3" style={{ background: conflict.severity === 'critical' ? 'rgba(255,71,87,0.05)' : 'rgba(255,159,10,0.05)', border: `0.5px solid ${conflict.severity === 'critical' ? 'rgba(255,71,87,0.25)' : 'rgba(255,159,10,0.25)'}`, borderRadius: 10 }}>
+                  <div className="flex items-center gap-1 mb-2 flex-wrap">
+                    {conflict.supplements.map((name, j) => (
+                      <span key={j} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        {j > 0 && <span className="font-orbitron" style={{ fontSize: 9, color: conflict.severity === 'critical' ? 'var(--ng-red)' : 'var(--ng-amber)', padding: '0 2px' }}>+</span>}
+                        <span className="font-orbitron" style={{ fontSize: 9, color: conflict.severity === 'critical' ? 'var(--ng-red)' : 'var(--ng-amber)', border: `1px solid ${conflict.severity === 'critical' ? 'rgba(255,71,87,0.3)' : 'rgba(255,159,10,0.3)'}`, padding: '1px 6px', borderRadius: 4 }}>{name}</span>
+                      </span>
+                    ))}
+                    <span className="font-orbitron" style={{ fontSize: 8, color: conflict.severity === 'critical' ? 'var(--ng-red)' : 'var(--ng-amber)', marginLeft: 'auto', border: `1px solid ${conflict.severity === 'critical' ? 'rgba(255,71,87,0.3)' : 'rgba(255,159,10,0.3)'}`, padding: '1px 6px', borderRadius: 4 }}>{conflict.severity.toUpperCase()}</span>
+                  </div>
+                  <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', lineHeight: 1.5 }}>{conflict.risk}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 p-3" style={{ background: 'var(--ng-bg)', border: '0.5px solid var(--ng-border)', borderRadius: 10 }}>
               <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', lineHeight: 1.6 }}>
                 ⚠ Educational guidance, not medical advice. Confirm with a doctor before starting any new supplement, especially 5-HTP, adaptogens, or hormone-adjacent botanicals. Available at Amazon, iHerb, Vitamin Shoppe (Dallas).
               </div>
@@ -331,7 +388,7 @@ export default function BodyTab() {
         {/* ═══ CYCLE ════════════════════════════════════════════ */}
         {subTab === 'cycle' && (
           <>
-            <div className="card p-4 mb-4">
+            <div className="card p-4 mb-5">
               <div className="font-orbitron mb-2" style={{ fontSize: 9, color: 'var(--ng-purple)', letterSpacing: '1px' }}>{cycleStart ? 'UPDATE CYCLE DATE' : 'LOG FIRST DAY OF PERIOD'}</div>
               <div className="flex gap-2">
                 <input type="date" className="ng-input flex-1" value={cycleInput || cycleStart || ''} onChange={e => setCycleInput(e.target.value)} />
@@ -344,7 +401,7 @@ export default function BodyTab() {
               const pd = CYCLE_PHASES[p];
               const isActive = p === phase;
               return (
-                <div key={p} className="card mb-3" style={{ borderColor: isActive ? pd.color : 'var(--ng-border)', boxShadow: isActive ? `0 0 16px ${pd.color}22` : 'none', transition: 'all 0.2s' }}>
+                <div key={p} className="card mb-4" style={{ borderColor: isActive ? pd.color : 'var(--ng-border)', boxShadow: isActive ? `0 0 16px ${pd.color}22` : 'none', transition: 'all 0.2s' }}>
                   <div style={{ borderLeft: `4px solid ${pd.color}`, background: isActive ? pd.bg : 'transparent', padding: 12 }}>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -406,7 +463,7 @@ export default function BodyTab() {
             </div>
 
             {filteredTeas.map(tea => (
-              <div key={tea.id} className="card p-3 mb-3" style={{ borderLeft: '3px solid var(--ng-amber)' }}>
+              <div key={tea.id} className="card p-4 mb-4" style={{ borderLeft: '3px solid var(--ng-amber)' }}>
                 <div className="flex items-start gap-2 mb-1">
                   <span style={{ fontSize: 18 }}>{tea.icon}</span>
                   <div>
@@ -437,7 +494,7 @@ export default function BodyTab() {
               { name: 'Shatavari', form: 'Capsule or powder', note: 'Ayurvedic adaptogen for women. Hormone balance, reproductive health. One of the most respected female wellness herbs.' },
               { name: 'Dong Quai', form: 'Capsule — days 1–13 only', note: 'Traditional Chinese "female ginseng." Blood circulation and iron support post-menstruation. Menstrual and early follicular phase only.' },
             ].map(b => (
-              <div key={b.name} className="card p-3 mb-2" style={{ borderLeft: '3px solid rgba(191,0,255,0.5)' }}>
+              <div key={b.name} className="card p-3 mb-3" style={{ borderLeft: '3px solid rgba(191,0,255,0.5)' }}>
                 <div className="flex items-center justify-between mb-1">
                   <div className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-text)', letterSpacing: '0.5px' }}>{b.name}</div>
                   <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-purple)' }}>{b.form.split('(')[0].trim()}</span>
@@ -452,7 +509,7 @@ export default function BodyTab() {
         {subTab === 'move' && (
           <>
             {phaseData && (
-              <div className="mb-4 p-2" style={{ background: phaseData.bg, border: `1px solid ${phaseData.color}33`, borderRadius: 2 }}>
+              <div className="mb-5 p-3" style={{ background: phaseData.bg, border: `0.5px solid ${phaseData.color}33`, borderRadius: 10 }}>
                 <div className="font-mono" style={{ fontSize: 10, color: phaseData.color }}>
                   {phaseData.icon} Phase recommendation: <strong>{phaseData.training}</strong>
                 </div>
@@ -460,7 +517,7 @@ export default function BodyTab() {
             )}
 
             {movements.map(m => (
-              <div key={m.id} className="card p-3 mb-3" style={{ borderLeft: '3px solid var(--ng-cyan)' }}>
+              <div key={m.id} className="card p-4 mb-4" style={{ borderLeft: '3px solid var(--ng-cyan)' }}>
                 <div className="flex items-start justify-between mb-1">
                   <div>
                     <div className="font-orbitron font-bold" style={{ fontSize: 12, color: 'var(--ng-text)', letterSpacing: '0.5px' }}>{m.name}</div>
@@ -480,8 +537,8 @@ export default function BodyTab() {
               </div>
             ))}
 
-            <div className="mt-4 p-3" style={{ background: 'var(--ng-bg)', border: '1px solid var(--ng-border)', borderRadius: 2 }}>
-              <div className="font-orbitron mb-1" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '1px' }}>⚡ PRIORITY DAILY PRACTICES</div>
+            <div className="mt-4 p-4" style={{ background: 'var(--ng-bg)', border: '0.5px solid var(--ng-border)', borderRadius: 10 }}>
+              <div className="font-orbitron mb-2" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '1px' }}>⚡ PRIORITY DAILY PRACTICES</div>
               <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', lineHeight: 1.7 }}>
                 1. Morning sunlight walk (any phase, any energy)<br />
                 2. Nadi Shodhana before every trading session<br />
