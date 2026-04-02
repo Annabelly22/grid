@@ -113,6 +113,29 @@ html, body { background: var(--ng-bg); color: var(--ng-text); font-family: 'JetB
 ::-webkit-scrollbar-track { background: var(--ng-bg); }
 ::-webkit-scrollbar-thumb { background: var(--ng-border); border-radius: 2px; }
 
+/* Desktop layout */
+.desktop-sidebar { display: none; }
+.main-content { width: 100%; max-width: 480px; margin: 0 auto; position: relative; }
+
+@media (min-width: 768px) {
+  .desktop-sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 200px;
+    flex-shrink: 0;
+    background: var(--ng-surface);
+    border-right: 1px solid var(--ng-border);
+    position: fixed;
+    height: 100vh;
+    top: 0;
+    left: 0;
+    z-index: 100;
+  }
+  .bottom-nav { display: none; }
+  .content-area { height: 100vh; padding-bottom: 0; }
+  .main-content { max-width: none; margin-left: 200px; flex: 1; }
+}
+
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateX(-50%) translateY(0); opacity: 1; } to { transform: translateX(-50%) translateY(-80px); opacity: 0; } }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }

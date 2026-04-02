@@ -161,42 +161,69 @@ export default function App() {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0A0A0F', maxWidth: 480, margin: '0 auto', position: 'relative' }}>
-      {xpPopups.map(popup => (
-        <div key={popup.id} className="font-orbitron" style={{ position: 'fixed', top: '45%', left: '50%', transform: 'translateX(-50%)', color: '#FFB800', fontSize: 22, fontWeight: 900, letterSpacing: '2px', textShadow: '0 0 10px rgba(255,184,0,0.8)', animation: 'slideUp 1.8s ease forwards', pointerEvents: 'none', zIndex: 60 }}>
-          +{popup.amount} XP
+    <div style={{ minHeight: '100vh', background: '#0A0A0F', display: 'flex' }}>
+      {/* Desktop sidebar — hidden on mobile via CSS */}
+      <nav className="desktop-sidebar">
+        <div style={{ padding: '24px 20px 28px' }}>
+          <GridLogo variant="lockup" size={36} />
         </div>
-      ))}
-      <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, padding: '0 16px', zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {toasts.map(t => (
-          <div key={t.id} className="achievement-popup">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 24 }}>{t.achievement.icon}</span>
-              <div>
-                <div className="font-orbitron" style={{ fontSize: 9, color: '#FFB800', letterSpacing: '1px' }}>ACHIEVEMENT UNLOCKED</div>
-                <div className="font-orbitron" style={{ fontSize: 13, color: '#E8E8F0', fontWeight: 900, letterSpacing: '1px' }}>{t.achievement.title}</div>
-                <div className="font-mono" style={{ fontSize: 10, color: '#6A6A8A' }}>{t.achievement.description} · +{t.achievement.xpReward} XP</div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} missions={missions} achievements={achievements} onNavigate={t => setTab(t)} />}
-      {tab === 'habits' && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} />}
-      {tab === 'missions' && <MissionsTab missions={missions} onCompleteMission={handleCompleteMission} />}
-      {tab === 'body' && <BodyTab />}
-      {tab === 'coach' && <CoachTab profile={profile} onFocusMinutes={handleFocusMinutes} />}
-      {tab === 'profile' && <ProfileTab profile={profile} habits={habits} achievements={achievements} onUpdateCodename={handleUpdateCodename} onResetData={handleResetData} />}
-
-      <nav className="bottom-nav">
         {NAV.map(item => (
-          <button key={item.id} onClick={() => setTab(item.id)} className={`nav-item ${tab === item.id ? 'active' : ''}`}>
-            <span className="nav-icon" style={{ fontSize: 15 }}>{item.icon}</span>
-            <span className="nav-label">{item.label}</span>
+          <button key={item.id} onClick={() => setTab(item.id)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '12px 20px', width: '100%',
+              background: tab === item.id ? 'rgba(0,255,65,0.08)' : 'transparent',
+              borderLeft: `3px solid ${tab === item.id ? 'var(--ng-green)' : 'transparent'}`,
+              borderTop: 'none', borderRight: 'none', borderBottom: 'none',
+              color: tab === item.id ? 'var(--ng-green)' : 'var(--ng-muted)',
+              cursor: 'pointer', fontFamily: "'Orbitron', sans-serif",
+              fontSize: 10, fontWeight: 700, letterSpacing: '2px',
+            }}>
+            <span style={{ fontSize: 15 }}>{item.icon}</span>
+            {item.label}
           </button>
         ))}
       </nav>
+
+      {/* Main content — 480px centered on mobile, full-width on desktop */}
+      <div className="main-content">
+        {xpPopups.map(popup => (
+          <div key={popup.id} className="font-orbitron" style={{ position: 'fixed', top: '45%', left: '50%', transform: 'translateX(-50%)', color: '#FFB800', fontSize: 22, fontWeight: 900, letterSpacing: '2px', textShadow: '0 0 10px rgba(255,184,0,0.8)', animation: 'slideUp 1.8s ease forwards', pointerEvents: 'none', zIndex: 60 }}>
+            +{popup.amount} XP
+          </div>
+        ))}
+        <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, padding: '0 16px', zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {toasts.map(t => (
+            <div key={t.id} className="achievement-popup">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 24 }}>{t.achievement.icon}</span>
+                <div>
+                  <div className="font-orbitron" style={{ fontSize: 9, color: '#FFB800', letterSpacing: '1px' }}>ACHIEVEMENT UNLOCKED</div>
+                  <div className="font-orbitron" style={{ fontSize: 13, color: '#E8E8F0', fontWeight: 900, letterSpacing: '1px' }}>{t.achievement.title}</div>
+                  <div className="font-mono" style={{ fontSize: 10, color: '#6A6A8A' }}>{t.achievement.description} · +{t.achievement.xpReward} XP</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} missions={missions} achievements={achievements} onNavigate={t => setTab(t)} />}
+        {tab === 'habits' && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} />}
+        {tab === 'missions' && <MissionsTab missions={missions} onCompleteMission={handleCompleteMission} />}
+        {tab === 'body' && <BodyTab />}
+        {tab === 'coach' && <CoachTab profile={profile} onFocusMinutes={handleFocusMinutes} />}
+        {tab === 'profile' && <ProfileTab profile={profile} habits={habits} achievements={achievements} onUpdateCodename={handleUpdateCodename} onResetData={handleResetData} />}
+
+        {/* Mobile bottom nav — hidden on desktop via CSS */}
+        <nav className="bottom-nav">
+          {NAV.map(item => (
+            <button key={item.id} onClick={() => setTab(item.id)} className={`nav-item ${tab === item.id ? 'active' : ''}`}>
+              <span className="nav-icon" style={{ fontSize: 15 }}>{item.icon}</span>
+              <span className="nav-label">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
     </div>
   );
 }
