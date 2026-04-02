@@ -8,63 +8,38 @@ interface Props {
 }
 
 /**
- * GRID Logo — "The Focus Grid"
+ * GRID Logo — Focus Reticle
  *
- * A 4×4 pixel grid where lit cells form the letter G.
- * Design language: precision over ornament. Every lit cell is earned.
- * Stoic reference: the grid is the discipline — the center point is what matters.
- *
- * Grid pattern (■ = lit #00FF41, □ = dim):
- *   ■ ■ ■ □
- *   ■ □ □ □
- *   ■ □ ■ ■
- *   ■ ■ ■ □
+ * Outer ring → inner ring → four tick marks → center dot.
+ * Meaning: precision, focus, direction. The center is what matters.
+ * Every element points inward — toward the thing you're working on.
  */
 export default function GridLogo({ size = 40, variant = 'mark', className = '' }: Props) {
-  const CELL = 9;
-  const GAP = 3;
-  const STEP = CELL + GAP; // 12
-  const DIM = '#1C1C28';
-  const LIT = '#00FF41';
+  const W  = 44;
+  const CX = 22, CY = 22;
+  const R1 = 20;   // outer ring
+  const R2 = 8;    // inner ring
+  const RC = 2.5;  // center dot
+  const C  = '#00FF41';
   const GLOW_ID = `grid-glow-${size}`;
 
-  // (col, row) → lit?
-  const LIT_CELLS: [number, number][] = [
-    // Row 0
-    [0,0],[1,0],[2,0],
-    // Row 1
-    [0,1],
-    // Row 2
-    [0,2],[2,2],[3,2],
-    // Row 3
-    [0,3],[1,3],[2,3],
-  ];
-  const litSet = new Set(LIT_CELLS.map(([c,r]) => `${c},${r}`));
-
-  const COLS = 4;
-  const ROWS = 4;
-  const MARK_W = COLS * STEP - GAP; // 45
-  const MARK_H = ROWS * STEP - GAP; // 45
-  const WORDMARK_HEIGHT = 14;
-  const WORDMARK_GAP = 10;
-
-  const totalH = variant === 'lockup' ? MARK_H + WORDMARK_GAP + WORDMARK_HEIGHT : MARK_H;
-  const scale = size / MARK_W;
-  const viewH = totalH * scale;
+  const WORDMARK_H   = 11;
+  const WORDMARK_GAP = 9;
+  const totalH = variant === 'lockup' ? W + WORDMARK_GAP + WORDMARK_H : W;
 
   return (
     <svg
       className={className}
       width={size}
-      height={variant === 'lockup' ? Math.round(viewH) : size}
-      viewBox={`0 0 ${MARK_W} ${variant === 'lockup' ? totalH : MARK_W}`}
+      height={variant === 'lockup' ? Math.round(size * (totalH / W)) : size}
+      viewBox={`0 0 ${W} ${totalH}`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-label="GRID"
     >
       <defs>
         <filter id={GLOW_ID} x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="2.5" result="blur" />
+          <feGaussianBlur stdDeviation="1.8" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
@@ -72,37 +47,34 @@ export default function GridLogo({ size = 40, variant = 'mark', className = '' }
         </filter>
       </defs>
 
-      {/* Grid cells */}
-      {Array.from({ length: ROWS }, (_, row) =>
-        Array.from({ length: COLS }, (_, col) => {
-          const isLit = litSet.has(`${col},${row}`);
-          const x = col * STEP;
-          const y = row * STEP;
-          return (
-            <rect
-              key={`${col}-${row}`}
-              x={x}
-              y={y}
-              width={CELL}
-              height={CELL}
-              fill={isLit ? LIT : DIM}
-              filter={isLit ? `url(#${GLOW_ID})` : undefined}
-            />
-          );
-        })
-      )}
+      <g filter={`url(#${GLOW_ID})`}>
+        {/* Outer ring */}
+        <circle cx={CX} cy={CY} r={R1} stroke={C} strokeWidth="1.5" />
+
+        {/* Four tick marks — bridge from inner ring edge to outer ring */}
+        <line x1={CX}      y1={CY - R1} x2={CX}      y2={CY - R2 - 2} stroke={C} strokeWidth="1.5" strokeLinecap="round" />
+        <line x1={CX}      y1={CY + R2 + 2} x2={CX}  y2={CY + R1}     stroke={C} strokeWidth="1.5" strokeLinecap="round" />
+        <line x1={CX - R1} y1={CY}      x2={CX - R2 - 2} y2={CY}      stroke={C} strokeWidth="1.5" strokeLinecap="round" />
+        <line x1={CX + R2 + 2} y1={CY}  x2={CX + R1} y2={CY}          stroke={C} strokeWidth="1.5" strokeLinecap="round" />
+
+        {/* Inner ring */}
+        <circle cx={CX} cy={CY} r={R2} stroke={C} strokeWidth="1.5" />
+
+        {/* Center dot */}
+        <circle cx={CX} cy={CY} r={RC} fill={C} />
+      </g>
 
       {/* Wordmark */}
       {variant === 'lockup' && (
         <text
-          x={MARK_W / 2}
-          y={MARK_H + WORDMARK_GAP + WORDMARK_HEIGHT - 2}
+          x={W / 2}
+          y={W + WORDMARK_GAP + WORDMARK_H - 1}
           textAnchor="middle"
           fontFamily="'Orbitron', sans-serif"
           fontWeight="900"
-          fontSize={WORDMARK_HEIGHT}
-          letterSpacing="6"
-          fill={LIT}
+          fontSize={WORDMARK_H}
+          letterSpacing="5"
+          fill={C}
           filter={`url(#${GLOW_ID})`}
         >
           GRID
