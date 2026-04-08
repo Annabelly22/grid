@@ -66,6 +66,19 @@ export default function App() {
     return final;
   }, []);
 
+  const snapshotHabitLog = (updatedHabits: typeof habits) => {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const raw = localStorage.getItem('grid_habit_log');
+      const log: Record<string, { completed: number; total: number }> = raw ? JSON.parse(raw) : {};
+      log[today] = {
+        completed: updatedHabits.filter(h => h.completedToday).length,
+        total:     updatedHabits.length,
+      };
+      localStorage.setItem('grid_habit_log', JSON.stringify(log));
+    } catch {}
+  };
+
   const handleCompleteHabit = (id: string) => {
     if (!profile) return;
     const today = new Date().toISOString().split('T')[0];
@@ -76,6 +89,7 @@ export default function App() {
       return { ...h, completedToday: true, lastCompleted: today, streak, totalCompletions: h.totalCompletions + 1 };
     });
     saveHabits(updated); setHabits(updated);
+    snapshotHabitLog(updated);
     const habit = habits.find(h => h.id === id);
     if (!habit) return;
     awardXP(habit.xpReward, { ...profile, totalHabitsCompleted: profile.totalHabitsCompleted + 1, longestStreak: Math.max(profile.longestStreak, updated.find(h => h.id === id)?.streak || 0) }, updated, achievements);
@@ -122,6 +136,7 @@ export default function App() {
       };
     });
     saveHabits(updated); setHabits(updated);
+    snapshotHabitLog(updated);
   };
 
   const handleToggleTheme = () => {

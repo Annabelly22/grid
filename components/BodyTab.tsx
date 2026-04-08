@@ -10,6 +10,7 @@ import {
 import FastingTimer from './FastingTimer';
 import GymTracker   from './GymTracker';
 import GymProgram   from './GymProgram';
+import MonthLog     from './MonthLog';
 
 const CYCLE_KEY      = 'grid_cycle_start';
 const ENERGY_KEY     = 'grid_energy_level';
@@ -127,6 +128,42 @@ function Divider({ label, color }: { label: string; color: string }) {
       <span className="font-orbitron" style={{ fontSize: 9, color, letterSpacing: '2px' }}>{label}</span>
       <div className="h-px flex-1" style={{ background: 'var(--ng-border)' }} />
     </div>
+  );
+}
+
+// ── Log tab: week / month toggle ─────────────────────────────────
+function LogTab() {
+  const [logView, setLogView] = useState<'week' | 'month'>('week');
+  return (
+    <>
+      {/* Toggle */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+        {(['week', 'month'] as const).map(v => (
+          <button key={v} onClick={() => setLogView(v)} className="flex-1 font-orbitron"
+            style={{
+              padding: '8px', fontSize: 9, letterSpacing: '2px',
+              border: `1px solid ${logView === v ? 'var(--ng-amber)' : 'var(--ng-border)'}`,
+              color:  logView === v ? 'var(--ng-amber)' : 'var(--ng-muted)',
+              background: logView === v ? 'rgba(255,184,0,0.08)' : 'transparent',
+              borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s',
+            }}>
+            {v === 'week' ? '⬡ WEEK' : '◈ MONTH'}
+          </button>
+        ))}
+      </div>
+
+      {logView === 'week' ? (
+        <>
+          <div style={{ padding: '0 0 16px' }}>
+            <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '3px', marginBottom: 4 }}>WEEKLY TRAINING LOG</div>
+            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Select an activity chip, then tap a day to log it. Tap again to remove.</div>
+          </div>
+          <GymTracker />
+        </>
+      ) : (
+        <MonthLog />
+      )}
+    </>
   );
 }
 
@@ -558,13 +595,7 @@ export default function BodyTab() {
 
         {/* ═══ LOG ═════════════════════════════════════════════ */}
         {subTab === 'log' && (
-          <>
-            <div style={{ padding: '4px 0 20px' }}>
-              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '3px', marginBottom: 4 }}>WEEKLY TRAINING LOG</div>
-              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Select an activity chip, then tap a day to log it. Tap again to remove.</div>
-            </div>
-            <GymTracker />
-          </>
+          <LogTab />
         )}
 
         {/* ═══ TEA ══════════════════════════════════════════════ */}
