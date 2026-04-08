@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   CyclePhase, EnergyLevel, TeaCategory,
   CYCLE_PHASES, SUPPLEMENTS, TEAS, MOVEMENTS,
@@ -15,13 +15,15 @@ const CYCLE_KEY      = 'grid_cycle_start';
 const ENERGY_KEY     = 'grid_energy_level';
 const SUPP_VIEW_KEY  = 'grid_supplements_view';
 const OWNED_KEY      = 'grid_owned_supps';
+const PENDING_KEY    = 'grid_pending_supps';
 const STEPS_KEY      = 'grid_steps';
 const STEPS_GOAL     = 10000;
 type SubTab = 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move' | 'gym';
 
-function SupplementCard({ s, expanded, onToggle, owned, onToggleOwned }: {
+function SupplementCard({ s, expanded, onToggle, owned, onToggleOwned, pending, onTogglePending }: {
   s: Supplement; expanded: boolean; onToggle: () => void;
   owned: boolean; onToggleOwned: () => void;
+  pending?: boolean; onTogglePending?: () => void;
 }) {
   const cat = CATEGORY_META[s.category];
   return (
@@ -65,11 +67,21 @@ function SupplementCard({ s, expanded, onToggle, owned, onToggleOwned }: {
               <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-red)', lineHeight: 1.5 }}>⚠ {s.warning}</div>
             </div>
           )}
-          <button
-            onClick={e => { e.stopPropagation(); onToggleOwned(); }}
-            style={{ marginTop: 10, width: '100%', padding: '8px', fontSize: 11, fontWeight: 600, border: `1px solid ${owned ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: owned ? 'var(--ng-green)' : 'var(--ng-muted)', background: owned ? 'rgba(48,209,88,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s' }}>
-            {owned ? '✓ IN MY STACK — tap to remove' : '+ I HAVE THIS'}
-          </button>
+          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+            <button
+              onClick={e => { e.stopPropagation(); onToggleOwned(); }}
+              style={{ flex: 1, padding: '8px', fontSize: 11, fontWeight: 600, border: `1px solid ${owned ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: owned ? 'var(--ng-green)' : 'var(--ng-muted)', background: owned ? 'rgba(48,209,88,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s' }}>
+              {owned ? '✓ IN MY STACK' : '+ I HAVE THIS'}
+            </button>
+            {onTogglePending && !owned && (
+              <button
+                onClick={e => { e.stopPropagation(); onTogglePending(); }}
+                style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, border: `1px solid ${pending ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: pending ? 'var(--ng-amber)' : 'var(--ng-muted)', background: pending ? 'rgba(255,184,0,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
+                title={pending ? 'Remove from buy list' : 'Add to buy list'}>
+                {pending ? '🛒 WANT' : '🛒'}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -129,10 +141,14 @@ export default function BodyTab() {
   const [suppView,    setSuppView]    = useState<'list' | 'grid'>('list');
   const [teaFilter,   setTeaFilter]   = useState<TeaCategory | 'all'>('all');
   const [catFilter,   setCatFilter]   = useState<string>('all');
-  const [ownedSupps,  setOwnedSupps]  = useState<Set<string>>(new Set());
-  const [steps,       setSteps]       = useState(0);
-  const [stepsInput,  setStepsInput]  = useState('');
+  const [ownedSupps,    setOwnedSupps]    = useState<Set<string>>(new Set());
+  const [pendingSupps,  setPendingSupps]  = useState<Set<string>>(new Set());
+  const [steps,         setSteps]         = useState(0);
+  const [stepsInput,    setStepsInput]    = useState('');
   const [showStepsInput, setShowStepsInput] = useState(false);
+  const [autoStep,      setAutoStep]      = useState(false);
+  const lastPeakRef  = useRef(0);
+  const stepsRef     = useRef(0);
 
   const stepsDateKey = () => new Date().toISOString().split('T')[0];
 
@@ -145,6 +161,8 @@ export default function BodyTab() {
     if (sv) setSuppView(sv);
     const ov = localStorage.getItem(OWNED_KEY);
     if (ov) setOwnedSupps(new Set(JSON.parse(ov)));
+    const pv = localStorage.getItem(PENDING_KEY);
+    if (pv) setPendingSupps(new Set(JSON.parse(pv)));
     // Load today's steps
     try {
       const raw = localStorage.getItem(STEPS_KEY);
@@ -157,6 +175,7 @@ export default function BodyTab() {
 
   const saveSteps = (val: number) => {
     const clamped = Math.max(0, Math.min(99999, val));
+    stepsRef.current = clamped;
     setSteps(clamped);
     try {
       const raw = localStorage.getItem(STEPS_KEY);
@@ -181,6 +200,49 @@ export default function BodyTab() {
       return next;
     });
   };
+
+  const togglePending = (id: string) => {
+    setPendingSupps(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      localStorage.setItem(PENDING_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  // ── Auto step counting via device accelerometer ──────────────
+  const handleMotion = useCallback((e: DeviceMotionEvent) => {
+    const ag = e.accelerationIncludingGravity;
+    if (!ag || ag.x == null || ag.y == null || ag.z == null) return;
+    const mag = Math.sqrt(ag.x * ag.x + ag.y * ag.y + ag.z * ag.z);
+    const now = Date.now();
+    if (mag > 12 && now - lastPeakRef.current > 300) {
+      lastPeakRef.current = now;
+      stepsRef.current += 1;
+      saveSteps(stepsRef.current);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startAutoStep = async () => {
+    try {
+      if (typeof DeviceMotionEvent !== 'undefined' &&
+          typeof (DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> }).requestPermission === 'function') {
+        const perm = await (DeviceMotionEvent as unknown as { requestPermission: () => Promise<string> }).requestPermission();
+        if (perm !== 'granted') return;
+      }
+      stepsRef.current = steps;
+      window.addEventListener('devicemotion', handleMotion);
+      setAutoStep(true);
+    } catch {}
+  };
+
+  const stopAutoStep = () => {
+    window.removeEventListener('devicemotion', handleMotion);
+    setAutoStep(false);
+  };
+
+  // Clean up on unmount
+  useEffect(() => () => { window.removeEventListener('devicemotion', handleMotion); }, [handleMotion]);
 
   const phase = getCyclePhase(cycleStart);
   const dayOfCycle = getDayOfCycle(cycleStart);
@@ -316,7 +378,7 @@ export default function BodyTab() {
               const adaptogens  = SUPPLEMENTS.filter(s => s.category === 'adaptogen');
               const renderSupps = (list: Supplement[]) =>
                 suppView === 'list' ? (
-                  list.map(s => <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} />)
+                  list.map(s => <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} pending={pendingSupps.has(s.id)} onTogglePending={() => togglePending(s.id)} />)
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                     {list.map(s => <SupplementGridCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} />)}
@@ -354,7 +416,7 @@ export default function BodyTab() {
                   })}
                 </div>
                 {suppView === 'list' ? (
-                  filteredAll.map(s => <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} />)
+                  filteredAll.map(s => <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} pending={pendingSupps.has(s.id)} onTogglePending={() => togglePending(s.id)} />)
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {filteredAll.map(s => <SupplementGridCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} />)}
@@ -385,6 +447,31 @@ export default function BodyTab() {
                     ))}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* PENDING BUY LIST */}
+            {pendingSupps.size > 0 && (
+              <div className="mt-6">
+                <Divider label="🛒 PENDING PURCHASE" color="var(--ng-amber)" />
+                <div style={{ background: 'rgba(255,184,0,0.04)', border: '0.5px solid rgba(255,184,0,0.2)', borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
+                  {SUPPLEMENTS.filter(s => pendingSupps.has(s.id)).map((s, i, arr) => (
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderBottom: i < arr.length - 1 ? '0.5px solid rgba(255,184,0,0.15)' : 'none' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <div className="font-orbitron" style={{ fontSize: 11, color: 'var(--ng-text)', letterSpacing: '0.5px' }}>{s.name}</div>
+                        <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', marginTop: 2 }}>{s.dose}</div>
+                      </div>
+                      <button onClick={() => togglePending(s.id)}
+                        style={{ fontSize: 9, padding: '4px 10px', border: '1px solid rgba(255,184,0,0.4)', color: 'var(--ng-amber)', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '1px', flexShrink: 0 }}>
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px', padding: '0 2px' }}>
+                  {pendingSupps.size} item{pendingSupps.size !== 1 ? 's' : ''} — tap 🛒 on any supplement to add · ✕ to remove
+                </div>
               </div>
             )}
 
@@ -579,8 +666,27 @@ export default function BodyTab() {
                     </svg>
                   </div>
 
+                  {/* Auto step badge */}
+                  {autoStep && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ng-green)', boxShadow: '0 0 6px var(--ng-green)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                      <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-green)', letterSpacing: '2px' }}>AUTO COUNTING</span>
+                    </div>
+                  )}
+
                   {/* Quick-add buttons */}
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+                    {!autoStep ? (
+                      <button onClick={startAutoStep} className="font-orbitron"
+                        style={{ fontSize: 9, padding: '7px 14px', border: '1px solid var(--ng-green)55', color: 'var(--ng-green)', background: 'rgba(48,209,88,0.08)', borderRadius: 8, cursor: 'pointer', letterSpacing: '1px' }}>
+                        📱 AUTO
+                      </button>
+                    ) : (
+                      <button onClick={stopAutoStep} className="font-orbitron"
+                        style={{ fontSize: 9, padding: '7px 14px', border: '1px solid var(--ng-green)', color: 'var(--ng-green)', background: 'rgba(48,209,88,0.12)', borderRadius: 8, cursor: 'pointer', letterSpacing: '1px' }}>
+                        ■ STOP
+                      </button>
+                    )}
                     {[1000, 2500, 5000].map(n => (
                       <button key={n} onClick={() => addSteps(n)} className="font-orbitron"
                         style={{ fontSize: 9, padding: '7px 12px', border: `1px solid ${goalReached ? 'var(--ng-green)' : 'var(--ng-cyan)'}55`, color: goalReached ? 'var(--ng-green)' : 'var(--ng-cyan)', background: 'transparent', borderRadius: 8, cursor: 'pointer', letterSpacing: '1px' }}>

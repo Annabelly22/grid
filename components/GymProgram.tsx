@@ -62,22 +62,23 @@ function ExerciseRow({ ex, checked, onToggle }: {
             <span className="font-orbitron" style={{ fontSize: 7, color: 'var(--ng-amber)', border: '1px solid rgba(255,184,0,0.35)', padding: '1px 4px', letterSpacing: '1px', flexShrink: 0 }}>KEY</span>
           )}
         </div>
-        {hasDetail && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
-            {ex.weight && (
-              <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-cyan)', letterSpacing: '1px' }}>{ex.weight}</span>
-            )}
-            {ex.reps && ex.sets && (
-              <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{ex.reps} × {ex.sets}</span>
-            )}
-            {ex.reps && !ex.sets && (
-              <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{ex.reps} reps</span>
-            )}
-            {ex.note && (
-              <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{ex.note}</span>
-            )}
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+          {ex.weight && (
+            <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-cyan)', letterSpacing: '1px' }}>{ex.weight}</span>
+          )}
+          {ex.reps && ex.sets && (
+            <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{ex.reps} × {ex.sets}</span>
+          )}
+          {ex.reps && !ex.sets && (
+            <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{ex.reps} reps</span>
+          )}
+          {ex.note && (
+            <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{ex.note}</span>
+          )}
+          {ex.kcal && (
+            <span className="font-orbitron" style={{ fontSize: 8, color: checked ? 'var(--ng-green)' : 'var(--ng-amber)', letterSpacing: '1px', marginLeft: 'auto', flexShrink: 0 }}>~{ex.kcal} kcal</span>
+          )}
+        </div>
       </div>
     </button>
   );
@@ -103,6 +104,8 @@ function DayPanel({ day, onClose }: { day: GymDay; onClose: () => void }) {
   const doneCount = activeSet.filter(ex => checks[ex.id]).length;
   const total = activeSet.length;
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+  const kcalDone  = activeSet.filter(ex => checks[ex.id]).reduce((sum, ex) => sum + (ex.kcal || 0), 0);
+  const kcalTotal = activeSet.reduce((sum, ex) => sum + (ex.kcal || 0), 0);
 
   // Group exercises by section (for HIIT day)
   const hasSections = activeSet.some(ex => ex.section);
@@ -160,6 +163,11 @@ function DayPanel({ day, onClose }: { day: GymDay; onClose: () => void }) {
               <div style={{ height: '100%', width: `${pct}%`, background: day.color, transition: 'width 0.3s ease', borderRadius: 2 }} />
             </div>
             <span className="font-orbitron" style={{ fontSize: 9, color: day.color, letterSpacing: '1px', flexShrink: 0 }}>{doneCount}/{total}</span>
+            {kcalTotal > 0 && (
+              <span className="font-orbitron" style={{ fontSize: 9, color: kcalDone > 0 ? 'var(--ng-amber)' : 'var(--ng-dimmer)', letterSpacing: '1px', flexShrink: 0 }}>
+                🔥 {kcalDone}/{kcalTotal} kcal
+              </span>
+            )}
           </div>
 
           {/* Variant toggle */}

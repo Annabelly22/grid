@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { UserProfile, Habit, getLevel, CATEGORY_COLORS } from '../lib/gameStore';
 import GridLogo from './GridLogo';
 import { getCyclePhase, getDayOfCycle, CYCLE_PHASES } from '../lib/supplementData';
+import { GYM_DAYS } from '../lib/gymData';
 
 type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile';
 
@@ -58,8 +59,57 @@ function getGreeting() {
   return 'EVENING DEBRIEF';
 }
 
+function useDailyCalories() {
+  const [gymKcal,   setGymKcal]   = useState(0);
+  const [stepKcal,  setStepKcal]  = useState(0);
+  const [fastHours, setFastHours] = useState(0);
+
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Steps calories: ~0.038 kcal/step for 57 kg
+    try {
+      const raw = localStorage.getItem('grid_steps');
+      if (raw) {
+        const all: Record<string, number> = JSON.parse(raw);
+        setStepKcal(Math.round((all[today] || 0) * 0.038));
+      }
+    } catch {}
+
+    // Gym calories: sum kcal of checked exercises today
+    try {
+      let total = 0;
+      for (const day of GYM_DAYS) {
+        for (const suffix of ['', '_alt']) {
+          const key = `grid_gym_checks_${day.id}${suffix}_${today}`;
+          const raw = localStorage.getItem(key);
+          if (!raw) continue;
+          const checks: Record<string, boolean> = JSON.parse(raw);
+          const exercises = suffix === '_alt' ? (day.alt?.exercises || []) : day.exercises;
+          for (const ex of exercises) {
+            if (checks[ex.id] && ex.kcal) total += ex.kcal;
+          }
+        }
+      }
+      setGymKcal(total);
+    } catch {}
+
+    // Fasting hours
+    try {
+      const fs = localStorage.getItem('grid_fast_start');
+      if (fs) setFastHours(Math.min((Date.now() - Number(fs)) / 3600000, 24));
+    } catch {}
+  }, []);
+
+  // BMR burn during fast: ~58 kcal/hr (1396 kcal/day ÷ 24h for 57 kg woman, 22yo)
+  const fastKcal = Math.round(fastHours * 58);
+  const total = stepKcal + gymKcal + fastKcal;
+  return { stepKcal, gymKcal, fastKcal, fastHours, total };
+}
+
 export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit }: Props) {
   const [cycleStart, setCycleStart] = useState<string | null>(null);
+  const cals = useDailyCalories();
 
   useEffect(() => {
     const sc = localStorage.getItem('grid_cycle_start');
@@ -120,6 +170,46 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
 
         {/* ── Thin divider ───────────────────────────────────── */}
         <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--ng-border), transparent)', marginBottom: 24 }} />
+
+        {/* ── Calories burned today ──────────────────────────── */}
+        {(cals.total > 0) && (
+          <div style={{ marginBottom: 24, padding: '16px', background: 'rgba(255,71,87,0.04)', border: '0.5px solid rgba(255,71,87,0.15)', borderRadius: 16 }}>
+            <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-red)', letterSpacing: '3px' }}>🔥 CALORIES BURNED TODAY</div>
+              <div className="font-orbitron font-black" style={{ fontSize: 22, color: 'var(--ng-red)', lineHeight: 1, textShadow: '0 0 20px rgba(255,71,87,0.4)' }}>{cals.total.toLocaleString()}</div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {cals.stepKcal > 0 && (
+                <div className="flex items-center justify-between">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 3, height: 12, background: 'var(--ng-cyan)', borderRadius: 1 }} />
+                    <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>STEPS</span>
+                  </div>
+                  <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-cyan)' }}>{cals.stepKcal} kcal</span>
+                </div>
+              )}
+              {cals.gymKcal > 0 && (
+                <div className="flex items-center justify-between">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 3, height: 12, background: 'var(--ng-amber)', borderRadius: 1 }} />
+                    <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>GYM</span>
+                  </div>
+                  <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-amber)' }}>{cals.gymKcal} kcal</span>
+                </div>
+              )}
+              {cals.fastKcal > 0 && (
+                <div className="flex items-center justify-between">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 3, height: 12, background: 'var(--ng-purple)', borderRadius: 1 }} />
+                    <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>FAST ({Math.round(cals.fastHours)}h)</span>
+                  </div>
+                  <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-purple)' }}>{cals.fastKcal} kcal</span>
+                </div>
+              )}
+            </div>
+            <div style={{ height: 1, background: 'rgba(255,71,87,0.12)', margin: '10px 0 0' }} />
+          </div>
+        )}
 
         {/* ── Streak hero — ambient, no hard border ──────────── */}
         {topStreak > 0 ? (
