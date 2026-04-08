@@ -13,6 +13,7 @@ const ACTIVITIES = [
   { id: 'swim',  icon: '🏊', color: '#64D2FF', label: 'SWIM'  },
   { id: 'cycle', icon: '🚴', color: '#FF9F0A', label: 'CYCLE' },
   { id: 'hike',  icon: '🥾', color: '#FF6B2B', label: 'HIKE'  },
+  { id: 'fast',  icon: '⚡', color: '#FF6B9D', label: 'FAST'  },
   { id: 'rest',  icon: '😴', color: '#8E8E93', label: 'REST'  },
 ];
 

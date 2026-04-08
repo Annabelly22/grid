@@ -12,6 +12,7 @@ const ACTIVITIES: Activity[] = [
   { id: 'swim',  label: 'SWIM',  icon: '🏊', color: '#64D2FF' },
   { id: 'cycle', label: 'CYCLE', icon: '🚴', color: '#FF9F0A' },
   { id: 'hike',  label: 'HIKE',  icon: '🥾', color: '#FF6B2B' },
+  { id: 'fast',  label: 'FAST',  icon: '⚡', color: '#FF6B9D' },
   { id: 'rest',  label: 'REST',  icon: '😴', color: '#8E8E93' },
 ];
 
