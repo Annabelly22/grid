@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { UserProfile } from '../lib/gameStore';
 
 interface Props {
@@ -112,6 +113,9 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
             <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
               AI COACH · {profile.focusMinutes} focus mins logged
             </div>
+            <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '1px', marginTop: 2 }}>
+              FOCUS TIMER — EARN XP (2 XP/MIN)
+            </div>
           </div>
 
           {/* Focus widget */}
@@ -165,7 +169,7 @@ export default function CoachTab({ profile, onFocusMinutes }: Props) {
               <div style={{ fontSize: 10, color: 'var(--ng-green)', fontWeight: 700, marginBottom: 6, letterSpacing: 0 }}>⚡ CIPHER</div>
             )}
             {msg.role === 'assistant'
-              ? <span dangerouslySetInnerHTML={{ __html: msg.content }} />
+              ? <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.content) }} />
               : msg.content
             }
           </div>

@@ -7,19 +7,36 @@ import {
   getSupplementsForContext, getMovementsForContext,
   CATEGORY_META, TIMING_META, Supplement, SUPPLEMENT_CONFLICTS,
 } from '../lib/supplementData';
+import { Storage } from '../lib/storage';
+import { useGridContext } from '../contexts/GridContext';
 import FastingTimer from './FastingTimer';
 import GymTracker   from './GymTracker';
 import GymProgram   from './GymProgram';
 import MonthLog     from './MonthLog';
 
-const CYCLE_KEY      = 'grid_cycle_start';
-const ENERGY_KEY     = 'grid_energy_level';
-const SUPP_VIEW_KEY  = 'grid_supplements_view';
-const OWNED_KEY      = 'grid_owned_supps';
-const PENDING_KEY    = 'grid_pending_supps';
-const STEPS_KEY      = 'grid_steps';
-const STEPS_GOAL     = 10000;
-type SubTab = 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move' | 'gym';
+const STEPS_GOAL = 10000;
+type SubTab = 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move' | 'gym' | 'cart' | 'metab';
+
+interface MetabSupp {
+  rank: number; name: string; dose: string; timing: string;
+  benefit: string; priority: 'critical' | 'high' | 'medium';
+  color: string; note?: string;
+}
+
+const METAB_SUPPS: MetabSupp[] = [
+  { rank: 1,  name: 'L-Carnitine',              dose: '1,000–2,000mg',  timing: 'Pre-workout / with carbs',  benefit: 'Shuttles fatty acids into mitochondria for fuel. Highest impact for fat oxidation during exercise.',  priority: 'critical', color: '#FF6B35' },
+  { rank: 2,  name: 'Green Tea Extract (EGCG)', dose: '400–500mg EGCG', timing: 'Morning, before training',   benefit: 'Increases metabolic rate 3–4%. Inhibits fat storage enzyme COMT. Stack with caffeine for synergy.',   priority: 'critical', color: '#30D158' },
+  { rank: 3,  name: 'Chromium Picolinate',      dose: '200–400mcg',     timing: 'With largest meal',          benefit: 'Enhances insulin sensitivity. Reduces sugar cravings. Essential for glucose metabolism.',            priority: 'high',     color: '#00D4FF' },
+  { rank: 4,  name: 'Alpha-Lipoic Acid (ALA)',  dose: '300–600mg',      timing: 'Before meals',               benefit: 'Universal antioxidant. Improves insulin signalling. Activates AMPK (fat burning switch).',         priority: 'high',     color: '#BF5AF2' },
+  { rank: 5,  name: 'Berberine',                dose: '500mg × 3/day',  timing: 'Before each meal',           benefit: 'Activates AMPK as effectively as metformin. Lowers fasting glucose and insulin resistance.',       priority: 'high',     color: '#FFD60A' },
+  { rank: 6,  name: 'CoQ10',                    dose: '100–200mg',      timing: 'With fat-containing meal',   benefit: 'Mitochondrial energy production. Prevents exercise fatigue. Essential with any statin use.',         priority: 'high',     color: '#FF9500' },
+  { rank: 7,  name: 'Magnesium Glycinate',      dose: '300–400mg',      timing: 'Evening',                    benefit: 'Cofactor in 300+ enzymatic reactions including glucose metabolism. Deficiency blocks fat loss.',    priority: 'high',     color: '#32ADE6' },
+  { rank: 8,  name: 'Myo-Inositol',             dose: '2–4g',           timing: 'Morning or before bed',      benefit: 'Regulates insulin and FSH. Critical for PCOS/hormonal weight gain. Improves ovarian function.',     priority: 'high',     color: '#FF375F' },
+  { rank: 9,  name: 'Iodine (Kelp)',            dose: '150–300mcg',     timing: 'Morning with food',          benefit: 'Required for thyroid hormone synthesis. Subclinical deficiency slows metabolism significantly.',     priority: 'medium',   color: '#34C759' },
+  { rank: 10, name: 'Ashwagandha (KSM-66)',     dose: '300–600mg',      timing: 'Evening',                    benefit: 'Lowers cortisol 15–30%. High cortisol → visceral fat accumulation. Improves body composition.',    priority: 'medium',   color: '#AC8E68' },
+  { rank: 11, name: 'B-Complex (P5P B6)',       dose: '1 capsule',      timing: 'Morning with food',          benefit: 'Cofactor for amino acid and glucose metabolism. P5P form bypasses absorption issues.',               priority: 'medium',   color: '#FFB800' },
+  { rank: 12, name: 'Iron + Vitamin C',         dose: 'Iron 18mg + C 250mg', timing: 'On empty stomach',     benefit: 'Iron deficiency → fatigue → reduced activity → weight gain. Vitamin C triples absorption.',         priority: 'medium',   color: '#FF453A', note: 'Menstrual phase only — do not take year-round without testing' },
+];
 
 function SupplementCard({ s, expanded, onToggle, owned, onToggleOwned, pending, onTogglePending }: {
   s: Supplement; expanded: boolean; onToggle: () => void;
@@ -29,23 +46,33 @@ function SupplementCard({ s, expanded, onToggle, owned, onToggleOwned, pending, 
   const cat = CATEGORY_META[s.category];
   return (
     <div className="mb-3 transition-all" style={{ border: `0.5px solid ${expanded ? s.color : 'var(--ng-border)'}`, borderLeft: `3px solid ${s.color}`, borderRadius: 12, background: 'var(--ng-surface)', boxShadow: expanded ? `0 2px 16px ${s.color}22` : 'none' }}>
-      <button className="w-full text-left p-3" onClick={onToggle}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="font-orbitron font-bold" style={{ color: 'var(--ng-text)', fontSize: 12, letterSpacing: '0.5px' }}>{s.name}</span>
-              {s.priority === 'critical' && <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-red)', border: '1px solid var(--ng-red)', padding: '1px 5px', letterSpacing: '1px' }}>CRITICAL</span>}
-              {owned && <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-green)', border: '1px solid var(--ng-green)', padding: '1px 5px', letterSpacing: '1px' }}>✓ HAVE IT</span>}
+      <div style={{ display: 'flex', alignItems: 'stretch' }}>
+        <button className="text-left p-3" style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer' }} onClick={onToggle}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="font-orbitron font-bold" style={{ color: 'var(--ng-text)', fontSize: 12, letterSpacing: '0.5px' }}>{s.name}</span>
+                {s.priority === 'critical' && <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-red)', border: '1px solid var(--ng-red)', padding: '1px 5px', letterSpacing: '1px' }}>CRITICAL</span>}
+                {owned && <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-green)', border: '1px solid var(--ng-green)', padding: '1px 5px', letterSpacing: '1px' }}>✓ HAVE IT</span>}
+              </div>
+              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>{s.dose}</div>
             </div>
-            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>{s.dose}</div>
+            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+              <span className="font-orbitron" style={{ fontSize: 8, color: cat.color, letterSpacing: '1px' }}>{cat.icon} {cat.label}</span>
+              <span style={{ color: 'var(--ng-muted)', fontSize: 12 }}>{expanded ? '▲' : '▼'}</span>
+            </div>
           </div>
-          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-            <span className="font-orbitron" style={{ fontSize: 8, color: cat.color, letterSpacing: '1px' }}>{cat.icon} {cat.label}</span>
-            <span style={{ color: 'var(--ng-muted)', fontSize: 12 }}>{expanded ? '▲' : '▼'}</span>
-          </div>
-        </div>
-        <div className="font-mono mt-1" style={{ fontSize: 10, color: s.color }}>{s.purpose}</div>
-      </button>
+          <div className="font-mono mt-1" style={{ fontSize: 10, color: s.color }}>{s.purpose}</div>
+        </button>
+        {onTogglePending && !owned && (
+          <button
+            onClick={e => { e.stopPropagation(); onTogglePending(); }}
+            style={{ padding: '0 12px', background: pending ? 'rgba(255,184,0,0.08)' : 'transparent', border: 'none', borderLeft: `1px solid ${pending ? 'rgba(255,184,0,0.3)' : 'var(--ng-border)'}`, color: pending ? 'var(--ng-amber)' : 'var(--ng-dimmer)', cursor: 'pointer', fontSize: 14, flexShrink: 0, transition: 'all 0.15s' }}
+            title={pending ? 'Remove from buy list' : 'Add to buy list'}>
+            🛒
+          </button>
+        )}
+      </div>
       {expanded && (
         <div className="px-3 pb-3 border-t" style={{ borderColor: 'var(--ng-border)' }}>
           <div className="pt-2 pb-1 font-mono" style={{ fontSize: 11, color: 'var(--ng-text)', lineHeight: 1.6 }}>{s.why}</div>
@@ -89,9 +116,10 @@ function SupplementCard({ s, expanded, onToggle, owned, onToggleOwned, pending, 
   );
 }
 
-function SupplementGridCard({ s, expanded, onToggle, owned, onToggleOwned }: {
+function SupplementGridCard({ s, expanded, onToggle, owned, onToggleOwned, pending, onTogglePending }: {
   s: Supplement; expanded: boolean; onToggle: () => void;
   owned: boolean; onToggleOwned: () => void;
+  pending?: boolean; onTogglePending?: () => void;
 }) {
   const cat = CATEGORY_META[s.category];
   return (
@@ -99,7 +127,8 @@ function SupplementGridCard({ s, expanded, onToggle, owned, onToggleOwned }: {
       <button className="w-full text-left p-2" onClick={onToggle} style={{ flex: 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
           <span className="font-orbitron" style={{ fontSize: 7, color: cat.color, letterSpacing: '1px' }}>{cat.icon} {cat.label}</span>
-          <div style={{ display: 'flex', gap: 3 }}>
+          <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+            {pending && <span style={{ fontSize: 8, color: 'var(--ng-amber)' }}>🛒</span>}
             {owned && <span style={{ fontSize: 7, color: 'var(--ng-green)' }}>✓</span>}
             {s.priority === 'critical' && <span className="font-orbitron" style={{ fontSize: 7, color: 'var(--ng-red)' }}>!</span>}
           </div>
@@ -111,10 +140,18 @@ function SupplementGridCard({ s, expanded, onToggle, owned, onToggleOwned }: {
       {expanded && (
         <div className="p-2" style={{ borderTop: '1px solid var(--ng-border)' }}>
           <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-text)', lineHeight: 1.5 }}>{s.why}</div>
-          <button onClick={e => { e.stopPropagation(); onToggleOwned(); }}
-            style={{ marginTop: 6, width: '100%', padding: '5px', fontSize: 9, fontWeight: 600, border: `1px solid ${owned ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: owned ? 'var(--ng-green)' : 'var(--ng-muted)', background: owned ? 'rgba(48,209,88,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer' }}>
-            {owned ? '✓ HAVE IT' : '+ ADD'}
-          </button>
+          <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+            <button onClick={e => { e.stopPropagation(); onToggleOwned(); }}
+              style={{ flex: 1, padding: '5px', fontSize: 9, fontWeight: 600, border: `1px solid ${owned ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: owned ? 'var(--ng-green)' : 'var(--ng-muted)', background: owned ? 'rgba(48,209,88,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer' }}>
+              {owned ? '✓ HAVE IT' : '+ ADD'}
+            </button>
+            {onTogglePending && !owned && (
+              <button onClick={e => { e.stopPropagation(); onTogglePending(); }}
+                style={{ padding: '5px 8px', fontSize: 10, border: `1px solid ${pending ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: pending ? 'var(--ng-amber)' : 'var(--ng-muted)', background: pending ? 'rgba(255,184,0,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer' }}>
+                🛒
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -168,6 +205,7 @@ function LogTab() {
 }
 
 export default function BodyTab() {
+  const { phaseChange, clearPhaseChange } = useGridContext();
   const [subTab,      setSubTab]      = useState<SubTab>('stack');
   const [menuOpen,    setMenuOpen]    = useState(false);
   const [cycleStart,  setCycleStart]  = useState<string | null>(null);
@@ -190,50 +228,37 @@ export default function BodyTab() {
   const stepsDateKey = () => new Date().toISOString().split('T')[0];
 
   useEffect(() => {
-    const sc = localStorage.getItem(CYCLE_KEY);
+    const sc = Storage.getCycleStart();
     if (sc) { setCycleStart(sc); setCycleInput(sc); }
-    const se = localStorage.getItem(ENERGY_KEY) as EnergyLevel | null;
-    if (se) setEnergyLevel(se);
-    const sv = localStorage.getItem(SUPP_VIEW_KEY) as 'list' | 'grid' | null;
-    if (sv) setSuppView(sv);
-    const ov = localStorage.getItem(OWNED_KEY);
-    if (ov) setOwnedSupps(new Set(JSON.parse(ov)));
-    const pv = localStorage.getItem(PENDING_KEY);
-    if (pv) setPendingSupps(new Set(JSON.parse(pv)));
-    // Load today's steps
-    try {
-      const raw = localStorage.getItem(STEPS_KEY);
-      if (raw) {
-        const all: Record<string, number> = JSON.parse(raw);
-        setSteps(all[stepsDateKey()] || 0);
-      }
-    } catch {}
+    setEnergyLevel(Storage.getEnergyLevel());
+    setSuppView(Storage.getSuppView());
+    setOwnedSupps(Storage.getOwnedSupps());
+    setPendingSupps(Storage.getPendingSupps());
+    const all = Storage.getSteps();
+    setSteps(all[stepsDateKey()] || 0);
   }, []);
 
   const saveSteps = (val: number) => {
     const clamped = Math.max(0, Math.min(99999, val));
     stepsRef.current = clamped;
     setSteps(clamped);
-    try {
-      const raw = localStorage.getItem(STEPS_KEY);
-      const all: Record<string, number> = raw ? JSON.parse(raw) : {};
-      all[stepsDateKey()] = clamped;
-      localStorage.setItem(STEPS_KEY, JSON.stringify(all));
-    } catch {}
+    const all = Storage.getSteps();
+    all[stepsDateKey()] = clamped;
+    Storage.setSteps(all);
   };
 
   const addSteps = (n: number) => saveSteps(steps + n);
 
   const changeSuppView = (v: 'list' | 'grid') => {
     setSuppView(v);
-    localStorage.setItem(SUPP_VIEW_KEY, v);
+    Storage.setSuppView(v);
   };
 
   const toggleOwned = (id: string) => {
     setOwnedSupps(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      localStorage.setItem(OWNED_KEY, JSON.stringify([...next]));
+      Storage.setOwnedSupps(next);
       return next;
     });
   };
@@ -242,7 +267,7 @@ export default function BodyTab() {
     setPendingSupps(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      localStorage.setItem(PENDING_KEY, JSON.stringify([...next]));
+      Storage.setPendingSupps(next);
       return next;
     });
   };
@@ -287,10 +312,10 @@ export default function BodyTab() {
 
   const saveCycle = () => {
     if (!cycleInput) return;
-    localStorage.setItem(CYCLE_KEY, cycleInput);
+    Storage.setCycleStart(cycleInput);
     setCycleStart(cycleInput);
   };
-  const saveEnergy = (e: EnergyLevel) => { setEnergyLevel(e); localStorage.setItem(ENERGY_KEY, e); };
+  const saveEnergy = (e: EnergyLevel) => { setEnergyLevel(e); Storage.setEnergyLevel(e); };
 
   const smartSupps = phase ? getSupplementsForContext(phase, energyLevel) : SUPPLEMENTS;
   const categories = ['all', ...Array.from(new Set(SUPPLEMENTS.map(s => s.category)))];
@@ -300,17 +325,33 @@ export default function BodyTab() {
   const movements = getMovementsForContext(phase, energyLevel);
 
   const SUB_TABS = [
-    { id: 'stack' as SubTab, label: 'STACK', icon: '◆', color: 'var(--ng-green)'  },
-    { id: 'cycle' as SubTab, label: 'CYCLE', icon: '◈', color: 'var(--ng-purple)' },
-    { id: 'fast'  as SubTab, label: 'FAST',  icon: '⏱', color: 'var(--ng-cyan)'   },
-    { id: 'log'   as SubTab, label: 'LOG',   icon: '⬡', color: 'var(--ng-amber)'  },
-    { id: 'tea'   as SubTab, label: 'TEA',   icon: '❋', color: 'var(--ng-amber)'  },
-    { id: 'move'  as SubTab, label: 'MOVE',  icon: '⚡', color: 'var(--ng-cyan)'   },
-    { id: 'gym'   as SubTab, label: 'GYM',   icon: '🏋️', color: '#FF453A'          },
+    { id: 'stack' as SubTab, label: 'STACK',  icon: '◆',  color: 'var(--ng-green)'  },
+    { id: 'cart'  as SubTab, label: 'CART',   icon: '🛒',  color: 'var(--ng-amber)',  badge: pendingSupps.size > 0 ? pendingSupps.size : undefined },
+    { id: 'metab' as SubTab, label: 'METAB',  icon: '⚗',  color: '#FF6B35'          },
+    { id: 'cycle' as SubTab, label: 'CYCLE',  icon: '◈',  color: 'var(--ng-purple)' },
+    { id: 'fast'  as SubTab, label: 'FAST',   icon: '⏱',  color: 'var(--ng-cyan)'   },
+    { id: 'log'   as SubTab, label: 'LOG',    icon: '⬡',  color: 'var(--ng-amber)'  },
+    { id: 'tea'   as SubTab, label: 'TEA',    icon: '❋',  color: 'var(--ng-amber)'  },
+    { id: 'move'  as SubTab, label: 'MOVE',   icon: '⚡',  color: 'var(--ng-cyan)'   },
+    { id: 'gym'   as SubTab, label: 'GYM',    icon: '🏋️', color: '#FF453A'          },
   ];
 
   return (
     <div className="content-area" style={{ paddingBottom: 80 }}>
+      {/* Phase change alert banner */}
+      {phaseChange && (
+        <div style={{ margin: '0 0 0', padding: '10px 16px', background: 'rgba(191,90,242,0.12)', borderBottom: '1px solid rgba(191,90,242,0.4)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>🔄</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="font-orbitron font-bold" style={{ fontSize: 9, color: 'var(--ng-purple)', letterSpacing: '2px' }}>PHASE CHANGE DETECTED</div>
+            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-text)', lineHeight: 1.4 }}>
+              {CYCLE_PHASES[phaseChange.from].icon} {CYCLE_PHASES[phaseChange.from].label} → {CYCLE_PHASES[phaseChange.to].icon} {CYCLE_PHASES[phaseChange.to].label} — Your supplement stack has been updated.
+            </div>
+          </div>
+          <button onClick={clearPhaseChange} style={{ background: 'none', border: 'none', color: 'var(--ng-muted)', cursor: 'pointer', fontSize: 16, flexShrink: 0, padding: '0 4px' }}>✕</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="px-4 pt-4 pb-3" style={{ borderBottom: '0.5px solid var(--ng-border)' }}>
         <div className="flex items-start justify-between">
@@ -418,7 +459,7 @@ export default function BodyTab() {
                   list.map(s => <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} pending={pendingSupps.has(s.id)} onTogglePending={() => togglePending(s.id)} />)
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-                    {list.map(s => <SupplementGridCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} />)}
+                    {list.map(s => <SupplementGridCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} pending={pendingSupps.has(s.id)} onTogglePending={() => togglePending(s.id)} />)}
                   </div>
                 );
               return (
@@ -456,7 +497,7 @@ export default function BodyTab() {
                   filteredAll.map(s => <SupplementCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} pending={pendingSupps.has(s.id)} onTogglePending={() => togglePending(s.id)} />)
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    {filteredAll.map(s => <SupplementGridCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} />)}
+                    {filteredAll.map(s => <SupplementGridCard key={s.id} s={s} expanded={expandedId === s.id} onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)} owned={ownedSupps.has(s.id)} onToggleOwned={() => toggleOwned(s.id)} pending={pendingSupps.has(s.id)} onTogglePending={() => togglePending(s.id)} />)}
                   </div>
                 )}
               </>
@@ -805,6 +846,122 @@ export default function BodyTab() {
           </>
         )}
 
+        {/* ═══ CART ════════════════════════════════════════════ */}
+        {subTab === 'cart' && (
+          <>
+            <div style={{ padding: '4px 0 20px' }}>
+              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '3px', marginBottom: 4 }}>PENDING PURCHASE LIST</div>
+              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Supplements you plan to buy. Tap 🛒 on any supplement to add here.</div>
+            </div>
+
+            {pendingSupps.size === 0 ? (
+              <div style={{ padding: '32px 16px', textAlign: 'center', border: '1px dashed var(--ng-border)', borderRadius: 12 }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>🛒</div>
+                <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-muted)', letterSpacing: '2px' }}>CART IS EMPTY</div>
+                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-dimmer)', marginTop: 6 }}>Tap the 🛒 icon on any supplement in STACK to add it here.</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ background: 'rgba(255,184,0,0.04)', border: '0.5px solid rgba(255,184,0,0.2)', borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
+                  {SUPPLEMENTS.filter(s => pendingSupps.has(s.id)).map((s, i, arr) => (
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: i < arr.length - 1 ? '0.5px solid rgba(255,184,0,0.15)' : 'none' }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="font-orbitron" style={{ fontSize: 12, color: 'var(--ng-text)', letterSpacing: '0.5px' }}>{s.name}</div>
+                        <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', marginTop: 2 }}>{s.dose}</div>
+                        <div className="font-mono" style={{ fontSize: 9, color: s.color, marginTop: 1 }}>{s.purpose}</div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end', flexShrink: 0 }}>
+                        <button onClick={() => { toggleOwned(s.id); togglePending(s.id); }}
+                          style={{ fontSize: 9, padding: '4px 10px', border: '1px solid var(--ng-green)', color: 'var(--ng-green)', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '1px', whiteSpace: 'nowrap' }}>
+                          ✓ GOT IT
+                        </button>
+                        <button onClick={() => togglePending(s.id)}
+                          style={{ fontSize: 9, padding: '4px 10px', border: '1px solid rgba(255,71,87,0.4)', color: 'var(--ng-red)', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '1px' }}>
+                          ✕ REMOVE
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px', padding: '0 2px', marginBottom: 8 }}>
+                  {pendingSupps.size} item{pendingSupps.size !== 1 ? 's' : ''} · tap ✓ GOT IT to mark owned and remove from list
+                </div>
+                <div className="p-3" style={{ background: 'var(--ng-bg)', border: '0.5px solid var(--ng-border)', borderRadius: 10 }}>
+                  <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', lineHeight: 1.6 }}>
+                    Available at Amazon, iHerb, Vitamin Shoppe (Dallas). Search by exact name for best results.
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ═══ METAB ═══════════════════════════════════════════ */}
+        {subTab === 'metab' && (
+          <>
+            <div style={{ padding: '4px 0 20px' }}>
+              <div className="font-orbitron" style={{ fontSize: 8, color: '#FF6B35', letterSpacing: '3px', marginBottom: 4 }}>METABOLISM + WEIGHT LOSS PROTOCOL</div>
+              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>12 evidence-ranked supplements for fat metabolism, insulin sensitivity, and hormonal weight regulation.</div>
+            </div>
+
+            {/* Priority legend */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              {[{ label: 'CRITICAL', color: 'var(--ng-red)' }, { label: 'HIGH', color: 'var(--ng-amber)' }, { label: 'MEDIUM', color: 'var(--ng-cyan)' }].map(p => (
+                <div key={p.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: p.color }} />
+                  <span className="font-orbitron" style={{ fontSize: 8, color: p.color, letterSpacing: '1px' }}>{p.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {METAB_SUPPS.map(m => {
+              const priorityColor = m.priority === 'critical' ? 'var(--ng-red)' : m.priority === 'high' ? 'var(--ng-amber)' : 'var(--ng-cyan)';
+              return (
+                <div key={m.rank} className="mb-3" style={{ border: `0.5px solid var(--ng-border)`, borderLeft: `3px solid ${m.color}`, borderRadius: 12, background: 'var(--ng-surface)', padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                        <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-dimmer)', letterSpacing: '1px' }}>#{m.rank}</span>
+                        <span className="font-orbitron font-bold" style={{ fontSize: 12, color: 'var(--ng-text)', letterSpacing: '0.5px' }}>{m.name}</span>
+                      </div>
+                      <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>{m.dose} · {m.timing}</div>
+                    </div>
+                    <span className="font-orbitron" style={{ fontSize: 8, color: priorityColor, border: `1px solid ${priorityColor}`, padding: '2px 6px', letterSpacing: '1px', flexShrink: 0 }}>{m.priority.toUpperCase()}</span>
+                  </div>
+                  <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-text)', lineHeight: 1.5 }}>{m.benefit}</div>
+                  {m.note && (
+                    <div className="mt-2 p-2" style={{ background: 'rgba(255,71,87,0.06)', border: '1px solid rgba(255,71,87,0.25)', borderRadius: 6 }}>
+                      <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-red)', lineHeight: 1.4 }}>⚠ {m.note}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <div style={{ marginTop: 8, padding: '16px', background: 'rgba(255,107,53,0.06)', border: '0.5px solid rgba(255,107,53,0.25)', borderRadius: 12 }}>
+              <div className="font-orbitron mb-2" style={{ fontSize: 9, color: '#FF6B35', letterSpacing: '2px' }}>EXPECTED OUTCOMES</div>
+              {[
+                ['Week 1–2', 'Reduced sugar cravings. Improved post-meal energy. Better sleep quality.'],
+                ['Week 3–4', 'Noticeable increase in energy during training. Reduced water retention.'],
+                ['Month 2', 'Improved body composition. Measurable fat loss with consistent training.'],
+                ['Month 3+', 'Optimized hormonal baseline. Sustainable weight regulation without restriction.'],
+              ].map(([time, text]) => (
+                <div key={time} className="flex gap-2 mb-2">
+                  <span className="font-orbitron" style={{ fontSize: 9, color: '#FF6B35', flexShrink: 0, minWidth: 64 }}>{time}</span>
+                  <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', lineHeight: 1.4 }}>{text}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 p-3" style={{ background: 'var(--ng-bg)', border: '0.5px solid var(--ng-border)', borderRadius: 10 }}>
+              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', lineHeight: 1.6 }}>
+                ⚠ Educational guidance, not medical advice. Berberine interacts with medications — consult a doctor if on any prescriptions. Test iron levels before supplementing year-round.
+              </div>
+            </div>
+          </>
+        )}
+
         {/* ═══ GYM ══════════════════════════════════════════════ */}
         {subTab === 'gym' && (
           <>
@@ -840,7 +997,11 @@ export default function BodyTab() {
                 }}>
                 <span style={{ fontSize: 18, width: 24, textAlign: 'center', flexShrink: 0 }}>{t.icon}</span>
                 <span style={{ flex: 1, textAlign: 'left' }}>{t.label}</span>
-                {subTab === t.id && <span style={{ fontSize: 13, color: t.color }}>✓</span>}
+                {'badge' in t && t.badge ? (
+                  <span style={{ fontSize: 10, background: t.color, color: '#000', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'monospace' }}>{t.badge}</span>
+                ) : subTab === t.id ? (
+                  <span style={{ fontSize: 13, color: t.color }}>✓</span>
+                ) : null}
               </button>
             ))}
           </div>
