@@ -666,29 +666,57 @@ export default function BodyTab() {
                 </div>
                 <div className="font-mono mb-1" style={{ fontSize: 10, color: 'var(--ng-amber)' }}>{tea.purpose}</div>
                 <div className="font-mono mb-2" style={{ fontSize: 10, color: 'var(--ng-text)', lineHeight: 1.5 }}>{tea.benefit}</div>
-                <div className="p-2" style={{ background: 'var(--ng-bg)', borderLeft: '2px solid var(--ng-border)' }}>
+                <div className="p-2 mb-3" style={{ background: 'var(--ng-bg)', borderLeft: '2px solid var(--ng-border)' }}>
                   <div className="font-orbitron mb-0.5" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>HOW TO BREW</div>
                   <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', lineHeight: 1.5 }}>{tea.notes}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => toggleOwned(tea.id)}
+                    style={{ flex: 1, padding: '8px', fontSize: 11, fontWeight: 600, border: `1px solid ${ownedSupps.has(tea.id) ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: ownedSupps.has(tea.id) ? 'var(--ng-green)' : 'var(--ng-muted)', background: ownedSupps.has(tea.id) ? 'rgba(48,209,88,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s' }}>
+                    {ownedSupps.has(tea.id) ? '✓ I HAVE THIS' : '+ I HAVE THIS'}
+                  </button>
+                  {!ownedSupps.has(tea.id) && (
+                    <button
+                      onClick={() => togglePending(tea.id)}
+                      style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, border: `1px solid ${pendingSupps.has(tea.id) ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: pendingSupps.has(tea.id) ? 'var(--ng-amber)' : 'var(--ng-muted)', background: pendingSupps.has(tea.id) ? 'rgba(255,184,0,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}>
+                      {pendingSupps.has(tea.id) ? '🛒 WANT' : '🛒'}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
 
             <Divider label="❋ FLOWERS & BOTANICALS" color="var(--ng-amber)" />
             {[
-              { name: 'Lavender', form: 'Tea, essential oil, diffusion', note: 'Cortisol reduction, sleep quality. Diffuse at your desk during late-night sessions. Add dried flowers to evening chamomile.' },
-              { name: 'Rose Petals', form: 'Tea, tincture', note: 'Rich in Vitamin C. Historically used for emotional balance and feminine hormone support. Rose hip tea is especially high in bioavailable C.' },
-              { name: 'Passionflower', form: 'Tea or capsule 250–500mg', note: 'GABA agonist. Use during high-anxiety periods: FTMO challenge weeks, late luteal phase, intense deadlines.' },
-              { name: 'Calendula', form: 'Tea', note: 'Anti-inflammatory, hormone-supportive, gut healing. Gentle and consistent.' },
-              { name: 'Blue Lotus', form: 'Tea (occasional)', note: 'Ancient Egyptian. Mild natural euphoriant, relaxing without sedation. For evening rituals and spiritual practices.' },
-              { name: 'Shatavari', form: 'Capsule or powder', note: 'Ayurvedic adaptogen for women. Hormone balance, reproductive health. One of the most respected female wellness herbs.' },
-              { name: 'Dong Quai', form: 'Capsule — days 1–13 only', note: 'Traditional Chinese "female ginseng." Blood circulation and iron support post-menstruation. Menstrual and early follicular phase only.' },
+              { id: 'bot_lavender',     name: 'Lavender',     form: 'Tea, essential oil, diffusion',    note: 'Cortisol reduction, sleep quality. Diffuse at your desk during late-night sessions. Add dried flowers to evening chamomile.' },
+              { id: 'bot_rose_petals',  name: 'Rose Petals',  form: 'Tea, tincture',                    note: 'Rich in Vitamin C. Historically used for emotional balance and feminine hormone support. Rose hip tea is especially high in bioavailable C.' },
+              { id: 'bot_passionflower',name: 'Passionflower',form: 'Tea or capsule 250–500mg',          note: 'GABA agonist. Use during high-anxiety periods: FTMO challenge weeks, late luteal phase, intense deadlines.' },
+              { id: 'bot_calendula',    name: 'Calendula',    form: 'Tea',                               note: 'Anti-inflammatory, hormone-supportive, gut healing. Gentle and consistent.' },
+              { id: 'bot_blue_lotus',   name: 'Blue Lotus',   form: 'Tea (occasional)',                  note: 'Ancient Egyptian. Mild natural euphoriant, relaxing without sedation. For evening rituals and spiritual practices.' },
+              { id: 'bot_shatavari',    name: 'Shatavari',    form: 'Capsule or powder',                 note: 'Ayurvedic adaptogen for women. Hormone balance, reproductive health. One of the most respected female wellness herbs.' },
+              { id: 'bot_dong_quai',    name: 'Dong Quai',    form: 'Capsule — days 1–13 only',          note: 'Traditional Chinese "female ginseng." Blood circulation and iron support post-menstruation. Menstrual and early follicular phase only.' },
             ].map(b => (
-              <div key={b.name} className="card p-3 mb-3" style={{ borderLeft: '3px solid rgba(191,0,255,0.5)' }}>
+              <div key={b.id} className="card p-3 mb-3" style={{ borderLeft: '3px solid rgba(191,0,255,0.5)' }}>
                 <div className="flex items-center justify-between mb-1">
                   <div className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-text)', letterSpacing: '0.5px' }}>{b.name}</div>
                   <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-purple)' }}>{b.form.split('(')[0].trim()}</span>
                 </div>
-                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', lineHeight: 1.5 }}>{b.note}</div>
+                <div className="font-mono mb-3" style={{ fontSize: 10, color: 'var(--ng-muted)', lineHeight: 1.5 }}>{b.note}</div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => toggleOwned(b.id)}
+                    style={{ flex: 1, padding: '7px', fontSize: 10, fontWeight: 600, border: `1px solid ${ownedSupps.has(b.id) ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: ownedSupps.has(b.id) ? 'var(--ng-green)' : 'var(--ng-muted)', background: ownedSupps.has(b.id) ? 'rgba(48,209,88,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s' }}>
+                    {ownedSupps.has(b.id) ? '✓ I HAVE THIS' : '+ I HAVE THIS'}
+                  </button>
+                  {!ownedSupps.has(b.id) && (
+                    <button
+                      onClick={() => togglePending(b.id)}
+                      style={{ padding: '7px 12px', fontSize: 10, fontWeight: 600, border: `1px solid ${pendingSupps.has(b.id) ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: pendingSupps.has(b.id) ? 'var(--ng-amber)' : 'var(--ng-muted)', background: pendingSupps.has(b.id) ? 'rgba(255,184,0,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}>
+                      {pendingSupps.has(b.id) ? '🛒 WANT' : '🛒'}
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </>
@@ -854,46 +882,71 @@ export default function BodyTab() {
               <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Supplements you plan to buy. Tap 🛒 on any supplement to add here.</div>
             </div>
 
-            {pendingSupps.size === 0 ? (
-              <div style={{ padding: '32px 16px', textAlign: 'center', border: '1px dashed var(--ng-border)', borderRadius: 12 }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>🛒</div>
-                <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-muted)', letterSpacing: '2px' }}>CART IS EMPTY</div>
-                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-dimmer)', marginTop: 6 }}>Tap the 🛒 icon on any supplement in STACK to add it here.</div>
-              </div>
-            ) : (
-              <>
-                <div style={{ background: 'rgba(255,184,0,0.04)', border: '0.5px solid rgba(255,184,0,0.2)', borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
-                  {SUPPLEMENTS.filter(s => pendingSupps.has(s.id)).map((s, i, arr) => (
-                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: i < arr.length - 1 ? '0.5px solid rgba(255,184,0,0.15)' : 'none' }}>
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="font-orbitron" style={{ fontSize: 12, color: 'var(--ng-text)', letterSpacing: '0.5px' }}>{s.name}</div>
-                        <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', marginTop: 2 }}>{s.dose}</div>
-                        <div className="font-mono" style={{ fontSize: 9, color: s.color, marginTop: 1 }}>{s.purpose}</div>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end', flexShrink: 0 }}>
-                        <button onClick={() => { toggleOwned(s.id); togglePending(s.id); }}
-                          style={{ fontSize: 9, padding: '4px 10px', border: '1px solid var(--ng-green)', color: 'var(--ng-green)', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '1px', whiteSpace: 'nowrap' }}>
-                          ✓ GOT IT
-                        </button>
-                        <button onClick={() => togglePending(s.id)}
-                          style={{ fontSize: 9, padding: '4px 10px', border: '1px solid rgba(255,71,87,0.4)', color: 'var(--ng-red)', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '1px' }}>
-                          ✕ REMOVE
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px', padding: '0 2px', marginBottom: 8 }}>
-                  {pendingSupps.size} item{pendingSupps.size !== 1 ? 's' : ''} · tap ✓ GOT IT to mark owned and remove from list
-                </div>
-                <div className="p-3" style={{ background: 'var(--ng-bg)', border: '0.5px solid var(--ng-border)', borderRadius: 10 }}>
-                  <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', lineHeight: 1.6 }}>
-                    Available at Amazon, iHerb, Vitamin Shoppe (Dallas). Search by exact name for best results.
+            {(() => {
+              // Build a unified lookup: all item types that support cart
+              type CartItem = { name: string; subtitle: string; color: string };
+              const lookup: Record<string, CartItem> = {};
+              SUPPLEMENTS.forEach(s => { lookup[s.id] = { name: s.name, subtitle: s.dose, color: s.color }; });
+              TEAS.forEach(t => { lookup[t.id] = { name: t.name, subtitle: t.purpose, color: 'var(--ng-amber)' }; });
+              [
+                { id: 'bot_lavender',      name: 'Lavender',      subtitle: 'Tea, essential oil, diffusion' },
+                { id: 'bot_rose_petals',   name: 'Rose Petals',   subtitle: 'Tea, tincture' },
+                { id: 'bot_passionflower', name: 'Passionflower', subtitle: 'Tea or capsule 250–500mg' },
+                { id: 'bot_calendula',     name: 'Calendula',     subtitle: 'Tea' },
+                { id: 'bot_blue_lotus',    name: 'Blue Lotus',    subtitle: 'Tea (occasional)' },
+                { id: 'bot_shatavari',     name: 'Shatavari',     subtitle: 'Capsule or powder' },
+                { id: 'bot_dong_quai',     name: 'Dong Quai',     subtitle: 'Capsule — days 1–13 only' },
+              ].forEach(b => { lookup[b.id] = { name: b.name, subtitle: b.subtitle, color: 'rgba(191,0,255,0.8)' }; });
+              METAB_SUPPS.forEach(m => { lookup[`metab_${m.rank}`] = { name: m.name, subtitle: m.dose, color: m.color }; });
+
+              const cartIds = [...pendingSupps].filter(id => lookup[id]);
+
+              if (cartIds.length === 0) {
+                return (
+                  <div style={{ padding: '32px 16px', textAlign: 'center', border: '1px dashed var(--ng-border)', borderRadius: 12 }}>
+                    <div style={{ fontSize: 32, marginBottom: 12 }}>🛒</div>
+                    <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-muted)', letterSpacing: '2px' }}>CART IS EMPTY</div>
+                    <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-dimmer)', marginTop: 6 }}>Tap 🛒 on any supplement, tea, or botanical across STACK, TEA, and METAB tabs.</div>
                   </div>
-                </div>
-              </>
-            )}
+                );
+              }
+              return (
+                <>
+                  <div style={{ background: 'rgba(255,184,0,0.04)', border: '0.5px solid rgba(255,184,0,0.2)', borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
+                    {cartIds.map((id, i) => {
+                      const item = lookup[id];
+                      return (
+                        <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: i < cartIds.length - 1 ? '0.5px solid rgba(255,184,0,0.15)' : 'none' }}>
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="font-orbitron" style={{ fontSize: 12, color: 'var(--ng-text)', letterSpacing: '0.5px' }}>{item.name}</div>
+                            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', marginTop: 2 }}>{item.subtitle}</div>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end', flexShrink: 0 }}>
+                            <button onClick={() => { toggleOwned(id); togglePending(id); }}
+                              style={{ fontSize: 9, padding: '4px 10px', border: '1px solid var(--ng-green)', color: 'var(--ng-green)', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '1px', whiteSpace: 'nowrap' }}>
+                              ✓ GOT IT
+                            </button>
+                            <button onClick={() => togglePending(id)}
+                              style={{ fontSize: 9, padding: '4px 10px', border: '1px solid rgba(255,71,87,0.4)', color: 'var(--ng-red)', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '1px' }}>
+                              ✕ REMOVE
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px', padding: '0 2px', marginBottom: 8 }}>
+                    {cartIds.length} item{cartIds.length !== 1 ? 's' : ''} · ✓ GOT IT marks owned and removes · covers all sections
+                  </div>
+                  <div className="p-3" style={{ background: 'var(--ng-bg)', border: '0.5px solid var(--ng-border)', borderRadius: 10 }}>
+                    <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', lineHeight: 1.6 }}>
+                      Available at Amazon, iHerb, Vitamin Shoppe (Dallas). Search by exact name for best results.
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </>
         )}
 
@@ -916,6 +969,7 @@ export default function BodyTab() {
             </div>
 
             {METAB_SUPPS.map(m => {
+              const mid = `metab_${m.rank}`;
               const priorityColor = m.priority === 'critical' ? 'var(--ng-red)' : m.priority === 'high' ? 'var(--ng-amber)' : 'var(--ng-cyan)';
               return (
                 <div key={m.rank} className="mb-3" style={{ border: `0.5px solid var(--ng-border)`, borderLeft: `3px solid ${m.color}`, borderRadius: 12, background: 'var(--ng-surface)', padding: '12px 14px' }}>
@@ -929,12 +983,26 @@ export default function BodyTab() {
                     </div>
                     <span className="font-orbitron" style={{ fontSize: 8, color: priorityColor, border: `1px solid ${priorityColor}`, padding: '2px 6px', letterSpacing: '1px', flexShrink: 0 }}>{m.priority.toUpperCase()}</span>
                   </div>
-                  <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-text)', lineHeight: 1.5 }}>{m.benefit}</div>
+                  <div className="font-mono mb-3" style={{ fontSize: 10, color: 'var(--ng-text)', lineHeight: 1.5 }}>{m.benefit}</div>
                   {m.note && (
-                    <div className="mt-2 p-2" style={{ background: 'rgba(255,71,87,0.06)', border: '1px solid rgba(255,71,87,0.25)', borderRadius: 6 }}>
+                    <div className="mb-3 p-2" style={{ background: 'rgba(255,71,87,0.06)', border: '1px solid rgba(255,71,87,0.25)', borderRadius: 6 }}>
                       <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-red)', lineHeight: 1.4 }}>⚠ {m.note}</div>
                     </div>
                   )}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={() => toggleOwned(mid)}
+                      style={{ flex: 1, padding: '8px', fontSize: 11, fontWeight: 600, border: `1px solid ${ownedSupps.has(mid) ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: ownedSupps.has(mid) ? 'var(--ng-green)' : 'var(--ng-muted)', background: ownedSupps.has(mid) ? 'rgba(48,209,88,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s' }}>
+                      {ownedSupps.has(mid) ? '✓ IN MY STACK' : '+ I HAVE THIS'}
+                    </button>
+                    {!ownedSupps.has(mid) && (
+                      <button
+                        onClick={() => togglePending(mid)}
+                        style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, border: `1px solid ${pendingSupps.has(mid) ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: pendingSupps.has(mid) ? 'var(--ng-amber)' : 'var(--ng-muted)', background: pendingSupps.has(mid) ? 'rgba(255,184,0,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}>
+                        {pendingSupps.has(mid) ? '🛒 WANT' : '🛒'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
