@@ -129,6 +129,10 @@ export const Storage = {
   hasAskedNotifPerm: (): boolean => getRaw(K.notifPerm) === '1',
   markAskedNotifPerm: () => setRaw(K.notifPerm, '1'),
 
+  // Motivational quote cycling index
+  getQuoteIdx: (): number => { const v = getRaw('grid_quote_idx'); return v ? parseInt(v, 10) : 0; },
+  setQuoteIdx: (n: number) => setRaw('grid_quote_idx', String(n)),
+
   // Clear all data
   clearAll: () => {
     if (typeof window !== 'undefined') localStorage.clear();
