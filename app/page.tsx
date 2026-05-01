@@ -25,7 +25,7 @@ function App() {
     tab, setTab, profile, habits, missions, achievements,
     theme, toasts, xpPopups, mounted, onboarded, onboardName,
     setOnboardName, handleOnboard, handleCompleteHabit, handleUncompleteHabit,
-    handleAddHabit, handleDeleteHabit, handleCompleteMission,
+    handleAddHabit, handleDeleteHabit, handleEditHabit, handleCompleteMission,
     handleFocusMinutes, handleToggleTheme, handleUpdateCodename, handleResetData,
   } = useGridContext();
 
@@ -117,7 +117,7 @@ function App() {
         </div>
 
         {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} onNavigate={t => setTab(t as Tab)} onCompleteHabit={handleCompleteHabit} />}
-        {tab === 'habits'    && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onUncompleteHabit={handleUncompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} />}
+        {tab === 'habits'    && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onUncompleteHabit={handleUncompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} onEditHabit={handleEditHabit} />}
         {tab === 'missions'  && <MissionsTab missions={missions} profile={profile} habits={habits} onCompleteMission={handleCompleteMission} />}
         {tab === 'body'      && <BodyTab />}
         {tab === 'coach'     && <CoachTab profile={profile} onFocusMinutes={handleFocusMinutes} />}

@@ -41,6 +41,7 @@ interface GridContextValue {
   handleUncompleteHabit: (id: string) => void;
   handleAddHabit: (data: Omit<Habit, 'id' | 'streak' | 'completedToday' | 'lastCompleted' | 'totalCompletions' | 'createdAt'>) => void;
   handleDeleteHabit: (id: string) => void;
+  handleEditHabit: (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward'>) => void;
   handleCompleteMission: (id: string) => void;
   handleFocusMinutes: (minutes: number) => void;
   handleToggleTheme: () => void;
@@ -204,6 +205,11 @@ export function GridProvider({ children }: { children: ReactNode }) {
     saveHabits(u); setHabits(u);
   };
 
+  const handleEditHabit = (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward'>) => {
+    const updated = habits.map(h => h.id === id ? { ...h, ...updates } : h);
+    saveHabits(updated); setHabits(updated);
+  };
+
   const handleCompleteMission = (id: string) => {
     if (!profile) return;
     const m = missions.find(m => m.id === id);
@@ -249,7 +255,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
       tab, theme, toasts, xpPopups, mounted, onboarded, onboardName, phaseChange,
       setTab, setOnboardName, clearPhaseChange,
       handleOnboard, handleCompleteHabit, handleUncompleteHabit,
-      handleAddHabit, handleDeleteHabit, handleCompleteMission,
+      handleAddHabit, handleDeleteHabit, handleEditHabit, handleCompleteMission,
       handleFocusMinutes, handleToggleTheme, handleUpdateCodename, handleResetData,
     }}>
       {children}

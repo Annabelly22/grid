@@ -225,6 +225,11 @@ export default function BodyTab() {
   const lastPeakRef  = useRef(0);
   const stepsRef     = useRef(0);
 
+  const gravityRef   = useRef(9.8);
+  const [motionPermitted, setMotionPermitted] = useState(false);
+  const MOTION_PERM_KEY = 'grid_motion_perm';
+  const autoStepRef  = useRef(false);
+
   const stepsDateKey = () => new Date().toISOString().split('T')[0];
 
   useEffect(() => {
@@ -236,7 +241,20 @@ export default function BodyTab() {
     setPendingSupps(Storage.getPendingSupps());
     const all = Storage.getSteps();
     setSteps(all[stepsDateKey()] || 0);
+    if (localStorage.getItem('grid_motion_perm') === 'true') {
+      setMotionPermitted(true);
+    }
   }, []);
+
+  // Auto-start step counting when MOVE tab is opened (if permission already granted)
+  useEffect(() => {
+    if (subTab === 'move' && motionPermitted && !autoStepRef.current) {
+      stepsRef.current = steps;
+      window.addEventListener('devicemotion', handleMotion);
+      setAutoStep(true);
+      autoStepRef.current = true;
+    }
+  }, [subTab, motionPermitted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveSteps = (val: number) => {
     const clamped = Math.max(0, Math.min(99999, val));
@@ -277,8 +295,11 @@ export default function BodyTab() {
     const ag = e.accelerationIncludingGravity;
     if (!ag || ag.x == null || ag.y == null || ag.z == null) return;
     const mag = Math.sqrt(ag.x * ag.x + ag.y * ag.y + ag.z * ag.z);
+    // Adaptive gravity baseline (slow EMA)
+    gravityRef.current = gravityRef.current * 0.92 + mag * 0.08;
+    const deviation = Math.abs(mag - gravityRef.current);
     const now = Date.now();
-    if (mag > 12 && now - lastPeakRef.current > 300) {
+    if (deviation > 1.6 && now - lastPeakRef.current > 280) {
       lastPeakRef.current = now;
       stepsRef.current += 1;
       saveSteps(stepsRef.current);
@@ -292,15 +313,20 @@ export default function BodyTab() {
         const perm = await (DeviceMotionEvent as unknown as { requestPermission: () => Promise<string> }).requestPermission();
         if (perm !== 'granted') return;
       }
+      localStorage.setItem('grid_motion_perm', 'true');
+      setMotionPermitted(true);
       stepsRef.current = steps;
+      gravityRef.current = 9.8;
       window.addEventListener('devicemotion', handleMotion);
       setAutoStep(true);
+      autoStepRef.current = true;
     } catch {}
   };
 
   const stopAutoStep = () => {
     window.removeEventListener('devicemotion', handleMotion);
     setAutoStep(false);
+    autoStepRef.current = false;
   };
 
   // Clean up on unmount
@@ -779,12 +805,12 @@ export default function BodyTab() {
                     {!autoStep ? (
                       <button onClick={startAutoStep} className="font-orbitron"
                         style={{ fontSize: 9, padding: '7px 14px', border: '1px solid var(--ng-green)55', color: 'var(--ng-green)', background: 'rgba(48,209,88,0.08)', borderRadius: 8, cursor: 'pointer', letterSpacing: '1px' }}>
-                        📱 AUTO
+                        {motionPermitted ? 'START' : 'ENABLE AUTO'}
                       </button>
                     ) : (
                       <button onClick={stopAutoStep} className="font-orbitron"
                         style={{ fontSize: 9, padding: '7px 14px', border: '1px solid var(--ng-green)', color: 'var(--ng-green)', background: 'rgba(48,209,88,0.12)', borderRadius: 8, cursor: 'pointer', letterSpacing: '1px' }}>
-                        ■ STOP
+                        STOP
                       </button>
                     )}
                     {[1000, 2500, 5000].map(n => (

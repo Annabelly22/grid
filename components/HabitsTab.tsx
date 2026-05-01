@@ -10,6 +10,7 @@ interface Props {
   onUncompleteHabit: (id: string) => void;
   onAddHabit: (data: Omit<Habit, 'id' | 'streak' | 'completedToday' | 'lastCompleted' | 'totalCompletions' | 'createdAt'>) => void;
   onDeleteHabit: (id: string) => void;
+  onEditHabit: (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward'>) => void;
 }
 
 const PRESET_HABITS = [
@@ -35,7 +36,7 @@ const CATEGORY_OPTIONS: { value: HabitCategory; label: string }[] = [
   { value: 'recovery', label: '🌙 RECOVERY' },
 ];
 
-export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, onAddHabit, onDeleteHabit }: Props) {
+export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, onAddHabit, onDeleteHabit, onEditHabit }: Props) {
   const [showAdd,       setShowAdd]       = useState(false);
   const [showPresets,   setShowPresets]   = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -170,13 +171,13 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
             {/* Incomplete */}
             {viewMode === 'list' ? (
               incomplete.map(habit => (
-                <HabitCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onUncomplete={onUncompleteHabit} onDelete={onDeleteHabit} />
+                <HabitCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onUncomplete={onUncompleteHabit} onDelete={onDeleteHabit} onEdit={(updates) => onEditHabit(habit.id, updates)} />
               ))
             ) : (
               incomplete.length > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                   {incomplete.map(habit => (
-                    <HabitGridCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onUncomplete={onUncompleteHabit} onDelete={onDeleteHabit} />
+                    <HabitGridCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onUncomplete={onUncompleteHabit} onDelete={onDeleteHabit} onEdit={(updates) => onEditHabit(habit.id, updates)} />
                   ))}
                 </div>
               )
@@ -193,12 +194,12 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
                 {showCompleted && (
                   viewMode === 'list' ? (
                     completed.map(habit => (
-                      <HabitCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onUncomplete={onUncompleteHabit} onDelete={onDeleteHabit} />
+                      <HabitCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onUncomplete={onUncompleteHabit} onDelete={onDeleteHabit} onEdit={(updates) => onEditHabit(habit.id, updates)} />
                     ))
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                       {completed.map(habit => (
-                        <HabitGridCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onUncomplete={onUncompleteHabit} onDelete={onDeleteHabit} />
+                        <HabitGridCard key={habit.id} habit={habit} onComplete={onCompleteHabit} onUncomplete={onUncompleteHabit} onDelete={onDeleteHabit} onEdit={(updates) => onEditHabit(habit.id, updates)} />
                       ))}
                     </div>
                   )
@@ -251,9 +252,38 @@ export default function HabitsTab({ habits, onCompleteHabit, onUncompleteHabit, 
 }
 
 // ── List card ────────────────────────────────────────────────
-function HabitCard({ habit, onComplete, onUncomplete, onDelete }: { habit: Habit; onComplete: (id: string) => void; onUncomplete: (id: string) => void; onDelete: (id: string) => void }) {
+function HabitCard({ habit, onComplete, onUncomplete, onDelete, onEdit }: {
+  habit: Habit;
+  onComplete: (id: string) => void;
+  onUncomplete: (id: string) => void;
+  onDelete: (id: string) => void;
+  onEdit: (updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward'>) => void;
+}) {
+  const [menuOpen,  setMenuOpen]  = useState(false);
+  const [showEdit,  setShowEdit]  = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [editName,     setEditName]     = useState(habit.name);
+  const [editIcon,     setEditIcon]     = useState(habit.icon);
+  const [editCategory, setEditCategory] = useState<HabitCategory>(habit.category);
+  const [editXp,       setEditXp]       = useState(habit.xpReward);
   const color = CATEGORY_COLORS[habit.category];
+
+  const handleSaveEdit = () => {
+    if (!editName.trim()) return;
+    onEdit({ name: editName.trim(), icon: editIcon, category: editCategory, xpReward: editXp });
+    setShowEdit(false);
+    setMenuOpen(false);
+  };
+
+  const openEdit = () => {
+    setEditName(habit.name);
+    setEditIcon(habit.icon);
+    setEditCategory(habit.category);
+    setEditXp(habit.xpReward);
+    setShowDelete(false);
+    setShowEdit(true);
+    setMenuOpen(false);
+  };
 
   return (
     <div className="mb-3" style={{ background: 'var(--ng-surface)', border: `0.5px solid ${habit.completedToday ? color + '44' : 'var(--ng-border)'}`, borderLeft: `3px solid ${color}`, borderRadius: 12, opacity: habit.completedToday ? 0.7 : 1, transition: 'all 0.2s' }}>
@@ -280,15 +310,57 @@ function HabitCard({ habit, onComplete, onUncomplete, onDelete }: { habit: Habit
           </div>
         </div>
 
-        <button onClick={() => setShowDelete(!showDelete)} style={{ color: 'var(--ng-dimmer)', fontSize: 16, background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>⋯</button>
+        <button onClick={() => { setMenuOpen(!menuOpen); setShowEdit(false); setShowDelete(false); }} style={{ color: 'var(--ng-dimmer)', fontSize: 16, background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>⋯</button>
       </div>
 
-      {showDelete && (
+      {/* Context menu */}
+      {menuOpen && !showEdit && !showDelete && (
         <div className="px-3 pb-3 flex gap-2" style={{ borderTop: '1px solid var(--ng-border)' }}>
           <div className="font-mono pt-2 flex-1" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
             {habit.totalCompletions} total · created {new Date(habit.createdAt).toLocaleDateString()}
           </div>
-          <button onClick={() => { onDelete(habit.id); setShowDelete(false); }} className="btn-red" style={{ marginTop: 8 }}>DELETE</button>
+          <button onClick={openEdit} style={{ marginTop: 8, padding: '6px 14px', fontSize: 10, fontWeight: 600, border: '1px solid var(--ng-cyan)', color: 'var(--ng-cyan)', background: 'transparent', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '1px' }}>EDIT</button>
+          <button onClick={() => { setShowDelete(true); setMenuOpen(false); }} className="btn-red" style={{ marginTop: 8 }}>DELETE</button>
+        </div>
+      )}
+
+      {/* Delete confirm */}
+      {showDelete && (
+        <div className="px-3 pb-3 flex gap-2 items-center" style={{ borderTop: '1px solid var(--ng-border)' }}>
+          <div className="font-mono pt-2 flex-1" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Delete this habit?</div>
+          <button onClick={() => { onDelete(habit.id); }} className="btn-red" style={{ marginTop: 8 }}>CONFIRM</button>
+          <button onClick={() => setShowDelete(false)} style={{ marginTop: 8, padding: '6px 12px', fontSize: 10, border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'transparent', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit' }}>CANCEL</button>
+        </div>
+      )}
+
+      {/* Edit form */}
+      {showEdit && (
+        <div className="px-3 pb-3" style={{ borderTop: '1px solid var(--ng-border)', paddingTop: 12 }}>
+          <div className="font-orbitron mb-2" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>EDIT HABIT</div>
+          <div className="flex gap-2 mb-2">
+            <input className="ng-input" style={{ width: 60, textAlign: 'center', fontSize: 18, padding: '8px' }} value={editIcon} onChange={e => setEditIcon(e.target.value)} />
+            <input className="ng-input flex-1" value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSaveEdit()} />
+          </div>
+          <div className="flex gap-2 mb-3">
+            <select className="ng-select flex-1" value={editCategory} onChange={e => setEditCategory(e.target.value as HabitCategory)}>
+              {[
+                { value: 'body',     label: '💪 BODY'     },
+                { value: 'mind',     label: '🧠 MIND'     },
+                { value: 'trade',    label: '📈 TRADE'    },
+                { value: 'build',    label: '🔧 BUILD'    },
+                { value: 'spirit',   label: '🌿 SPIRIT'   },
+                { value: 'recovery', label: '🌙 RECOVERY' },
+              ].map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>XP:</span>
+              <input type="number" className="ng-input" style={{ width: 60 }} value={editXp} onChange={e => setEditXp(Number(e.target.value))} min={5} max={100} step={5} />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleSaveEdit} className="btn-green-solid" style={{ flex: 1, padding: '8px' }}>SAVE</button>
+            <button onClick={() => setShowEdit(false)} className="btn-red">CANCEL</button>
+          </div>
         </div>
       )}
     </div>
@@ -296,9 +368,38 @@ function HabitCard({ habit, onComplete, onUncomplete, onDelete }: { habit: Habit
 }
 
 // ── Grid card ────────────────────────────────────────────────
-function HabitGridCard({ habit, onComplete, onUncomplete, onDelete }: { habit: Habit; onComplete: (id: string) => void; onUncomplete: (id: string) => void; onDelete: (id: string) => void }) {
+function HabitGridCard({ habit, onComplete, onUncomplete, onDelete, onEdit }: {
+  habit: Habit;
+  onComplete: (id: string) => void;
+  onUncomplete: (id: string) => void;
+  onDelete: (id: string) => void;
+  onEdit: (updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward'>) => void;
+}) {
+  const [menuOpen,   setMenuOpen]   = useState(false);
+  const [showEdit,   setShowEdit]   = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [editName,     setEditName]     = useState(habit.name);
+  const [editIcon,     setEditIcon]     = useState(habit.icon);
+  const [editCategory, setEditCategory] = useState<HabitCategory>(habit.category);
+  const [editXp,       setEditXp]       = useState(habit.xpReward);
   const color = CATEGORY_COLORS[habit.category];
+
+  const handleSaveEdit = () => {
+    if (!editName.trim()) return;
+    onEdit({ name: editName.trim(), icon: editIcon, category: editCategory, xpReward: editXp });
+    setShowEdit(false);
+    setMenuOpen(false);
+  };
+
+  const openEdit = () => {
+    setEditName(habit.name);
+    setEditIcon(habit.icon);
+    setEditCategory(habit.category);
+    setEditXp(habit.xpReward);
+    setShowDelete(false);
+    setShowEdit(true);
+    setMenuOpen(false);
+  };
 
   return (
     <div style={{ background: 'var(--ng-surface)', border: `0.5px solid ${habit.completedToday ? color + '44' : 'var(--ng-border)'}`, borderTop: `3px solid ${color}`, borderRadius: 12, opacity: habit.completedToday ? 0.7 : 1, transition: 'all 0.2s', display: 'flex', flexDirection: 'column' }}>
@@ -306,7 +407,7 @@ function HabitGridCard({ habit, onComplete, onUncomplete, onDelete }: { habit: H
         {/* Icon + menu row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
           <span style={{ fontSize: 22 }}>{habit.icon}</span>
-          <button onClick={() => setShowDelete(!showDelete)} style={{ color: 'var(--ng-dimmer)', fontSize: 14, background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}>⋯</button>
+          <button onClick={() => { setMenuOpen(!menuOpen); setShowEdit(false); setShowDelete(false); }} style={{ color: 'var(--ng-dimmer)', fontSize: 14, background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}>⋯</button>
         </div>
 
         <div className="font-mono" style={{ fontSize: 11, color: habit.completedToday ? 'var(--ng-muted)' : 'var(--ng-text)', textDecoration: habit.completedToday ? 'line-through' : 'none', lineHeight: 1.4, marginBottom: 6 }}>
@@ -331,9 +432,50 @@ function HabitGridCard({ habit, onComplete, onUncomplete, onDelete }: { habit: H
         </span>
       </button>
 
+      {/* Context menu */}
+      {menuOpen && !showEdit && !showDelete && (
+        <div className="px-2 pb-2 flex gap-2" style={{ borderTop: '1px solid var(--ng-border)', paddingTop: 8 }}>
+          <button onClick={openEdit} style={{ flex: 1, padding: '5px', fontSize: 9, fontWeight: 600, border: '1px solid var(--ng-cyan)', color: 'var(--ng-cyan)', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '1px' }}>EDIT</button>
+          <button onClick={() => { setShowDelete(true); setMenuOpen(false); }} className="btn-red" style={{ flex: 1, fontSize: 9 }}>DELETE</button>
+        </div>
+      )}
+
+      {/* Delete confirm */}
       {showDelete && (
-        <div className="px-2 pb-2" style={{ borderTop: '1px solid var(--ng-border)' }}>
-          <button onClick={() => { onDelete(habit.id); setShowDelete(false); }} className="btn-red w-full" style={{ marginTop: 6, fontSize: 8 }}>DELETE</button>
+        <div className="px-2 pb-2" style={{ borderTop: '1px solid var(--ng-border)', paddingTop: 8 }}>
+          <div className="font-mono mb-2" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>Delete?</div>
+          <div className="flex gap-1">
+            <button onClick={() => onDelete(habit.id)} className="btn-red w-full" style={{ flex: 1, fontSize: 8 }}>YES</button>
+            <button onClick={() => setShowDelete(false)} style={{ flex: 1, padding: '5px', fontSize: 8, border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>NO</button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit form */}
+      {showEdit && (
+        <div className="px-2 pb-2" style={{ borderTop: '1px solid var(--ng-border)', paddingTop: 8 }}>
+          <div className="flex gap-1 mb-2">
+            <input className="ng-input" style={{ width: 44, textAlign: 'center', fontSize: 14, padding: '5px' }} value={editIcon} onChange={e => setEditIcon(e.target.value)} />
+            <input className="ng-input flex-1" style={{ fontSize: 11 }} value={editName} onChange={e => setEditName(e.target.value)} />
+          </div>
+          <select className="ng-select w-full mb-2" style={{ fontSize: 10 }} value={editCategory} onChange={e => setEditCategory(e.target.value as HabitCategory)}>
+            {[
+              { value: 'body',     label: '💪 BODY'     },
+              { value: 'mind',     label: '🧠 MIND'     },
+              { value: 'trade',    label: '📈 TRADE'    },
+              { value: 'build',    label: '🔧 BUILD'    },
+              { value: 'spirit',   label: '🌿 SPIRIT'   },
+              { value: 'recovery', label: '🌙 RECOVERY' },
+            ].map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+          <div className="flex gap-1 mb-2 items-center">
+            <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>XP:</span>
+            <input type="number" className="ng-input flex-1" style={{ fontSize: 11 }} value={editXp} onChange={e => setEditXp(Number(e.target.value))} min={5} max={100} step={5} />
+          </div>
+          <div className="flex gap-1">
+            <button onClick={handleSaveEdit} className="btn-green-solid" style={{ flex: 1, padding: '6px', fontSize: 9 }}>SAVE</button>
+            <button onClick={() => setShowEdit(false)} className="btn-red" style={{ flex: 1, fontSize: 9 }}>CANCEL</button>
+          </div>
         </div>
       )}
     </div>
