@@ -1,6 +1,6 @@
-// GRID Service Worker — offline caching + push notifications
-const CACHE = 'grid-v3';
-const PRECACHE = ['/', '/manifest.json'];
+// GRID Service Worker — v4
+const CACHE = 'grid-v4';
+const PRECACHE = ['/manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).catch(() => {}));
@@ -17,16 +17,35 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  if (e.request.url.includes('/api/')) return; // Never cache API
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).then(res => {
-      if (res.ok && e.request.url.startsWith(self.location.origin)) {
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
-      }
-      return res;
-    })).catch(() => caches.match('/'))
-  );
+  if (e.request.url.includes('/api/')) return;
+
+  const isHTML = e.request.headers.get('Accept')?.includes('text/html');
+
+  if (isHTML) {
+    // Network-first for HTML: always get fresh page (ensures latest JS bundle refs)
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return res;
+        })
+        .catch(() => caches.match(e.request).then(r => r || caches.match('/')))
+    );
+  } else {
+    // Cache-first for static assets (JS/CSS/fonts/images)
+    e.respondWith(
+      caches.match(e.request).then(r => r || fetch(e.request).then(res => {
+        if (res.ok && e.request.url.startsWith(self.location.origin)) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return res;
+      })).catch(() => caches.match('/'))
+    );
+  }
 });
 
 self.addEventListener('notificationclick', e => {
