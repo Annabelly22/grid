@@ -1,5 +1,5 @@
 // GRID Service Worker — offline caching + push notifications
-const CACHE = 'grid-v2';
+const CACHE = 'grid-v3';
 const PRECACHE = ['/', '/manifest.json'];
 
 self.addEventListener('install', e => {
