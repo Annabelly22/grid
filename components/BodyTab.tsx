@@ -15,7 +15,7 @@ import GymProgram   from './GymProgram';
 import MonthLog     from './MonthLog';
 
 const STEPS_GOAL = 10000;
-type SubTab = 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move' | 'gym' | 'cart' | 'metab';
+type SubTab = 'home' | 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move' | 'gym' | 'cart' | 'metab';
 
 interface MetabSupp {
   rank: number; name: string; dose: string; timing: string;
@@ -206,7 +206,7 @@ function LogTab() {
 
 export default function BodyTab() {
   const { phaseChange, clearPhaseChange } = useGridContext();
-  const [subTab,      setSubTab]      = useState<SubTab>('stack');
+  const [subTab,      setSubTab]      = useState<SubTab>('home');
   const [menuOpen,    setMenuOpen]    = useState(false);
   const [cycleStart,  setCycleStart]  = useState<string | null>(null);
   const [cycleInput,  setCycleInput]  = useState('');
@@ -351,15 +351,15 @@ export default function BodyTab() {
   const movements = getMovementsForContext(phase, energyLevel);
 
   const SUB_TABS = [
-    { id: 'stack' as SubTab, label: 'STACK',  icon: '◆',  color: 'var(--ng-green)'  },
-    { id: 'cart'  as SubTab, label: 'CART',   icon: '🛒',  color: 'var(--ng-amber)',  badge: pendingSupps.size > 0 ? pendingSupps.size : undefined },
-    { id: 'metab' as SubTab, label: 'METAB',  icon: '⚗',  color: '#FF6B35'          },
-    { id: 'cycle' as SubTab, label: 'CYCLE',  icon: '◈',  color: 'var(--ng-purple)' },
-    { id: 'fast'  as SubTab, label: 'FAST',   icon: '⏱',  color: 'var(--ng-cyan)'   },
-    { id: 'log'   as SubTab, label: 'LOG',    icon: '⬡',  color: 'var(--ng-amber)'  },
-    { id: 'tea'   as SubTab, label: 'TEA',    icon: '❋',  color: 'var(--ng-amber)'  },
-    { id: 'move'  as SubTab, label: 'MOVE',   icon: '⚡',  color: 'var(--ng-cyan)'   },
-    { id: 'gym'   as SubTab, label: 'GYM',    icon: '🏋️', color: '#FF453A'          },
+    { id: 'stack' as SubTab, label: 'STACK',  icon: '◆',  color: 'var(--ng-green)',  desc: 'Phase-synced supplement protocol'   },
+    { id: 'cart'  as SubTab, label: 'CART',   icon: '🛒',  color: 'var(--ng-amber)',  desc: 'Buy list',                           badge: pendingSupps.size > 0 ? pendingSupps.size : undefined },
+    { id: 'metab' as SubTab, label: 'METAB',  icon: '⚗',  color: '#FF6B35',          desc: 'Metabolism & fat loss protocol'     },
+    { id: 'cycle' as SubTab, label: 'CYCLE',  icon: '◈',  color: 'var(--ng-purple)', desc: 'Cycle phase tracking & guidance'    },
+    { id: 'fast'  as SubTab, label: 'FAST',   icon: '⏱',  color: 'var(--ng-cyan)',   desc: 'Intermittent fasting timer'         },
+    { id: 'log'   as SubTab, label: 'LOG',    icon: '⬡',  color: 'var(--ng-amber)',  desc: 'Training & activity log'            },
+    { id: 'tea'   as SubTab, label: 'TEA',    icon: '❋',  color: 'var(--ng-amber)',  desc: 'Teas & botanical library'           },
+    { id: 'move'  as SubTab, label: 'MOVE',   icon: '⚡',  color: 'var(--ng-cyan)',   desc: 'Steps & movement practices'        },
+    { id: 'gym'   as SubTab, label: 'GYM',    icon: '🏋️', color: '#FF453A',          desc: '7-day workout program'             },
   ];
 
   return (
@@ -383,8 +383,11 @@ export default function BodyTab() {
         <div className="flex items-start justify-between">
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              {subTab !== 'home' && (
+                <button onClick={() => setSubTab('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px 0 0', color: 'var(--ng-muted)', fontSize: 18, lineHeight: 1, display: 'flex', alignItems: 'center' }}>←</button>
+              )}
               <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-green)', fontSize: 16 }}>BODY</h2>
-              {(() => { const t = SUB_TABS.find(t => t.id === subTab)!; return <span style={{ fontSize: 13, color: t.color, fontWeight: 500 }}>/ {t.label}</span>; })()}
+              {subTab !== 'home' && (() => { const t = SUB_TABS.find(t => t.id === subTab); return t ? <span style={{ fontSize: 13, color: t.color, fontWeight: 500 }}>/ {t.label}</span> : null; })()}
             </div>
             <div className="font-mono" style={{ fontSize: 13, color: 'var(--ng-muted)' }}>
               {phaseData ? `${phaseData.icon} ${phaseData.label} — Day ${dayOfCycle}` : 'Set cycle date to personalise'}
@@ -422,6 +425,33 @@ export default function BodyTab() {
       </div>
 
       <div className="px-4 pt-5">
+
+        {/* ═══ HOME GRID ═══════════════════════════════════════ */}
+        {subTab === 'home' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            {SUB_TABS.map(t => (
+              <button key={t.id} onClick={() => setSubTab(t.id)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  padding: '18px 8px 14px',
+                  background: 'var(--ng-surface)',
+                  border: '0.5px solid var(--ng-border)',
+                  borderTop: `3px solid ${t.color}`,
+                  borderRadius: 12,
+                  cursor: 'pointer',
+                  position: 'relative',
+                  transition: 'background 0.15s',
+                }}>
+                {'badge' in t && t.badge ? (
+                  <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 9, background: t.color, color: '#000', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'monospace' }}>{t.badge}</span>
+                ) : null}
+                <span style={{ fontSize: 22, marginBottom: 8, lineHeight: 1 }}>{t.icon}</span>
+                <span className="font-orbitron" style={{ fontSize: 9, color: t.color, letterSpacing: '1px', marginBottom: 5 }}>{t.label}</span>
+                <span className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', textAlign: 'center', lineHeight: 1.35 }}>{t.desc}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* ═══ STACK ════════════════════════════════════════════ */}
         {subTab === 'stack' && (
@@ -1077,6 +1107,21 @@ export default function BodyTab() {
               <div style={{ fontSize: 11, color: 'var(--ng-muted)', fontWeight: 600, marginBottom: 2 }}>BODY</div>
               <div style={{ fontSize: 13, color: 'var(--ng-text)', fontWeight: 700 }}>Sections</div>
             </div>
+            <button onClick={() => { setSubTab('home'); setMenuOpen(false); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 14,
+                padding: '15px 20px', width: '100%',
+                background: subTab === 'home' ? 'rgba(48,209,88,0.08)' : 'transparent',
+                borderLeft: `3px solid ${subTab === 'home' ? 'var(--ng-green)' : 'transparent'}`,
+                border: 'none', cursor: 'pointer',
+                color: subTab === 'home' ? 'var(--ng-green)' : 'var(--ng-muted)',
+                fontSize: 15, fontWeight: subTab === 'home' ? 600 : 400,
+                transition: 'background 0.15s',
+              }}>
+              <span style={{ fontSize: 18, width: 24, textAlign: 'center', flexShrink: 0 }}>⊞</span>
+              <span style={{ flex: 1, textAlign: 'left' }}>Home</span>
+              {subTab === 'home' && <span style={{ fontSize: 13, color: 'var(--ng-green)' }}>✓</span>}
+            </button>
             {SUB_TABS.map(t => (
               <button key={t.id} onClick={() => { setSubTab(t.id); setMenuOpen(false); }}
                 style={{
