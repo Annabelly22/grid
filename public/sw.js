@@ -1,5 +1,5 @@
-// GRID Service Worker — v4
-const CACHE = 'grid-v4';
+// GRID Service Worker — v5
+const CACHE = 'grid-v5';
 const PRECACHE = ['/manifest.json'];
 
 self.addEventListener('install', e => {
