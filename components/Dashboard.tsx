@@ -273,9 +273,9 @@ const STOIC_QUOTES: { text: string; author: string }[] = [
 ];
 
 function getDailyQuote() {
-  // Cycles one unique quote per calendar day, covering all 250 over ~250 days
-  const dayIndex = Math.floor(Date.now() / 86_400_000);
-  return STOIC_QUOTES[dayIndex % STOIC_QUOTES.length];
+  // Cycles every 12 hours — new quote morning and evening
+  const halfDayIndex = Math.floor(Date.now() / 43_200_000);
+  return STOIC_QUOTES[halfDayIndex % STOIC_QUOTES.length];
 }
 
 function getGreeting() {
