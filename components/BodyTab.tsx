@@ -428,7 +428,13 @@ export default function BodyTab() {
 
         {/* ═══ HOME GRID ═══════════════════════════════════════ */}
         {subTab === 'home' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          <>
+            <div className="mb-5 text-center" style={{ padding: '6px 0 14px' }}>
+              <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)', letterSpacing: '2px', lineHeight: 1.8, fontStyle: 'italic' }}>
+                Self discipline . self love . self respect
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             {SUB_TABS.map(t => (
               <button key={t.id} onClick={() => setSubTab(t.id)}
                 style={{
@@ -450,7 +456,8 @@ export default function BodyTab() {
                 <span className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', textAlign: 'center', lineHeight: 1.35 }}>{t.desc}</span>
               </button>
             ))}
-          </div>
+            </div>
+          </>
         )}
 
         {/* ═══ STACK ════════════════════════════════════════════ */}
