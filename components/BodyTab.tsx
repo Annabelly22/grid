@@ -431,7 +431,7 @@ export default function BodyTab() {
           <>
             <div className="mb-5 text-center" style={{ padding: '6px 0 14px' }}>
               <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)', letterSpacing: '2px', lineHeight: 1.8, fontStyle: 'italic' }}>
-                Self discipline . self love . self respect
+                Self Discipline . Self Love . Self Respect
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
