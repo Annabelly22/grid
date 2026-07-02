@@ -50,6 +50,7 @@ export interface Mission {
   xpReward: number;
   completed: boolean;
   completedAt?: string;
+  categoryGoal?: { category: HabitCategory; count: number };
 }
 
 export interface Achievement {
@@ -131,6 +132,13 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: 'm6', title: 'Supplement Discipline', description: 'Take evening supplement stack 21 days straight', category: 'body', difficulty: 'MEDIUM', xpReward: 200, completed: false },
   { id: 'm7', title: 'Deep Work', description: 'Log 10,000 total XP earned', category: 'build', difficulty: 'EXTREME', xpReward: 1000, completed: false },
   { id: 'm8', title: 'Cycle Tracker', description: 'Set cycle date and track for one full phase', category: 'body', difficulty: 'EASY', xpReward: 75, completed: false },
+  // Category-based missions (auto-completed by habit completions)
+  { id: 'm_cat_body', title: 'Body Warrior', description: 'Complete 50 BODY habits total', category: 'body', difficulty: 'MEDIUM', xpReward: 200, completed: false, categoryGoal: { category: 'body' as HabitCategory, count: 50 } },
+  { id: 'm_cat_mind', title: 'Mind Sharpener', description: 'Complete 30 MIND habits total', category: 'mind', difficulty: 'MEDIUM', xpReward: 200, completed: false, categoryGoal: { category: 'mind' as HabitCategory, count: 30 } },
+  { id: 'm_cat_trade', title: 'Market Mind', description: 'Complete 30 TRADE habits total', category: 'trade', difficulty: 'MEDIUM', xpReward: 200, completed: false, categoryGoal: { category: 'trade' as HabitCategory, count: 30 } },
+  { id: 'm_cat_build', title: 'Builder Protocol', description: 'Complete 25 BUILD habits total', category: 'build', difficulty: 'EASY', xpReward: 150, completed: false, categoryGoal: { category: 'build' as HabitCategory, count: 25 } },
+  { id: 'm_cat_spirit', title: 'Grounded', description: 'Complete 25 SPIRIT habits total', category: 'spirit', difficulty: 'EASY', xpReward: 150, completed: false, categoryGoal: { category: 'spirit' as HabitCategory, count: 25 } },
+  { id: 'm_cat_recovery', title: 'Rest Mastery', description: 'Complete 20 RECOVERY habits total', category: 'recovery', difficulty: 'EASY', xpReward: 150, completed: false, categoryGoal: { category: 'recovery' as HabitCategory, count: 20 } },
 ];
 
 const DEFAULT_ACHIEVEMENTS: Achievement[] = [
@@ -205,7 +213,13 @@ export function loadMissions(): Mission[] {
   if (typeof window === 'undefined') return [...DEFAULT_MISSIONS];
   try {
     const raw = localStorage.getItem(KEY_MISSIONS);
-    return raw ? JSON.parse(raw) : [...DEFAULT_MISSIONS];
+    if (!raw) return [...DEFAULT_MISSIONS];
+    const stored: Mission[] = JSON.parse(raw);
+    // Merge stored completion state with defaults so new missions appear automatically
+    return DEFAULT_MISSIONS.map(def => {
+      const found = stored.find(s => s.id === def.id);
+      return found ? { ...def, completed: found.completed, completedAt: found.completedAt } : def;
+    });
   } catch { return [...DEFAULT_MISSIONS]; }
 }
 export function saveMissions(m: Mission[]) {

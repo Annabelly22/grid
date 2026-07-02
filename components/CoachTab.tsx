@@ -18,15 +18,24 @@ interface Message {
   id: number;
 }
 
-const QUICK_PROMPTS = [
-  "What should I focus on today?",
-  "I'm in my luteal phase — help",
-  "My trading session was off. What do I check?",
-  "Give me a 5-min morning protocol",
-  "I broke my streak. How do I reset?",
-  "Best supplements for a training day",
-  "I'm feeling low energy today",
-];
+const QUICK_PROMPTS: Record<'general' | 'trading', string[]> = {
+  general: [
+    "What should I focus on today?",
+    "I'm in my luteal phase — help",
+    "Give me a 5-min morning protocol",
+    "I broke my streak. How do I reset?",
+    "Best supplements for a training day",
+    "I'm feeling low energy today",
+  ],
+  trading: [
+    "I broke my risk rules today",
+    "I'm in a drawdown — help me stay disciplined",
+    "Pre-market bias check",
+    "I'm about to revenge trade — talk me off the ledge",
+    "Rate my trade setup logic",
+    "Walk me through ICT market structure review",
+  ],
+};
 
 const EMOTIONAL_STATES: TradeSession['emotionalState'][] = ['calm', 'confident', 'neutral', 'anxious', 'fearful'];
 
@@ -41,9 +50,13 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
   const [messages, setMessages] = useState<Message[]>([INITIAL_MSG(profile.codename, profile.xp, profile.longestStreak)]);
   const [input, setInput]           = useState('');
   const [loading, setLoading]       = useState(false);
-  const [focusActive, setFocusActive]   = useState(false);
-  const [focusTime, setFocusTime]       = useState(0);
+  const [timerPhase, setTimerPhase] = useState<'idle' | 'focus' | 'break'>('idle');
+  const [focusTime, setFocusTime]   = useState(0);
+  const [breakTime, setBreakTime]   = useState(0);
   const [focusDuration, setFocusDuration] = useState(25);
+  const [promptCategory, setPromptCategory] = useState<'general' | 'trading'>('general');
+  const focusActive = timerPhase === 'focus';
+  const breakDuration = focusDuration === 25 ? 5 : focusDuration === 50 ? 10 : 15;
   const chatEndRef = useRef<HTMLDivElement>(null);
   const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -68,24 +81,36 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
   }, [messages]);
 
   useEffect(() => {
-    if (focusActive) {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerPhase === 'focus') {
       timerRef.current = setInterval(() => {
         setFocusTime(t => {
           if (t + 1 >= focusDuration * 60) {
             clearInterval(timerRef.current!);
-            setFocusActive(false);
             onFocusMinutes(focusDuration);
-            addMessage('assistant', `⚡ FOCUS SESSION COMPLETE — ${focusDuration} minutes logged. +${focusDuration * 2} XP earned. Well done, ${profile.codename}.`);
+            setTimerPhase('break');
+            setBreakTime(0);
+            addMessage('assistant', `⚡ FOCUS COMPLETE — ${focusDuration}m logged. +${focusDuration * 2} XP. ${breakDuration}m break starting now.`);
             return 0;
           }
           return t + 1;
         });
       }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
+    } else if (timerPhase === 'break') {
+      timerRef.current = setInterval(() => {
+        setBreakTime(t => {
+          if (t + 1 >= breakDuration * 60) {
+            clearInterval(timerRef.current!);
+            setTimerPhase('idle');
+            addMessage('assistant', `✓ BREAK COMPLETE — Ready for another block, ${profile.codename}?`);
+            return 0;
+          }
+          return t + 1;
+        });
+      }, 1000);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [focusActive]);
+  }, [timerPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function addMessage(role: 'user' | 'assistant', content: string) {
     setMessages(prev => {
@@ -136,8 +161,10 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
     return `${m}:${sec}`;
   };
 
-  const remaining = focusDuration * 60 - focusTime;
-  const focusPct  = focusActive ? Math.round((focusTime / (focusDuration * 60)) * 100) : 0;
+  const remaining     = focusDuration * 60 - focusTime;
+  const breakRemaining = breakDuration * 60 - breakTime;
+  const focusPct  = timerPhase === 'focus' ? Math.round((focusTime / (focusDuration * 60)) * 100) : 0;
+  const breakPct  = timerPhase === 'break' ? Math.round((breakTime / (breakDuration * 60)) * 100) : 0;
 
   return (
     <div className="content-area flex flex-col" style={{ paddingBottom: 80 }}>
@@ -157,14 +184,27 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
 
           {/* Focus widget */}
           <div className="flex items-center gap-2">
-            {focusActive ? (
+            {timerPhase === 'focus' ? (
               <>
                 <span className="font-orbitron font-bold" style={{ fontSize: 15, color: 'var(--ng-green)', letterSpacing: '1px' }}>
                   {formatTime(remaining)}
                 </span>
-                <button onClick={() => { setFocusActive(false); setFocusTime(0); }} className="font-orbitron"
+                <button onClick={() => { setTimerPhase('idle'); setFocusTime(0); setBreakTime(0); }} className="font-orbitron"
                   style={{ fontSize: 13, padding: '7px 14px', border: '1.5px solid var(--ng-red)', color: 'var(--ng-red)', background: 'transparent', cursor: 'pointer', borderRadius: 8 }}>
                   ■ STOP
+                </button>
+              </>
+            ) : timerPhase === 'break' ? (
+              <>
+                <div className="flex flex-col items-end">
+                  <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>BREAK</span>
+                  <span className="font-orbitron font-bold" style={{ fontSize: 15, color: 'var(--ng-cyan)', letterSpacing: '1px' }}>
+                    {formatTime(breakRemaining)}
+                  </span>
+                </div>
+                <button onClick={() => { setTimerPhase('idle'); setBreakTime(0); }} className="font-orbitron"
+                  style={{ fontSize: 13, padding: '7px 14px', border: '1.5px solid var(--ng-cyan)', color: 'var(--ng-cyan)', background: 'transparent', cursor: 'pointer', borderRadius: 8 }}>
+                  SKIP
                 </button>
               </>
             ) : (
@@ -177,7 +217,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                     </button>
                   ))}
                 </div>
-                <button onClick={() => setFocusActive(true)} className="font-orbitron"
+                <button onClick={() => { setTimerPhase('focus'); setFocusTime(0); }} className="font-orbitron"
                   style={{ fontSize: 13, padding: '7px 14px', border: '1.5px solid var(--ng-amber)', color: 'var(--ng-amber)', background: 'transparent', cursor: 'pointer', borderRadius: 8 }}>
                   ▷
                 </button>
@@ -186,9 +226,9 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
           </div>
         </div>
 
-        {focusActive && (
+        {timerPhase !== 'idle' && (
           <div style={{ height: 2, background: 'var(--ng-border)', marginTop: 10, borderRadius: 1, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${focusPct}%`, background: 'var(--ng-green)', transition: 'width 1s linear' }} />
+            <div style={{ height: '100%', width: `${timerPhase === 'focus' ? focusPct : breakPct}%`, background: timerPhase === 'focus' ? 'var(--ng-green)' : 'var(--ng-cyan)', transition: 'width 1s linear' }} />
           </div>
         )}
 
@@ -228,8 +268,16 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
           </div>
 
           <div className="px-4 pb-2 flex-shrink-0" style={{ borderTop: '1px solid var(--ng-border)', paddingTop: 10 }}>
+            <div className="flex gap-1 mb-2">
+              {(['general', 'trading'] as const).map(cat => (
+                <button key={cat} onClick={() => setPromptCategory(cat)} className="font-orbitron"
+                  style={{ padding: '4px 12px', fontSize: 8, letterSpacing: '1px', border: `1px solid ${promptCategory === cat ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: promptCategory === cat ? 'var(--ng-amber)' : 'var(--ng-muted)', background: promptCategory === cat ? 'rgba(255,159,10,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer' }}>
+                  {cat === 'general' ? 'GENERAL' : '📈 TRADING'}
+                </button>
+              ))}
+            </div>
             <div className="flex gap-1 overflow-x-auto pb-2 mb-2" style={{ scrollbarWidth: 'none' }}>
-              {QUICK_PROMPTS.map(p => (
+              {QUICK_PROMPTS[promptCategory].map(p => (
                 <button key={p} onClick={() => sendMessage(p)} className="font-mono flex-shrink-0"
                   style={{ fontSize: 12, padding: '7px 14px', border: '0.5px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'var(--ng-surface)', cursor: 'pointer', borderRadius: 20, whiteSpace: 'nowrap' }}>
                   {p}

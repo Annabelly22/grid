@@ -168,23 +168,108 @@ function Divider({ label, color }: { label: string; color: string }) {
   );
 }
 
-// ── Log tab: week / month toggle ─────────────────────────────────
+// ── Sleep log view ────────────────────────────────────────────────
+function SleepLog() {
+  const today = new Date().toISOString().split('T')[0];
+  const [bedtime, setBedtime] = useState('22:30');
+  const [waketime, setWaketime] = useState('06:30');
+  const [quality, setQuality] = useState<1|2|3|4|5>(4);
+  const [log, setLog] = useState<import('../lib/storage').SleepEntry[]>([]);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => { setLog(Storage.getSleepLog()); }, []);
+
+  const calcDuration = (bed: string, wake: string): number => {
+    const [bh, bm] = bed.split(':').map(Number);
+    const [wh, wm] = wake.split(':').map(Number);
+    let bedMins = bh * 60 + bm;
+    let wakeMins = wh * 60 + wm;
+    if (wakeMins <= bedMins) wakeMins += 24 * 60;
+    return Math.round((wakeMins - bedMins) / 6) / 10; // hours, 1dp
+  };
+
+  const save = () => {
+    const durationH = calcDuration(bedtime, waketime);
+    const entry: import('../lib/storage').SleepEntry = { date: today, bedtime, waketime, quality, durationH };
+    const updated = [entry, ...log.filter(e => e.date !== today)].slice(0, 30);
+    Storage.setSleepLog(updated);
+    setLog(updated);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const qualityColor = (q: number) => q >= 4 ? 'var(--ng-green)' : q === 3 ? 'var(--ng-amber)' : 'var(--ng-red)';
+
+  return (
+    <div>
+      <div className="card mb-4" style={{ borderColor: 'rgba(0,212,255,0.3)' }}>
+        <div className="font-orbitron mb-3" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>LOG SLEEP</div>
+        <div className="flex gap-3 mb-3">
+          <div className="flex-1">
+            <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>BEDTIME</div>
+            <input type="time" className="ng-input" style={{ width: '100%' }} value={bedtime} onChange={e => setBedtime(e.target.value)} />
+          </div>
+          <div className="flex-1">
+            <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>WAKE TIME</div>
+            <input type="time" className="ng-input" style={{ width: '100%' }} value={waketime} onChange={e => setWaketime(e.target.value)} />
+          </div>
+        </div>
+        <div className="mb-3">
+          <div className="font-orbitron mb-2" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>QUALITY</div>
+          <div className="flex gap-1">
+            {([1,2,3,4,5] as const).map(n => (
+              <button key={n} onClick={() => setQuality(n)} style={{ fontSize: 20, background: 'none', border: 'none', cursor: 'pointer', color: n <= quality ? '#FFD700' : 'var(--ng-dimmer)', padding: '2px', lineHeight: 1 }}>★</button>
+            ))}
+          </div>
+        </div>
+        <div className="font-mono mb-3" style={{ fontSize: 10, color: 'var(--ng-cyan)' }}>
+          Duration: {calcDuration(bedtime, waketime)}h
+        </div>
+        <button onClick={save} className="btn-green-solid w-full">
+          {saved ? '✓ SAVED' : 'SAVE SLEEP'}
+        </button>
+      </div>
+
+      {log.length > 0 && (
+        <>
+          <div className="font-orbitron mb-3" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '2px' }}>SLEEP HISTORY</div>
+          {log.slice(0, 14).map(e => (
+            <div key={e.date} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', marginBottom: 6, background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderLeft: `3px solid ${qualityColor(e.quality)}`, borderRadius: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-text)' }}>{e.date} · {e.bedtime} → {e.waketime}</div>
+              </div>
+              <div className="font-orbitron font-bold" style={{ fontSize: 13, color: qualityColor(e.quality) }}>{e.durationH}h</div>
+              <div style={{ fontSize: 10, color: '#FFD700' }}>{'★'.repeat(e.quality)}</div>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Log tab: week / month / review / sleep toggle ─────────────────
 function LogTab() {
-  const [logView, setLogView] = useState<'week' | 'month' | 'review'>('week');
+  const [logView, setLogView] = useState<'week' | 'month' | 'review' | 'sleep'>('week');
   return (
     <>
       {/* Toggle */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-        {(['week', 'month', 'review'] as const).map(v => (
-          <button key={v} onClick={() => setLogView(v)} className="flex-1 font-orbitron"
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
+        {([
+          { id: 'week', label: '⬡ WEEK' },
+          { id: 'month', label: '◈ MONTH' },
+          { id: 'review', label: '◆ REVIEW' },
+          { id: 'sleep', label: '🌙 SLEEP' },
+        ] as const).map(v => (
+          <button key={v.id} onClick={() => setLogView(v.id)} className="flex-1 font-orbitron"
             style={{
-              padding: '8px', fontSize: 9, letterSpacing: '2px',
-              border: `1px solid ${logView === v ? 'var(--ng-amber)' : 'var(--ng-border)'}`,
-              color:  logView === v ? 'var(--ng-amber)' : 'var(--ng-muted)',
-              background: logView === v ? 'rgba(255,184,0,0.08)' : 'transparent',
+              padding: '7px 4px', fontSize: 8, letterSpacing: '1px',
+              border: `1px solid ${logView === v.id ? 'var(--ng-amber)' : 'var(--ng-border)'}`,
+              color:  logView === v.id ? 'var(--ng-amber)' : 'var(--ng-muted)',
+              background: logView === v.id ? 'rgba(255,184,0,0.08)' : 'transparent',
               borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s',
             }}>
-            {v === 'week' ? '⬡ WEEK' : v === 'month' ? '◈ MONTH' : '◆ REVIEW'}
+            {v.label}
           </button>
         ))}
       </div>
@@ -199,8 +284,10 @@ function LogTab() {
         </>
       ) : logView === 'month' ? (
         <MonthLog />
-      ) : (
+      ) : logView === 'review' ? (
         <WeeklyReview />
+      ) : (
+        <SleepLog />
       )}
     </>
   );
@@ -534,38 +621,40 @@ export default function BodyTab() {
       <div className="px-4 pt-5">
 
         {/* ═══ HOME GRID ═══════════════════════════════════════ */}
-        {subTab === 'home' && (
-          <>
-            <div className="mb-5 text-center" style={{ padding: '6px 0 14px' }}>
-              <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)', letterSpacing: '2px', lineHeight: 1.8, fontStyle: 'italic' }}>
-                Self Discipline . Self Love . Self Respect
+        {subTab === 'home' && (() => {
+          const DAILY_IDS: SubTab[] = ['fast', 'gym', 'log', 'move'];
+          const REF_IDS:   SubTab[] = ['stack', 'cycle', 'tea', 'metab', 'cart'];
+          const dailyTabs = SUB_TABS.filter(t => DAILY_IDS.includes(t.id));
+          const refTabs   = SUB_TABS.filter(t => REF_IDS.includes(t.id));
+          const renderTile = (t: typeof SUB_TABS[0], large?: boolean) => (
+            <button key={t.id} onClick={() => setSubTab(t.id)}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: large ? '20px 8px 16px' : '14px 8px 12px', background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderTop: `3px solid ${t.color}`, borderRadius: 12, cursor: 'pointer', position: 'relative', transition: 'background 0.15s' }}>
+              {'badge' in t && t.badge ? (
+                <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 9, background: t.color, color: '#000', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'monospace' }}>{t.badge}</span>
+              ) : null}
+              <span style={{ fontSize: large ? 24 : 18, marginBottom: large ? 8 : 6, lineHeight: 1 }}>{t.icon}</span>
+              <span className="font-orbitron" style={{ fontSize: 9, color: t.color, letterSpacing: '1px', marginBottom: 4 }}>{t.label}</span>
+              <span className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', textAlign: 'center', lineHeight: 1.35 }}>{t.desc}</span>
+            </button>
+          );
+          return (
+            <>
+              <div className="mb-5 text-center" style={{ padding: '6px 0 14px' }}>
+                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)', letterSpacing: '2px', lineHeight: 1.8, fontStyle: 'italic' }}>
+                  Self Discipline . Self Love . Self Respect
+                </div>
               </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-            {SUB_TABS.map(t => (
-              <button key={t.id} onClick={() => setSubTab(t.id)}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  padding: '18px 8px 14px',
-                  background: 'var(--ng-surface)',
-                  border: '0.5px solid var(--ng-border)',
-                  borderTop: `3px solid ${t.color}`,
-                  borderRadius: 12,
-                  cursor: 'pointer',
-                  position: 'relative',
-                  transition: 'background 0.15s',
-                }}>
-                {'badge' in t && t.badge ? (
-                  <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 9, background: t.color, color: '#000', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'monospace' }}>{t.badge}</span>
-                ) : null}
-                <span style={{ fontSize: 22, marginBottom: 8, lineHeight: 1 }}>{t.icon}</span>
-                <span className="font-orbitron" style={{ fontSize: 9, color: t.color, letterSpacing: '1px', marginBottom: 5 }}>{t.label}</span>
-                <span className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', textAlign: 'center', lineHeight: 1.35 }}>{t.desc}</span>
-              </button>
-            ))}
-            </div>
-          </>
-        )}
+              <div className="font-orbitron mb-2" style={{ fontSize: 7, color: 'var(--ng-muted)', letterSpacing: '2px' }}>DAILY PRACTICE</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+                {dailyTabs.map(t => renderTile(t, true))}
+              </div>
+              <div className="font-orbitron mb-2" style={{ fontSize: 7, color: 'var(--ng-muted)', letterSpacing: '2px' }}>REFERENCE</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                {refTabs.map(t => renderTile(t, false))}
+              </div>
+            </>
+          );
+        })()}
 
         {/* ═══ STACK ════════════════════════════════════════════ */}
         {subTab === 'stack' && (

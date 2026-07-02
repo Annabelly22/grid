@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { Storage, type FastRecord } from '../lib/storage';
 
 const FAST_KEY = 'grid_fast_start';
 
@@ -29,11 +30,14 @@ function getPhase(hours: number): Phase {
 export default function FastingTimer() {
   const [fastStart, setFastStart] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [history, setHistory] = useState<FastRecord[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(FAST_KEY);
     if (stored) setFastStart(Number(stored));
+    setHistory(Storage.getFastHistory());
   }, []);
 
   useEffect(() => {
@@ -52,6 +56,22 @@ export default function FastingTimer() {
   };
 
   const stopFast = () => {
+    if (fastStart) {
+      const end = Date.now();
+      const durH = (end - fastStart) / 3_600_000;
+      if (durH >= 0.1) {
+        const record: FastRecord = {
+          id: `f_${fastStart}`,
+          startTime: fastStart,
+          endTime: end,
+          durationH: Math.round(durH * 10) / 10,
+          phaseReached: getPhase(durH).label,
+        };
+        const updated = [record, ...Storage.getFastHistory()].slice(0, 20);
+        Storage.setFastHistory(updated);
+        setHistory(updated);
+      }
+    }
     setFastStart(null);
     localStorage.removeItem(FAST_KEY);
   };
@@ -184,6 +204,37 @@ export default function FastingTimer() {
           style={{ padding: '12px', fontSize: 10, letterSpacing: '3px', color: 'var(--ng-red)', border: '1px solid var(--ng-red)', background: 'transparent', borderRadius: 2, cursor: 'pointer' }}>
           ■ END FAST
         </button>
+      )}
+
+      {/* Fasting history */}
+      {history.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 8px' }}>
+            <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '2px' }}>FASTING HISTORY — {history.length}</span>
+            <span style={{ fontSize: 10, color: 'var(--ng-muted)' }}>{showHistory ? '▲' : '▼'}</span>
+          </button>
+          {showHistory && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {history.slice(0, 10).map(r => {
+                const startDate = new Date(r.startTime);
+                const dateStr = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const timeStr = startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                const phaseColor = PHASES.find(p => p.label === r.phaseReached)?.color || 'var(--ng-muted)';
+                return (
+                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderLeft: `3px solid ${phaseColor}`, borderRadius: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-text)' }}>{dateStr} · {timeStr}</div>
+                      <div className="font-orbitron" style={{ fontSize: 8, color: phaseColor, letterSpacing: '1px', marginTop: 2 }}>{r.phaseReached}</div>
+                    </div>
+                    <div className="font-orbitron font-bold" style={{ fontSize: 14, color: phaseColor }}>{r.durationH}h</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

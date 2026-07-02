@@ -243,11 +243,29 @@ export function GridProvider({ children }: { children: ReactNode }) {
     snapshotHabitLog(updated);
     const habit = habits.find(h => h.id === id);
     if (!habit) return;
-    awardXP(
+    let currentProfile = awardXP(
       habit.xpReward,
       { ...profile, totalHabitsCompleted: profile.totalHabitsCompleted + 1, longestStreak: Math.max(profile.longestStreak, updated.find(h => h.id === id)?.streak || 0) },
       updated, achievements,
     );
+
+    // Check category-based missions — auto-complete when total completions hit threshold
+    const category = habit.category;
+    const catTotal = updated
+      .filter(h => h.category === category)
+      .reduce((sum, h) => sum + h.totalCompletions, 0);
+    const pendingCatMissions = missions.filter(m =>
+      !m.completed && m.categoryGoal?.category === category && catTotal >= m.categoryGoal.count
+    );
+    if (pendingCatMissions.length > 0 && currentProfile) {
+      let updatedMissions = missions;
+      for (const m of pendingCatMissions) {
+        updatedMissions = updatedMissions.map(ms => ms.id === m.id ? { ...ms, completed: true, completedAt: new Date().toISOString() } : ms);
+        currentProfile = awardXP(m.xpReward, { ...currentProfile, missionsCompleted: currentProfile.missionsCompleted + 1 }, updated, achievements);
+      }
+      saveMissions(updatedMissions); setMissions(updatedMissions);
+    }
+
     triggerSync();
   };
 

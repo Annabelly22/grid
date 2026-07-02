@@ -1,9 +1,25 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { GYM_DAYS, GymDay, GymExercise, getTodayGymDay } from '../lib/gymData';
+import { Storage } from '../lib/storage';
 
 const GYM_CHECK_KEY = 'grid_gym_checks';
 const NUM_SETS = 4;
+// Annabel's weight for kcal adjustment (reference base is ~70kg)
+const BODY_WEIGHT_KG = 79.4;
+const KCAL_FACTOR = BODY_WEIGHT_KG / 70;
+
+interface SetPerf { w: string; reps: number; rpe: number; }
+
+function loadLastPerf(dayId: string, exId: string): SetPerf[] | null {
+  for (let i = 1; i <= 14; i++) {
+    const d = new Date(Date.now() - i * 86_400_000);
+    const dateStr = d.toISOString().split('T')[0];
+    const data = Storage.getGymPerf(dayId, exId, dateStr);
+    if (data.length > 0) return data;
+  }
+  return null;
+}
 
 function todayKey(): string {
   return new Date().toISOString().split('T')[0];
@@ -33,80 +49,111 @@ function saveChecks(dayId: string, checks: Record<string, number>) {
   localStorage.setItem(storageKey(dayId), JSON.stringify(checks));
 }
 
-// ─── Exercise row — 4 individual set checkboxes ───────────────────────────────
-function ExerciseRow({ ex, setsCompleted, onSetToggle }: {
+// ─── Exercise row — 4 individual set checkboxes + weight/RPE log ─────────────
+function ExerciseRow({ ex, setsCompleted, onSetToggle, dayId, date }: {
   ex: GymExercise;
   setsCompleted: number;
   onSetToggle: (setIndex: number) => void;
+  dayId: string;
+  date: string;
 }) {
   const isFullyDone = setsCompleted >= NUM_SETS;
+  const [showLog, setShowLog] = useState(false);
+  const [perfs, setPerfs] = useState<SetPerf[]>(() => {
+    const saved = Storage.getGymPerf(dayId, ex.id, date);
+    return saved.length > 0 ? saved : Array.from({ length: NUM_SETS }, () => ({ w: '', reps: 0, rpe: 0 }));
+  });
+  const lastPerf = loadLastPerf(dayId, ex.id);
+
+  const adjKcal = ex.kcal ? Math.round(ex.kcal * KCAL_FACTOR) : null;
+
+  const updatePerf = (setIdx: number, field: keyof SetPerf, value: string | number) => {
+    const updated = perfs.map((p, i) => i === setIdx ? { ...p, [field]: value } : p);
+    setPerfs(updated);
+    Storage.setGymPerf(dayId, ex.id, date, updated);
+  };
 
   return (
-    <div
-      style={{
-        display: 'flex', alignItems: 'center', gap: 12,
-        padding: '13px 16px',
-        background: isFullyDone ? 'rgba(48,209,88,0.06)' : 'transparent',
-        borderBottom: '1px solid var(--ng-border)',
-      }}
-    >
-      {/* Exercise info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span className="font-mono" style={{
-            fontSize: 12,
-            color: isFullyDone ? 'var(--ng-muted)' : 'var(--ng-text)',
-            textDecoration: isFullyDone ? 'line-through' : 'none',
-          }}>
-            {ex.name}
-          </span>
-          {ex.priority && (
-            <span className="font-orbitron" style={{ fontSize: 7, color: 'var(--ng-amber)', border: '1px solid rgba(255,184,0,0.35)', padding: '1px 4px', letterSpacing: '1px', flexShrink: 0 }}>KEY</span>
-          )}
+    <div style={{ borderBottom: '1px solid var(--ng-border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', background: isFullyDone ? 'rgba(48,209,88,0.06)' : 'transparent' }}>
+        {/* Exercise info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span className="font-mono" style={{ fontSize: 12, color: isFullyDone ? 'var(--ng-muted)' : 'var(--ng-text)', textDecoration: isFullyDone ? 'line-through' : 'none' }}>
+              {ex.name}
+            </span>
+            {ex.priority && (
+              <span className="font-orbitron" style={{ fontSize: 7, color: 'var(--ng-amber)', border: '1px solid rgba(255,184,0,0.35)', padding: '1px 4px', letterSpacing: '1px', flexShrink: 0 }}>KEY</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+            {ex.weight && <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-cyan)', letterSpacing: '1px' }}>{ex.weight}</span>}
+            {ex.reps && ex.sets && <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{ex.reps} × {ex.sets}</span>}
+            {ex.reps && !ex.sets && <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{ex.reps} reps</span>}
+            {ex.note && <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{ex.note}</span>}
+            {adjKcal && <span className="font-orbitron" style={{ fontSize: 8, color: isFullyDone ? 'var(--ng-green)' : 'var(--ng-amber)', letterSpacing: '1px', flexShrink: 0 }}>~{adjKcal} kcal</span>}
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
-          {ex.weight && (
-            <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-cyan)', letterSpacing: '1px' }}>{ex.weight}</span>
-          )}
-          {ex.reps && ex.sets && (
-            <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{ex.reps} × {ex.sets}</span>
-          )}
-          {ex.reps && !ex.sets && (
-            <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{ex.reps} reps</span>
-          )}
-          {ex.note && (
-            <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>{ex.note}</span>
-          )}
-          {ex.kcal && (
-            <span className="font-orbitron" style={{ fontSize: 8, color: isFullyDone ? 'var(--ng-green)' : 'var(--ng-amber)', letterSpacing: '1px', flexShrink: 0 }}>~{ex.kcal} kcal</span>
-          )}
+
+        {/* Log toggle */}
+        <button onClick={() => setShowLog(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: showLog ? 'var(--ng-amber)' : 'var(--ng-dimmer)', fontSize: 13, padding: '4px', flexShrink: 0 }} title="Log weights">
+          ✎
+        </button>
+
+        {/* 4 set checkboxes */}
+        <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+          {Array.from({ length: NUM_SETS }, (_, i) => {
+            const done = i < setsCompleted;
+            return (
+              <button key={i} onClick={() => onSetToggle(i)}
+                style={{ width: 26, height: 26, border: `1.5px solid ${done ? 'var(--ng-green)' : 'var(--ng-border)'}`, background: done ? 'var(--ng-green)' : 'transparent', borderRadius: 5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
+                {done && <span style={{ color: '#000', fontSize: 11, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* 4 set checkboxes */}
-      <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-        {Array.from({ length: NUM_SETS }, (_, i) => {
-          const done = i < setsCompleted;
-          return (
-            <button
-              key={i}
-              onClick={() => onSetToggle(i)}
-              style={{
-                width: 26, height: 26,
-                border: `1.5px solid ${done ? 'var(--ng-green)' : 'var(--ng-border)'}`,
-                background: done ? 'var(--ng-green)' : 'transparent',
-                borderRadius: 5,
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-                transition: 'all 0.15s',
-              }}
-            >
-              {done && <span style={{ color: '#000', fontSize: 11, fontWeight: 800, lineHeight: 1 }}>✓</span>}
-            </button>
-          );
-        })}
-      </div>
+      {/* Per-set log panel */}
+      {showLog && (
+        <div style={{ padding: '10px 16px 14px', background: 'rgba(255,159,10,0.04)', borderTop: '1px solid var(--ng-border)' }}>
+          <div className="font-orbitron" style={{ fontSize: 7, color: 'var(--ng-amber)', letterSpacing: '2px', marginBottom: 8 }}>SET LOG — WEIGHT (KG) · REPS · RPE</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {Array.from({ length: NUM_SETS }, (_, i) => {
+              const last = lastPerf?.[i];
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-muted)', width: 30, flexShrink: 0 }}>SET {i + 1}</span>
+                  <input
+                    type="text"
+                    placeholder={last?.w || 'kg'}
+                    value={perfs[i]?.w || ''}
+                    onChange={e => updatePerf(i, 'w', e.target.value)}
+                    style={{ width: 52, padding: '4px 6px', background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderRadius: 6, color: 'var(--ng-text)', fontSize: 11, fontFamily: 'monospace', textAlign: 'center' }}
+                  />
+                  <input
+                    type="number"
+                    placeholder={last?.reps ? String(last.reps) : 'reps'}
+                    value={perfs[i]?.reps || ''}
+                    onChange={e => updatePerf(i, 'reps', Number(e.target.value))}
+                    style={{ width: 44, padding: '4px 6px', background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderRadius: 6, color: 'var(--ng-text)', fontSize: 11, fontFamily: 'monospace', textAlign: 'center' }}
+                  />
+                  <select
+                    value={perfs[i]?.rpe || 0}
+                    onChange={e => updatePerf(i, 'rpe', Number(e.target.value))}
+                    style={{ width: 58, padding: '4px 4px', background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderRadius: 6, color: perfs[i]?.rpe ? 'var(--ng-text)' : 'var(--ng-dimmer)', fontSize: 10, fontFamily: 'monospace' }}>
+                    <option value={0}>RPE</option>
+                    {[6,7,7.5,8,8.5,9,9.5,10].map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  {last?.w && (
+                    <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)', flexShrink: 0 }}>↩ {last.w}kg×{last.reps}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -117,6 +164,8 @@ function DayPanel({ day, onClose }: { day: GymDay; onClose: () => void }) {
   const [useAlt, setUseAlt] = useState(false);
   const activeSet = useAlt && day.alt ? day.alt.exercises : day.exercises;
   const [checks, setChecks] = useState<Record<string, number>>({});
+  const panelDayId = day.id + (useAlt ? '_alt' : '');
+  const panelDate  = todayKey();
 
   useEffect(() => {
     setChecks(loadChecks(day.id + (useAlt ? '_alt' : '')));
@@ -133,8 +182,8 @@ function DayPanel({ day, onClose }: { day: GymDay; onClose: () => void }) {
   const doneCount  = activeSet.filter(ex => (checks[ex.id] || 0) >= NUM_SETS).length;
   const total      = activeSet.length;
   const pct        = total > 0 ? Math.round((doneCount / total) * 100) : 0;
-  const kcalDone   = activeSet.filter(ex => (checks[ex.id] || 0) >= NUM_SETS).reduce((sum, ex) => sum + (ex.kcal || 0), 0);
-  const kcalTotal  = activeSet.reduce((sum, ex) => sum + (ex.kcal || 0), 0);
+  const kcalDone   = Math.round(activeSet.filter(ex => (checks[ex.id] || 0) >= NUM_SETS).reduce((sum, ex) => sum + (ex.kcal || 0), 0) * KCAL_FACTOR);
+  const kcalTotal  = Math.round(activeSet.reduce((sum, ex) => sum + (ex.kcal || 0), 0) * KCAL_FACTOR);
 
   // Group exercises by section (HIIT day)
   const hasSections = activeSet.some(ex => ex.section);
@@ -229,6 +278,8 @@ function DayPanel({ day, onClose }: { day: GymDay; onClose: () => void }) {
                       ex={ex}
                       setsCompleted={checks[ex.id] || 0}
                       onSetToggle={(setIdx) => toggleSet(ex.id, setIdx)}
+                      dayId={panelDayId}
+                      date={panelDate}
                     />
                   ))}
                 </div>
@@ -240,6 +291,8 @@ function DayPanel({ day, onClose }: { day: GymDay; onClose: () => void }) {
                   ex={ex}
                   setsCompleted={checks[ex.id] || 0}
                   onSetToggle={(setIdx) => toggleSet(ex.id, setIdx)}
+                  dayId={panelDayId}
+                  date={panelDate}
                 />
               ))
             )}

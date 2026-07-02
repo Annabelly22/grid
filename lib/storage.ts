@@ -4,6 +4,22 @@
 import type { CyclePhase, EnergyLevel } from './supplementData';
 import type { UserProfile, Habit, Mission, Achievement } from './gameStore';
 
+export interface FastRecord {
+  id: string;
+  startTime: number;
+  endTime: number;
+  durationH: number;
+  phaseReached: string;
+}
+
+export interface SleepEntry {
+  date: string;       // 'YYYY-MM-DD'
+  bedtime: string;    // 'HH:MM' 24h
+  waketime: string;   // 'HH:MM' 24h
+  quality: 1 | 2 | 3 | 4 | 5;
+  durationH: number;
+}
+
 const K = {
   profile:         'grid_profile',
   habits:          'grid_habits',
@@ -17,6 +33,7 @@ const K = {
   ownedSupps:      'grid_owned_supps',
   pendingSupps:    'grid_pending_supps',
   fastStart:       'grid_fast_start',
+  fastHistory:     'grid_fast_history',
   theme:           'grid_theme',
   habitsView:      'grid_habits_view',
   notifPerm:       'grid_notif_perm_asked',
@@ -24,6 +41,7 @@ const K = {
   alphawillChat:   'grid_alphawill_chat',
   focusLog:        'grid_focus_log',
   dailyPriorities: 'grid_daily_priorities',
+  sleepLog:        'grid_sleep_log',
 } as const;
 
 function get<T>(key: string, fallback: T): T {
@@ -111,6 +129,20 @@ export const Storage = {
   setFastStart: (t: number) => setRaw(K.fastStart, String(t)),
   clearFastStart: () => remove(K.fastStart),
 
+  // Fast history
+  getFastHistory: () => get<FastRecord[]>(K.fastHistory, []),
+  setFastHistory: (h: FastRecord[]) => set(K.fastHistory, h),
+
+  // Sleep log
+  getSleepLog: () => get<SleepEntry[]>(K.sleepLog, []),
+  setSleepLog: (log: SleepEntry[]) => set(K.sleepLog, log),
+
+  // Gym performance (per exercise per day per date)
+  getGymPerf: (dayId: string, exId: string, date: string): { w: string; reps: number; rpe: number }[] =>
+    get<{ w: string; reps: number; rpe: number }[]>(`grid_gym_perf_${dayId}_${exId}_${date}`, []),
+  setGymPerf: (dayId: string, exId: string, date: string, sets: { w: string; reps: number; rpe: number }[]) =>
+    set(`grid_gym_perf_${dayId}_${exId}_${date}`, sets),
+
   // Theme
   getTheme: (): 'dark' | 'light' => (getRaw(K.theme) as 'dark' | 'light') || 'dark',
   setTheme: (t: 'dark' | 'light') => setRaw(K.theme, t),
@@ -180,6 +212,7 @@ export const Storage = {
       'grid_supplements_view', 'grid_owned_supps', 'grid_pending_supps',
       'grid_steps', 'grid_fast_start', 'grid_theme', 'grid_habits_view', 'grid_quote_idx',
       'grid_trade_journal', 'grid_alphawill_chat', 'grid_focus_log', 'grid_daily_priorities',
+      'grid_fast_history', 'grid_sleep_log',
     ];
     for (const key of staticKeys) {
       const raw = localStorage.getItem(key);
@@ -190,7 +223,7 @@ export const Storage = {
     // Capture dynamic gym check keys
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key?.startsWith('grid_gym_checks_') || key?.startsWith('grid_notif_')) {
+      if (key?.startsWith('grid_gym_checks_') || key?.startsWith('grid_notif_') || key?.startsWith('grid_gym_perf_')) {
         const raw = localStorage.getItem(key);
         if (raw !== null) {
           try { snapshot[key] = JSON.parse(raw); } catch { snapshot[key] = raw; }
