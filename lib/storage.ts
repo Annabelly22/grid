@@ -5,21 +5,25 @@ import type { CyclePhase, EnergyLevel } from './supplementData';
 import type { UserProfile, Habit, Mission, Achievement } from './gameStore';
 
 const K = {
-  profile:      'grid_profile',
-  habits:       'grid_habits',
-  missions:     'grid_missions',
-  achievements: 'grid_achievements',
-  habitLog:     'grid_habit_log',
-  cycleStart:   'grid_cycle_start',
-  lastPhase:    'grid_last_phase',
-  energyLevel:  'grid_energy_level',
-  suppView:     'grid_supplements_view',
-  ownedSupps:   'grid_owned_supps',
-  pendingSupps: 'grid_pending_supps',
-  fastStart:    'grid_fast_start',
-  theme:        'grid_theme',
-  habitsView:   'grid_habits_view',
-  notifPerm:    'grid_notif_perm_asked',
+  profile:         'grid_profile',
+  habits:          'grid_habits',
+  missions:        'grid_missions',
+  achievements:    'grid_achievements',
+  habitLog:        'grid_habit_log',
+  cycleStart:      'grid_cycle_start',
+  lastPhase:       'grid_last_phase',
+  energyLevel:     'grid_energy_level',
+  suppView:        'grid_supplements_view',
+  ownedSupps:      'grid_owned_supps',
+  pendingSupps:    'grid_pending_supps',
+  fastStart:       'grid_fast_start',
+  theme:           'grid_theme',
+  habitsView:      'grid_habits_view',
+  notifPerm:       'grid_notif_perm_asked',
+  tradeJournal:    'grid_trade_journal',
+  alphawillChat:   'grid_alphawill_chat',
+  focusLog:        'grid_focus_log',
+  dailyPriorities: 'grid_daily_priorities',
 } as const;
 
 function get<T>(key: string, fallback: T): T {
@@ -133,6 +137,22 @@ export const Storage = {
   getQuoteIdx: (): number => { const v = getRaw('grid_quote_idx'); return v ? parseInt(v, 10) : 0; },
   setQuoteIdx: (n: number) => setRaw('grid_quote_idx', String(n)),
 
+  // Trade journal
+  getTradeJournal: () => get<import('./gameStore').TradeSession[]>(K.tradeJournal, []),
+  setTradeJournal: (s: import('./gameStore').TradeSession[]) => set(K.tradeJournal, s),
+
+  // AlphaWill chat history
+  getAlphaWillChat: () => get<{ role: 'user' | 'assistant'; content: string }[]>(K.alphawillChat, []),
+  setAlphaWillChat: (msgs: { role: 'user' | 'assistant'; content: string }[]) => set(K.alphawillChat, msgs),
+
+  // Focus log (date → minutes)
+  getFocusLog: () => get<Record<string, number>>(K.focusLog, {}),
+  setFocusLog: (log: Record<string, number>) => set(K.focusLog, log),
+
+  // Daily priorities
+  getDailyPriorities: () => get<{ date: string; items: string[] }>(K.dailyPriorities, { date: '', items: [] }),
+  setDailyPriorities: (v: { date: string; items: string[] }) => set(K.dailyPriorities, v),
+
   // Clear all data
   clearAll: () => {
     if (typeof window !== 'undefined') localStorage.clear();
@@ -159,6 +179,7 @@ export const Storage = {
       'grid_habit_log', 'grid_cycle_start', 'grid_last_phase', 'grid_energy_level',
       'grid_supplements_view', 'grid_owned_supps', 'grid_pending_supps',
       'grid_steps', 'grid_fast_start', 'grid_theme', 'grid_habits_view', 'grid_quote_idx',
+      'grid_trade_journal', 'grid_alphawill_chat', 'grid_focus_log', 'grid_daily_priorities',
     ];
     for (const key of staticKeys) {
       const raw = localStorage.getItem(key);

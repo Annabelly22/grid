@@ -170,12 +170,12 @@ function Divider({ label, color }: { label: string; color: string }) {
 
 // ── Log tab: week / month toggle ─────────────────────────────────
 function LogTab() {
-  const [logView, setLogView] = useState<'week' | 'month'>('week');
+  const [logView, setLogView] = useState<'week' | 'month' | 'review'>('week');
   return (
     <>
       {/* Toggle */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-        {(['week', 'month'] as const).map(v => (
+        {(['week', 'month', 'review'] as const).map(v => (
           <button key={v} onClick={() => setLogView(v)} className="flex-1 font-orbitron"
             style={{
               padding: '8px', fontSize: 9, letterSpacing: '2px',
@@ -184,7 +184,7 @@ function LogTab() {
               background: logView === v ? 'rgba(255,184,0,0.08)' : 'transparent',
               borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s',
             }}>
-            {v === 'week' ? '⬡ WEEK' : '◈ MONTH'}
+            {v === 'week' ? '⬡ WEEK' : v === 'month' ? '◈ MONTH' : '◆ REVIEW'}
           </button>
         ))}
       </div>
@@ -197,10 +197,117 @@ function LogTab() {
           </div>
           <GymTracker />
         </>
-      ) : (
+      ) : logView === 'month' ? (
         <MonthLog />
+      ) : (
+        <WeeklyReview />
       )}
     </>
+  );
+}
+
+function WeeklyReview() {
+  const { missions } = useGridContext();
+
+  // Past 7 days
+  const days: string[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86_400_000);
+    days.push(d.toISOString().split('T')[0]);
+  }
+
+  // Habit hit rate
+  let habitTotal = 0, habitDone = 0;
+  try {
+    const log = Storage.getHabitLog();
+    for (const day of days) {
+      if (log[day]) { habitTotal += log[day].total; habitDone += log[day].completed; }
+    }
+  } catch {}
+  const habitPct = habitTotal > 0 ? Math.round((habitDone / habitTotal) * 100) : null;
+
+  // Focus minutes
+  let focusTotal = 0;
+  try {
+    const fl = Storage.getFocusLog();
+    for (const day of days) { focusTotal += (fl[day] || 0); }
+  } catch {}
+
+  // Workouts — distinct days with any gym check key
+  let workoutDays = 0;
+  try {
+    if (typeof window !== 'undefined') {
+      for (const day of days) {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key?.startsWith('grid_gym_checks_') && key.endsWith(`_${day}`)) { workoutDays++; break; }
+        }
+      }
+    }
+  } catch {}
+
+  // Missions completed this week
+  const weekStart = days[0];
+  const missionsThisWeek = missions.filter(m => m.completed && m.completedAt && m.completedAt.split('T')[0] >= weekStart).length;
+
+  // Fasting
+  let fastStatus = '—';
+  try {
+    const fs = Storage.getFastStart();
+    if (fs) {
+      const hrs = Math.floor((Date.now() - fs) / 3_600_000);
+      fastStatus = `${hrs}h active`;
+    }
+  } catch {}
+
+  const stats = [
+    { label: 'HABIT HIT RATE', value: habitPct !== null ? `${habitPct}%` : '—', sub: `${habitDone}/${habitTotal} reps`, color: habitPct !== null && habitPct >= 70 ? 'var(--ng-green)' : 'var(--ng-amber)' },
+    { label: 'FOCUS MINUTES', value: focusTotal > 0 ? String(focusTotal) : '—', sub: `${Math.round(focusTotal / 60 * 10) / 10}h total`, color: 'var(--ng-cyan)' },
+    { label: 'WORKOUT DAYS', value: String(workoutDays), sub: 'out of 7', color: 'var(--ng-red)' },
+    { label: 'MISSIONS', value: String(missionsThisWeek), sub: 'completed this week', color: 'var(--ng-purple)' },
+    { label: 'FASTING', value: fastStatus, sub: 'current window', color: 'var(--ng-amber)' },
+  ];
+
+  // Daily habit bar chart
+  let dailyBars: { day: string; pct: number }[] = [];
+  try {
+    const log = Storage.getHabitLog();
+    dailyBars = days.map(day => ({
+      day: new Date(day + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' }),
+      pct: log[day] && log[day].total > 0 ? Math.round((log[day].completed / log[day].total) * 100) : 0,
+    }));
+  } catch {}
+
+  return (
+    <div>
+      <div className="font-orbitron mb-4" style={{ fontSize: 9, color: 'var(--ng-amber)', letterSpacing: '3px' }}>7-DAY ASSESSMENT</div>
+
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {stats.map(s => (
+          <div key={s.label} style={{ background: 'var(--ng-bg)', border: '0.5px solid var(--ng-border)', padding: '12px', borderRadius: 10 }}>
+            <div className="font-orbitron" style={{ fontSize: 7, color: 'var(--ng-muted)', letterSpacing: '1px', marginBottom: 4 }}>{s.label}</div>
+            <div className="font-orbitron font-bold" style={{ fontSize: 20, color: s.color }}>{s.value}</div>
+            <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-dimmer)' }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {dailyBars.length > 0 && (
+        <div style={{ background: 'var(--ng-bg)', border: '0.5px solid var(--ng-border)', padding: 14, borderRadius: 10 }}>
+          <div className="font-orbitron mb-3" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '2px' }}>DAILY HABIT COMPLETION</div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 60 }}>
+            {dailyBars.map(({ day, pct }) => (
+              <div key={day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{ width: '100%', background: 'var(--ng-border)', borderRadius: 3, height: 48, display: 'flex', alignItems: 'flex-end', overflow: 'hidden' }}>
+                  <div style={{ width: '100%', height: `${pct}%`, background: pct >= 70 ? 'var(--ng-green)' : pct >= 40 ? 'var(--ng-amber)' : 'var(--ng-red)', borderRadius: 3, transition: 'height 0.4s ease', minHeight: pct > 0 ? 3 : 0 }} />
+                </div>
+                <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-dimmer)' }}>{day}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

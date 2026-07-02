@@ -1,9 +1,10 @@
 'use client';
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import {
-  UserProfile, Habit, Mission, Achievement,
+  UserProfile, Habit, Mission, Achievement, TradeSession,
   loadProfile, saveProfile, loadHabits, saveHabits,
   loadMissions, saveMissions, loadAchievements, saveAchievements,
+  loadTradeJournal, saveTradeJournal,
   checkAchievements,
 } from '../lib/gameStore';
 import { Storage } from '../lib/storage';
@@ -23,6 +24,8 @@ interface GridContextValue {
   habits: Habit[];
   missions: Mission[];
   achievements: Achievement[];
+  tradeJournal: TradeSession[];
+  dailyPriorities: string[];
   tab: Tab;
   theme: 'dark' | 'light';
   toasts: AchievementToast[];
@@ -39,14 +42,19 @@ interface GridContextValue {
   handleOnboard: () => void;
   handleCompleteHabit: (id: string) => void;
   handleUncompleteHabit: (id: string) => void;
-  handleAddHabit: (data: Omit<Habit, 'id' | 'streak' | 'completedToday' | 'lastCompleted' | 'totalCompletions' | 'createdAt'>) => void;
+  handleAddHabit: (data: Omit<Habit, 'id' | 'streak' | 'completedToday' | 'lastCompleted' | 'totalCompletions' | 'createdAt' | 'weeklyCompletions'>) => void;
   handleDeleteHabit: (id: string) => void;
-  handleEditHabit: (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward'>) => void;
+  handleEditHabit: (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward' | 'weeklyTarget'>) => void;
+  handleToggleFavorite: (id: string) => void;
+  handleReorderHabits: (reordered: Habit[]) => void;
   handleCompleteMission: (id: string) => void;
   handleFocusMinutes: (minutes: number) => void;
   handleToggleTheme: () => void;
   handleUpdateCodename: (name: string) => void;
   handleResetData: () => void;
+  handleLogTrade: (data: Omit<TradeSession, 'id' | 'createdAt'>) => void;
+  handleDeleteTradeSession: (id: string) => void;
+  handleSetPriorities: (items: string[]) => void;
 }
 
 const GridContext = createContext<GridContextValue | null>(null);
@@ -83,6 +91,8 @@ export function GridProvider({ children }: { children: ReactNode }) {
   const [habits, setHabits]       = useState<Habit[]>([]);
   const [missions, setMissions]   = useState<Mission[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [tradeJournal, setTradeJournal] = useState<TradeSession[]>([]);
+  const [dailyPriorities, setDailyPriorities] = useState<string[]>([]);
   const [toasts, setToasts]       = useState<AchievementToast[]>([]);
   const [xpPopups, setXpPopups]   = useState<XPPopup[]>([]);
   const [mounted, setMounted]     = useState(false);
@@ -113,8 +123,12 @@ export function GridProvider({ children }: { children: ReactNode }) {
     const h = loadHabits();
     const m = loadMissions();
     const a = loadAchievements();
-    setProfile(p); setHabits(h); setMissions(m); setAchievements(a);
+    const tj = loadTradeJournal();
+    setProfile(p); setHabits(h); setMissions(m); setAchievements(a); setTradeJournal(tj);
     if (!p.onboarded) setOnboarded(false);
+    const dp = Storage.getDailyPriorities();
+    const today = new Date().toISOString().split('T')[0];
+    setDailyPriorities(dp.date === today ? dp.items : []);
 
     const t = Storage.getTheme();
     setTheme(t);
@@ -128,8 +142,12 @@ export function GridProvider({ children }: { children: ReactNode }) {
       const ch = loadHabits();
       const cm = loadMissions();
       const ca = loadAchievements();
-      setProfile(cp); setHabits(ch); setMissions(cm); setAchievements(ca);
+      const ctj = loadTradeJournal();
+      setProfile(cp); setHabits(ch); setMissions(cm); setAchievements(ca); setTradeJournal(ctj);
       if (!cp.onboarded) setOnboarded(false);
+      const cdp = Storage.getDailyPriorities();
+      const ctoday = new Date().toISOString().split('T')[0];
+      setDailyPriorities(cdp.date === ctoday ? cdp.items : []);
       const ct = Storage.getTheme();
       setTheme(ct);
     });
@@ -218,7 +236,8 @@ export function GridProvider({ children }: { children: ReactNode }) {
     const updated = habits.map(h => {
       if (h.id !== id || h.completedToday) return h;
       const streak = (h.lastCompleted === yesterday || h.streak === 0) ? h.streak + 1 : 1;
-      return { ...h, completedToday: true, lastCompleted: today, streak, totalCompletions: h.totalCompletions + 1 };
+      const weeklyCompletions = h.weeklyTarget !== undefined ? (h.weeklyCompletions ?? 0) + 1 : (h.weeklyCompletions ?? 0);
+      return { ...h, completedToday: true, lastCompleted: today, streak, totalCompletions: h.totalCompletions + 1, weeklyCompletions };
     });
     saveHabits(updated); setHabits(updated);
     snapshotHabitLog(updated);
@@ -236,15 +255,16 @@ export function GridProvider({ children }: { children: ReactNode }) {
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
     const updated = habits.map(h => {
       if (h.id !== id || !h.completedToday) return h;
-      return { ...h, completedToday: false, lastCompleted: h.streak > 1 ? yesterday : null, streak: Math.max(0, h.streak - 1), totalCompletions: Math.max(0, h.totalCompletions - 1) };
+      const weeklyCompletions = h.weeklyTarget !== undefined ? Math.max(0, (h.weeklyCompletions ?? 0) - 1) : (h.weeklyCompletions ?? 0);
+      return { ...h, completedToday: false, lastCompleted: h.streak > 1 ? yesterday : null, streak: Math.max(0, h.streak - 1), totalCompletions: Math.max(0, h.totalCompletions - 1), weeklyCompletions };
     });
     saveHabits(updated); setHabits(updated);
     snapshotHabitLog(updated);
     triggerSync();
   };
 
-  const handleAddHabit = (data: Omit<Habit, 'id' | 'streak' | 'completedToday' | 'lastCompleted' | 'totalCompletions' | 'createdAt'>) => {
-    const newHabit: Habit = { ...data, id: `h_${Date.now()}`, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString() };
+  const handleAddHabit = (data: Omit<Habit, 'id' | 'streak' | 'completedToday' | 'lastCompleted' | 'totalCompletions' | 'createdAt' | 'weeklyCompletions'>) => {
+    const newHabit: Habit = { ...data, id: `h_${Date.now()}`, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 };
     const updated = [...habits, newHabit];
     saveHabits(updated); setHabits(updated);
     if (updated.length >= 5 && profile) {
@@ -260,7 +280,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
     triggerSync();
   };
 
-  const handleEditHabit = (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward'>) => {
+  const handleEditHabit = (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward' | 'weeklyTarget'>) => {
     const updated = habits.map(h => h.id === id ? { ...h, ...updates } : h);
     saveHabits(updated); setHabits(updated);
     triggerSync();
@@ -281,6 +301,10 @@ export function GridProvider({ children }: { children: ReactNode }) {
     const u = { ...profile, focusMinutes: profile.focusMinutes + minutes };
     saveProfile(u); setProfile(u);
     awardXP(minutes * 2, u, habits, achievements);
+    const today = new Date().toISOString().split('T')[0];
+    const log = Storage.getFocusLog();
+    log[today] = (log[today] || 0) + minutes;
+    Storage.setFocusLog(log);
     triggerSync();
   };
 
@@ -306,18 +330,51 @@ export function GridProvider({ children }: { children: ReactNode }) {
     triggerSync();
   };
 
+  const handleToggleFavorite = (id: string) => {
+    const updated = habits.map(h => h.id === id ? { ...h, favorited: !h.favorited } : h);
+    saveHabits(updated); setHabits(updated);
+    triggerSync();
+  };
+
+  const handleReorderHabits = (reordered: Habit[]) => {
+    saveHabits(reordered); setHabits(reordered);
+    triggerSync();
+  };
+
+  const handleLogTrade = (data: Omit<TradeSession, 'id' | 'createdAt'>) => {
+    const session: TradeSession = { ...data, id: `t_${Date.now()}`, createdAt: new Date().toISOString() };
+    const updated = [session, ...tradeJournal];
+    saveTradeJournal(updated); setTradeJournal(updated);
+    triggerSync();
+  };
+
+  const handleDeleteTradeSession = (id: string) => {
+    const updated = tradeJournal.filter(t => t.id !== id);
+    saveTradeJournal(updated); setTradeJournal(updated);
+    triggerSync();
+  };
+
+  const handleSetPriorities = (items: string[]) => {
+    const today = new Date().toISOString().split('T')[0];
+    Storage.setDailyPriorities({ date: today, items });
+    setDailyPriorities(items);
+    triggerSync();
+  };
+
   const handleResetData = () => { Storage.clearAll(); window.location.reload(); };
 
   const clearPhaseChange = () => setPhaseChange(null);
 
   return (
     <GridContext.Provider value={{
-      profile, habits, missions, achievements,
+      profile, habits, missions, achievements, tradeJournal, dailyPriorities,
       tab, theme, toasts, xpPopups, mounted, onboarded, onboardName, phaseChange,
       setTab, setOnboardName, clearPhaseChange,
       handleOnboard, handleCompleteHabit, handleUncompleteHabit,
       handleAddHabit, handleDeleteHabit, handleEditHabit, handleCompleteMission,
       handleFocusMinutes, handleToggleTheme, handleUpdateCodename, handleResetData,
+      handleToggleFavorite, handleReorderHabits,
+      handleLogTrade, handleDeleteTradeSession, handleSetPriorities,
     }}>
       {children}
     </GridContext.Provider>

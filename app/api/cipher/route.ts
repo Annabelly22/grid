@@ -38,7 +38,7 @@ setInterval(() => {
   }
 }, 600_000);
 
-const CIPHER_SYSTEM = `You are CIPHER — the AI coach embedded in GRID, Annabel Otutu's life OS.
+const CIPHER_SYSTEM = `You are ALPHAWILL — the AI coach embedded in GRID, Annabel Otutu's life OS.
 
 ANNABEL: 22F, Dallas. 5'11" 175 lbs. Trains 4×/week strength. Fasts 16:8 (extends to 18:6–20:4 follicular). ICT/SMC trader on Root VI. Entrepreneur: Root VI, CV Chameleon, BlueGum, reselling, Algorithm of Self podcast. FTMO challenger. Stoic philosophy. Cycle-phase aware.
 
@@ -100,10 +100,10 @@ export async function POST(request: NextRequest) {
       messages,
     });
 
-    const reply = response.content[0].type === 'text' ? response.content[0].text : 'CIPHER encountered an error.';
+    const reply = response.content[0].type === 'text' ? response.content[0].text : 'ALPHAWILL encountered an error.';
     return NextResponse.json({ reply });
   } catch (err) {
     console.error('[CIPHER]', err);
-    return NextResponse.json({ error: 'CIPHER offline — try again' }, { status: 500 });
+    return NextResponse.json({ error: 'ALPHAWILL offline — try again' }, { status: 500 });
   }
 }

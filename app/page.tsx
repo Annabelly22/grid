@@ -14,19 +14,20 @@ type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile';
 const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: 'dashboard', icon: '⬡', label: 'HUB' },
   { id: 'habits',    icon: '◈', label: 'HABITS' },
-  { id: 'missions',  icon: '◆', label: 'MISSION' },
   { id: 'body',      icon: '❋', label: 'BODY' },
-  { id: 'coach',     icon: '⚡', label: 'CIPHER' },
+  { id: 'coach',     icon: '⚡', label: 'ALPHAWILL' },
   { id: 'profile',   icon: '▣', label: 'PROFILE' },
 ];
 
 function App() {
   const {
-    tab, setTab, profile, habits, missions, achievements,
+    tab, setTab, profile, habits, missions, achievements, tradeJournal, dailyPriorities,
     theme, toasts, xpPopups, mounted, onboarded, onboardName,
     setOnboardName, handleOnboard, handleCompleteHabit, handleUncompleteHabit,
     handleAddHabit, handleDeleteHabit, handleEditHabit, handleCompleteMission,
     handleFocusMinutes, handleToggleTheme, handleUpdateCodename, handleResetData,
+    handleToggleFavorite, handleReorderHabits,
+    handleLogTrade, handleDeleteTradeSession, handleSetPriorities,
   } = useGridContext();
 
   if (!mounted || !profile) {
@@ -59,7 +60,7 @@ function App() {
                 ◆ Build daily habits. Earn XP.<br />
                 ◈ Complete missions. Level up.<br />
                 ❋ Cycle-synced supplement stack.<br />
-                ⚡ AI coach CIPHER.<br />
+                ⚡ AI coach ALPHAWILL.<br />
                 ▣ Reach LEGEND rank.
               </div>
             </div>
@@ -116,12 +117,11 @@ function App() {
           ))}
         </div>
 
-        {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} onNavigate={t => setTab(t as Tab)} onCompleteHabit={handleCompleteHabit} />}
-        {tab === 'habits'    && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onUncompleteHabit={handleUncompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} onEditHabit={handleEditHabit} />}
-        {tab === 'missions'  && <MissionsTab missions={missions} profile={profile} habits={habits} onCompleteMission={handleCompleteMission} />}
+        {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} onNavigate={t => setTab(t as Tab)} onCompleteHabit={handleCompleteHabit} dailyPriorities={dailyPriorities} onSetPriorities={handleSetPriorities} />}
+        {tab === 'habits'    && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onUncompleteHabit={handleUncompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} onEditHabit={handleEditHabit} onToggleFavorite={handleToggleFavorite} onReorderHabits={handleReorderHabits} />}
         {tab === 'body'      && <BodyTab />}
-        {tab === 'coach'     && <CoachTab profile={profile} onFocusMinutes={handleFocusMinutes} />}
-        {tab === 'profile'   && <ProfileTab profile={profile} habits={habits} achievements={achievements} theme={theme} onUpdateCodename={handleUpdateCodename} onToggleTheme={handleToggleTheme} onResetData={handleResetData} />}
+        {tab === 'coach'     && <CoachTab profile={profile} onFocusMinutes={handleFocusMinutes} tradeJournal={tradeJournal} onLogTrade={handleLogTrade} onDeleteTradeSession={handleDeleteTradeSession} />}
+        {tab === 'profile'   && <ProfileTab profile={profile} habits={habits} achievements={achievements} missions={missions} theme={theme} onUpdateCodename={handleUpdateCodename} onToggleTheme={handleToggleTheme} onResetData={handleResetData} onCompleteMission={handleCompleteMission} />}
 
         {/* Mobile bottom nav */}
         <nav className="bottom-nav">

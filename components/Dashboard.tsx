@@ -12,6 +12,8 @@ interface Props {
   habits: Habit[];
   onNavigate: (tab: Tab) => void;
   onCompleteHabit: (id: string) => void;
+  dailyPriorities: string[];
+  onSetPriorities: (items: string[]) => void;
 }
 
 const STOIC_QUOTES: { text: string; author: string }[] = [
@@ -739,9 +741,12 @@ const STOIC_QUOTES: { text: string; author: string }[] = [
 ];
 
 function getDailyQuote() {
-  // Cycles every 12 hours — new quote morning and evening — 716 quotes covers ~358 days
-  const halfDayIndex = Math.floor(Date.now() / 43_200_000);
-  return STOIC_QUOTES[halfDayIndex % STOIC_QUOTES.length];
+  // Cycles every 12 hours at local midnight and local noon
+  const now = new Date();
+  const y = now.getFullYear(), mo = now.getMonth(), d = now.getDate();
+  const dayNumber = Math.floor(new Date(y, mo, d).getTime() / 86_400_000);
+  const halfDayIdx = dayNumber * 2 + (now.getHours() >= 12 ? 1 : 0);
+  return STOIC_QUOTES[halfDayIdx % STOIC_QUOTES.length];
 }
 
 function getGreeting() {
@@ -800,14 +805,28 @@ function useDailyCalories() {
   return { stepKcal, gymKcal, fastKcal, fastHours, total };
 }
 
-export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit }: Props) {
+export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit, dailyPriorities, onSetPriorities }: Props) {
   const [cycleStart, setCycleStart] = useState<string | null>(null);
+  const [quoteVersion, setQuoteVersion] = useState(0);
+  const [priorityInputs, setPriorityInputs] = useState(['', '', '']);
+  const [priorityStruck, setPriorityStruck] = useState<boolean[]>([false, false, false]);
   const cals = useDailyCalories();
 
   useEffect(() => {
     const sc = localStorage.getItem('grid_cycle_start');
     if (sc) setCycleStart(sc);
   }, []);
+
+  // Schedule re-render at next local noon to refresh quote
+  useEffect(() => {
+    const now = new Date();
+    const h = now.getHours(), min = now.getMinutes(), sec = now.getSeconds();
+    const msUntilNext = h < 12
+      ? (12 - h) * 3_600_000 - min * 60_000 - sec * 1000
+      : (36 - h) * 3_600_000 - min * 60_000 - sec * 1000;
+    const timer = setTimeout(() => setQuoteVersion(v => v + 1), msUntilNext);
+    return () => clearTimeout(timer);
+  }, [quoteVersion]);
 
   const lvl        = getLevel(profile.xp);
   const quote      = getDailyQuote();
@@ -862,7 +881,49 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
         </div>
 
         {/* ── Thin divider ───────────────────────────────────── */}
-        <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--ng-border), transparent)', marginBottom: 24 }} />
+        <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--ng-border), transparent)', marginBottom: 20 }} />
+
+        {/* ── TODAY'S 3 priorities ───────────────────────────── */}
+        <div className="card mb-5" style={{ borderColor: 'rgba(0,212,255,0.25)' }}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>◆ TODAY&apos;S 3</div>
+            {dailyPriorities.length > 0 && (
+              <button onClick={() => { onSetPriorities([]); setPriorityStruck([false, false, false]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 9, color: 'var(--ng-dimmer)', fontFamily: 'inherit' }}>RESET</button>
+            )}
+          </div>
+          {dailyPriorities.length > 0 ? (
+            <div>
+              {dailyPriorities.map((p, i) => (
+                <button key={i} onClick={() => setPriorityStruck(prev => { const n = [...prev]; n[i] = !n[i]; return n; })}
+                  className="w-full text-left flex items-center gap-3 mb-2 p-2"
+                  style={{ background: 'var(--ng-bg)', border: '0.5px solid var(--ng-border)', borderRadius: 8 }}>
+                  <div style={{ width: 18, height: 18, border: `1.5px solid ${priorityStruck[i] ? 'var(--ng-green)' : 'var(--ng-border)'}`, borderRadius: 4, background: priorityStruck[i] ? 'var(--ng-green)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {priorityStruck[i] && <span style={{ color: '#000', fontWeight: 900, fontSize: 11 }}>✓</span>}
+                  </div>
+                  <span className="font-mono" style={{ fontSize: 12, color: priorityStruck[i] ? 'var(--ng-muted)' : 'var(--ng-text)', textDecoration: priorityStruck[i] ? 'line-through' : 'none', flex: 1 }}>{p}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div>
+              {[0, 1, 2].map(i => (
+                <input key={i} className="ng-input w-full mb-2" style={{ fontSize: 12 }} placeholder={`Priority ${i + 1}...`} value={priorityInputs[i]} onChange={e => setPriorityInputs(prev => { const n = [...prev]; n[i] = e.target.value; return n; })} />
+              ))}
+              {/* Habit quick-fill chips */}
+              <div className="flex gap-1 overflow-x-auto pb-1 mb-3" style={{ scrollbarWidth: 'none' }}>
+                {habits.filter(h => !h.completedToday).slice(0, 8).map(h => (
+                  <button key={h.id} onClick={() => { const empty = priorityInputs.findIndex(p => !p.trim()); if (empty !== -1) setPriorityInputs(prev => { const n = [...prev]; n[empty] = h.name; return n; }); }} className="font-mono flex-shrink-0"
+                    style={{ fontSize: 10, padding: '4px 8px', border: '0.5px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'var(--ng-surface)', borderRadius: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    {h.icon} {h.name}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => { const filled = priorityInputs.filter(p => p.trim()); if (filled.length > 0) onSetPriorities(filled.slice(0, 3)); }} disabled={!priorityInputs.some(p => p.trim())} className="btn-green-solid w-full" style={{ opacity: priorityInputs.some(p => p.trim()) ? 1 : 0.4 }}>
+                LOCK IN
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* ── Calories burned today ──────────────────────────── */}
         {(cals.total > 0) && (

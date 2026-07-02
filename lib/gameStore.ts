@@ -24,6 +24,19 @@ export interface Habit {
   lastCompleted: string | null;
   totalCompletions: number;
   createdAt: string;
+  favorited?: boolean;
+  weeklyTarget?: number;      // if set, habit is X-times-per-week (1–7)
+  weeklyCompletions: number;  // completions this Mon–Sun week, reset each Monday
+}
+
+export interface TradeSession {
+  id: string;
+  date: string;
+  quality: 1 | 2 | 3 | 4 | 5;
+  rulesFollowed: boolean;
+  emotionalState: 'calm' | 'anxious' | 'confident' | 'fearful' | 'neutral';
+  note: string;
+  createdAt: string;
 }
 
 export type HabitCategory = 'body' | 'mind' | 'trade' | 'build' | 'spirit' | 'recovery';
@@ -101,12 +114,12 @@ export const CATEGORY_ICONS: Record<HabitCategory, string> = {
 
 // ─── DEFAULT DATA ─────────────────────────────────────────────
 const DEFAULT_HABITS: Habit[] = [
-  { id: 'h1', name: 'Morning sunlight walk', category: 'body', icon: '☀️', xpReward: 20, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString() },
-  { id: 'h2', name: 'Training session', category: 'body', icon: '🏋️', xpReward: 30, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString() },
-  { id: 'h3', name: 'Nadi Shodhana before charts', category: 'mind', icon: '🌬️', xpReward: 15, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString() },
-  { id: 'h4', name: 'Log one thing learned', category: 'mind', icon: '📖', xpReward: 15, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString() },
-  { id: 'h5', name: 'Trading session review', category: 'trade', icon: '📊', xpReward: 25, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString() },
-  { id: 'h6', name: 'Evening supplement stack', category: 'recovery', icon: '🌙', xpReward: 10, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString() },
+  { id: 'h1', name: 'Morning sunlight walk', category: 'body', icon: '☀️', xpReward: 20, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h2', name: 'Training session', category: 'body', icon: '🏋️', xpReward: 30, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h3', name: 'Nadi Shodhana before charts', category: 'mind', icon: '🌬️', xpReward: 15, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h4', name: 'Log one thing learned', category: 'mind', icon: '📖', xpReward: 15, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h5', name: 'Trading session review', category: 'trade', icon: '📊', xpReward: 25, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h6', name: 'Evening supplement stack', category: 'recovery', icon: '🌙', xpReward: 10, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
 ];
 
 const DEFAULT_MISSIONS: Mission[] = [
@@ -229,13 +242,39 @@ function defaultProfile(): UserProfile {
   };
 }
 
-// Reset completedToday if it's a new day
+// Reset completedToday if it's a new day; reset weeklyCompletions on Monday
 function resetHabitsForNewDay(habits: Habit[]): Habit[] {
   const today = new Date().toISOString().split('T')[0];
-  return habits.map(h => ({
-    ...h,
-    completedToday: h.lastCompleted === today,
-  }));
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon
+  // Monday of the current week (ISO: Mon–Sun)
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7));
+  const mondayStr = monday.toISOString().split('T')[0];
+
+  return habits.map(h => {
+    const resetWeekly = h.weeklyTarget !== undefined &&
+      (h.lastCompleted === null || h.lastCompleted < mondayStr);
+    return {
+      ...h,
+      weeklyCompletions: resetWeekly ? 0 : (h.weeklyCompletions ?? 0),
+      completedToday: h.lastCompleted === today,
+    };
+  });
+}
+
+const KEY_TRADE_JOURNAL = 'grid_trade_journal';
+
+export function loadTradeJournal(): TradeSession[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(KEY_TRADE_JOURNAL);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+export function saveTradeJournal(sessions: TradeSession[]) {
+  localStorage.setItem(KEY_TRADE_JOURNAL, JSON.stringify(sessions));
 }
 
 // ─── ACHIEVEMENT CHECK ────────────────────────────────────────
