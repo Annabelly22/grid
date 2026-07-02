@@ -137,4 +137,56 @@ export const Storage = {
   clearAll: () => {
     if (typeof window !== 'undefined') localStorage.clear();
   },
+
+  // ── Cloud sync helpers ──────────────────────────────────────
+
+  // Stable user ID — generated once, persisted forever in localStorage
+  getUserId: (): string => {
+    if (typeof window === 'undefined') return '';
+    const existing = localStorage.getItem('grid_user_id');
+    if (existing) return existing;
+    const id = `u_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    localStorage.setItem('grid_user_id', id);
+    return id;
+  },
+
+  // Snapshot every grid_ key into one object for cloud upload
+  getAllData: (): Record<string, unknown> => {
+    if (typeof window === 'undefined') return {};
+    const snapshot: Record<string, unknown> = {};
+    const staticKeys = [
+      'grid_profile', 'grid_habits', 'grid_missions', 'grid_achievements',
+      'grid_habit_log', 'grid_cycle_start', 'grid_last_phase', 'grid_energy_level',
+      'grid_supplements_view', 'grid_owned_supps', 'grid_pending_supps',
+      'grid_steps', 'grid_fast_start', 'grid_theme', 'grid_habits_view', 'grid_quote_idx',
+    ];
+    for (const key of staticKeys) {
+      const raw = localStorage.getItem(key);
+      if (raw !== null) {
+        try { snapshot[key] = JSON.parse(raw); } catch { snapshot[key] = raw; }
+      }
+    }
+    // Capture dynamic gym check keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('grid_gym_checks_') || key?.startsWith('grid_notif_')) {
+        const raw = localStorage.getItem(key);
+        if (raw !== null) {
+          try { snapshot[key] = JSON.parse(raw); } catch { snapshot[key] = raw; }
+        }
+      }
+    }
+    return snapshot;
+  },
+
+  // Restore a cloud snapshot back into localStorage
+  setAllData: (data: Record<string, unknown>): void => {
+    if (typeof window === 'undefined') return;
+    for (const [key, value] of Object.entries(data)) {
+      if (!key.startsWith('grid_')) continue;
+      try {
+        localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+      } catch {}
+    }
+  },
 };

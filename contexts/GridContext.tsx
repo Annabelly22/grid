@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import {
   UserProfile, Habit, Mission, Achievement,
   loadProfile, saveProfile, loadHabits, saveHabits,
@@ -57,6 +57,26 @@ export function useGridContext(): GridContextValue {
   return ctx;
 }
 
+// ── Cloud sync helpers ──────────────────────────────────────────────────────
+async function cloudLoad(uid: string): Promise<Record<string, unknown> | null> {
+  try {
+    const res = await fetch(`/api/sync?uid=${encodeURIComponent(uid)}`);
+    if (!res.ok) return null;
+    const { payload } = await res.json();
+    return payload ?? null;
+  } catch { return null; }
+}
+
+async function cloudSave(uid: string, payload: Record<string, unknown>): Promise<void> {
+  try {
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, payload }),
+    });
+  } catch {}
+}
+
 export function GridProvider({ children }: { children: ReactNode }) {
   const [tab, setTab]             = useState<Tab>('dashboard');
   const [profile, setProfile]     = useState<UserProfile | null>(null);
@@ -71,8 +91,24 @@ export function GridProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme]         = useState<'dark' | 'light'>('dark');
   const [phaseChange, setPhaseChange] = useState<PhaseChange | null>(null);
 
+  // Debounced cloud sync — fires 3s after the last state change
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerSync = useCallback(() => {
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => {
+      const uid = Storage.getUserId();
+      if (!uid) return;
+      const payload = Storage.getAllData();
+      cloudSave(uid, payload);
+    }, 3000);
+  }, []);
+
   useEffect(() => {
     setMounted(true);
+
+    const uid = Storage.getUserId();
+
+    // 1. Load from localStorage immediately (fast, offline-safe)
     const p = loadProfile();
     const h = loadHabits();
     const m = loadMissions();
@@ -82,6 +118,21 @@ export function GridProvider({ children }: { children: ReactNode }) {
 
     const t = Storage.getTheme();
     setTheme(t);
+
+    // 2. Hydrate from Supabase in background — overrides localStorage if cloud is newer
+    cloudLoad(uid).then(cloudData => {
+      if (!cloudData) return; // first-time user or offline — localStorage is source of truth
+      Storage.setAllData(cloudData);
+      // Reload state from the freshly-restored localStorage
+      const cp = loadProfile();
+      const ch = loadHabits();
+      const cm = loadMissions();
+      const ca = loadAchievements();
+      setProfile(cp); setHabits(ch); setMissions(cm); setAchievements(ca);
+      if (!cp.onboarded) setOnboarded(false);
+      const ct = Storage.getTheme();
+      setTheme(ct);
+    });
 
     // Phase change detection
     const cycleStart = Storage.getCycleStart();
@@ -178,6 +229,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
       { ...profile, totalHabitsCompleted: profile.totalHabitsCompleted + 1, longestStreak: Math.max(profile.longestStreak, updated.find(h => h.id === id)?.streak || 0) },
       updated, achievements,
     );
+    triggerSync();
   };
 
   const handleUncompleteHabit = (id: string) => {
@@ -188,6 +240,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
     });
     saveHabits(updated); setHabits(updated);
     snapshotHabitLog(updated);
+    triggerSync();
   };
 
   const handleAddHabit = (data: Omit<Habit, 'id' | 'streak' | 'completedToday' | 'lastCompleted' | 'totalCompletions' | 'createdAt'>) => {
@@ -198,16 +251,19 @@ export function GridProvider({ children }: { children: ReactNode }) {
       const { updated: a2, newlyUnlocked } = checkAchievements(profile, updated, achievements);
       if (newlyUnlocked.length > 0) { saveAchievements(a2); setAchievements(a2); newlyUnlocked.forEach(a => addToast(a)); }
     }
+    triggerSync();
   };
 
   const handleDeleteHabit = (id: string) => {
     const u = habits.filter(h => h.id !== id);
     saveHabits(u); setHabits(u);
+    triggerSync();
   };
 
   const handleEditHabit = (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward'>) => {
     const updated = habits.map(h => h.id === id ? { ...h, ...updates } : h);
     saveHabits(updated); setHabits(updated);
+    triggerSync();
   };
 
   const handleCompleteMission = (id: string) => {
@@ -217,6 +273,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
     const updated = missions.map(ms => ms.id === id ? { ...ms, completed: true, completedAt: new Date().toISOString() } : ms);
     saveMissions(updated); setMissions(updated);
     awardXP(m.xpReward, { ...profile, missionsCompleted: profile.missionsCompleted + 1 }, habits, achievements);
+    triggerSync();
   };
 
   const handleFocusMinutes = (minutes: number) => {
@@ -224,6 +281,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
     const u = { ...profile, focusMinutes: profile.focusMinutes + minutes };
     saveProfile(u); setProfile(u);
     awardXP(minutes * 2, u, habits, achievements);
+    triggerSync();
   };
 
   const handleToggleTheme = () => {
@@ -231,18 +289,21 @@ export function GridProvider({ children }: { children: ReactNode }) {
     setTheme(next);
     Storage.setTheme(next);
     document.documentElement.setAttribute('data-theme', next === 'light' ? 'light' : '');
+    triggerSync();
   };
 
   const handleUpdateCodename = (name: string) => {
     if (!profile) return;
     const u = { ...profile, codename: name };
     saveProfile(u); setProfile(u);
+    triggerSync();
   };
 
   const handleOnboard = () => {
     if (!profile) return;
     const u = { ...profile, codename: onboardName.trim().toUpperCase() || 'OPERATIVE', onboarded: true };
     saveProfile(u); setProfile(u); setOnboarded(true);
+    triggerSync();
   };
 
   const handleResetData = () => { Storage.clearAll(); window.location.reload(); };
