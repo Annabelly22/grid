@@ -466,7 +466,22 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
   useEffect(() => {
     const sc = localStorage.getItem('grid_cycle_start');
     if (sc) setCycleStart(sc);
-  }, []);
+    // Restore struck state for current priorities
+    if (dailyPriorities.length > 0) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('grid_priority_struck') || '[]') as boolean[];
+        if (saved.length === dailyPriorities.length) setPriorityStruck(saved);
+      } catch {}
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleStruck = (i: number) => {
+    setPriorityStruck(prev => {
+      const n = [...prev]; n[i] = !n[i];
+      try { localStorage.setItem('grid_priority_struck', JSON.stringify(n)); } catch {}
+      return n;
+    });
+  };
 
   const lvl        = getLevel(profile.xp);
   const quote      = getDailyQuote();
@@ -529,13 +544,13 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
           <div className="flex items-center justify-between mb-3">
             <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>◆ TODAY&apos;S GRIND</div>
             {dailyPriorities.length > 0 && (
-              <button onClick={() => { onSetPriorities([]); setPriorityStruck([]); setPriorityInputs(['']); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 9, color: 'var(--ng-dimmer)', fontFamily: 'inherit' }}>RESET</button>
+              <button onClick={() => { onSetPriorities([]); setPriorityStruck([]); setPriorityInputs(['']); try { localStorage.removeItem('grid_priority_struck'); } catch {} }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 9, color: 'var(--ng-dimmer)', fontFamily: 'inherit' }}>RESET</button>
             )}
           </div>
           {dailyPriorities.length > 0 ? (
             <div>
               {dailyPriorities.map((p, i) => (
-                <button key={i} onClick={() => setPriorityStruck(prev => { const n = [...prev]; n[i] = !n[i]; return n; })}
+                <button key={i} onClick={() => toggleStruck(i)}
                   className="w-full text-left flex items-center gap-3 mb-2 p-2"
                   style={{ background: 'var(--ng-bg)', border: '0.5px solid var(--ng-border)', borderRadius: 8 }}>
                   <div style={{ width: 18, height: 18, border: `1.5px solid ${(priorityStruck[i] ?? false) ? 'var(--ng-green)' : 'var(--ng-border)'}`, borderRadius: 4, background: (priorityStruck[i] ?? false) ? 'var(--ng-green)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -572,7 +587,7 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
                   </button>
                 ))}
               </div>
-              <button onClick={() => { const filled = priorityInputs.filter(p => p.trim()); if (filled.length > 0) { onSetPriorities(filled); setPriorityStruck(filled.map(() => false)); } }} disabled={!priorityInputs.some(p => p.trim())} className="btn-green-solid w-full" style={{ opacity: priorityInputs.some(p => p.trim()) ? 1 : 0.4 }}>
+              <button onClick={() => { const filled = priorityInputs.filter(p => p.trim()); if (filled.length > 0) { onSetPriorities(filled); const initial = filled.map(() => false); setPriorityStruck(initial); try { localStorage.setItem('grid_priority_struck', JSON.stringify(initial)); } catch {} } }} disabled={!priorityInputs.some(p => p.trim())} className="btn-green-solid w-full" style={{ opacity: priorityInputs.some(p => p.trim()) ? 1 : 0.4 }}>
                 LOCK IN
               </button>
             </div>
