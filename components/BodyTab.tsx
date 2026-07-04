@@ -665,31 +665,61 @@ export default function BodyTab() {
           const REF_IDS:   SubTab[] = ['stack', 'cycle', 'tea', 'metab', 'cart'];
           const dailyTabs = SUB_TABS.filter(t => DAILY_IDS.includes(t.id));
           const refTabs   = SUB_TABS.filter(t => REF_IDS.includes(t.id));
-          const renderTile = (t: typeof SUB_TABS[0], large?: boolean) => (
+          const renderDailyTile = (t: typeof SUB_TABS[0]) => (
             <button key={t.id} onClick={() => setSubTab(t.id)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: large ? '20px 8px 16px' : '14px 8px 12px', background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderTop: `3px solid ${t.color}`, borderRadius: 12, cursor: 'pointer', position: 'relative', transition: 'background 0.15s' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 16px', width: '100%', background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderLeft: `4px solid ${t.color}`, borderRadius: 14, cursor: 'pointer', position: 'relative', transition: 'background 0.15s', textAlign: 'left' }}>
+              <div style={{ width: 46, height: 46, borderRadius: 12, flexShrink: 0, background: `${t.color}18`, border: `1px solid ${t.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
+                {t.icon}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="font-orbitron font-bold" style={{ fontSize: 13, color: t.color, letterSpacing: '1px', marginBottom: 3 }}>{t.label}</div>
+                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)', lineHeight: 1.4 }}>{t.desc}</div>
+              </div>
+              {'badge' in t && t.badge ? (
+                <span style={{ fontSize: 10, background: t.color, color: '#000', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'monospace', flexShrink: 0 }}>{t.badge}</span>
+              ) : (
+                <span style={{ color: 'var(--ng-dimmer)', fontSize: 18, flexShrink: 0, lineHeight: 1 }}>›</span>
+              )}
+            </button>
+          );
+
+          const renderRefTile = (t: typeof SUB_TABS[0]) => (
+            <button key={t.id} onClick={() => setSubTab(t.id)}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '14px 12px', background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderTop: `3px solid ${t.color}`, borderRadius: 12, cursor: 'pointer', position: 'relative', transition: 'background 0.15s', textAlign: 'left' }}>
               {'badge' in t && t.badge ? (
                 <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 9, background: t.color, color: '#000', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'monospace' }}>{t.badge}</span>
               ) : null}
-              <span style={{ fontSize: large ? 24 : 18, marginBottom: large ? 8 : 6, lineHeight: 1 }}>{t.icon}</span>
-              <span className="font-orbitron" style={{ fontSize: 9, color: t.color, letterSpacing: '1px', marginBottom: 4 }}>{t.label}</span>
-              <span className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', textAlign: 'center', lineHeight: 1.35 }}>{t.desc}</span>
+              <span style={{ fontSize: 20, marginBottom: 8, lineHeight: 1 }}>{t.icon}</span>
+              <span className="font-orbitron font-bold" style={{ fontSize: 11, color: t.color, letterSpacing: '1px', marginBottom: 4 }}>{t.label}</span>
+              <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', lineHeight: 1.4 }}>{t.desc}</span>
             </button>
           );
+
           return (
             <>
-              <div className="mb-5 text-center" style={{ padding: '6px 0 14px' }}>
-                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)', letterSpacing: '2px', lineHeight: 1.8, fontStyle: 'italic' }}>
-                  Self Discipline . Self Love . Self Respect
+              {/* Motto strip */}
+              <div style={{ padding: '4px 0 18px', borderBottom: '0.5px solid var(--ng-border)', marginBottom: 20 }}>
+                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-dimmer)', letterSpacing: '3px', fontStyle: 'italic', textAlign: 'center' }}>
+                  Self Discipline · Self Love · Self Respect
                 </div>
               </div>
-              <div className="font-orbitron mb-2" style={{ fontSize: 7, color: 'var(--ng-muted)', letterSpacing: '2px' }}>DAILY PRACTICE</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-                {dailyTabs.map(t => renderTile(t, true))}
+
+              {/* Daily Practice section */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <div style={{ width: 3, height: 18, background: 'var(--ng-green)', borderRadius: 2, flexShrink: 0 }} />
+                <span className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-green)', letterSpacing: '2px' }}>DAILY PRACTICE</span>
               </div>
-              <div className="font-orbitron mb-2" style={{ fontSize: 7, color: 'var(--ng-muted)', letterSpacing: '2px' }}>REFERENCE</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                {refTabs.map(t => renderTile(t, false))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 22 }}>
+                {dailyTabs.map(t => renderDailyTile(t))}
+              </div>
+
+              {/* Reference section */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <div style={{ width: 3, height: 18, background: 'var(--ng-amber)', borderRadius: 2, flexShrink: 0 }} />
+                <span className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-amber)', letterSpacing: '2px' }}>REFERENCE</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {refTabs.map(t => renderRefTile(t))}
               </div>
             </>
           );
