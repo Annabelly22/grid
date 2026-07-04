@@ -55,6 +55,7 @@ interface GridContextValue {
   handleLogTrade: (data: Omit<TradeSession, 'id' | 'createdAt'>) => void;
   handleDeleteTradeSession: (id: string) => void;
   handleSetPriorities: (items: string[]) => void;
+  handleSetCycleStart: (date: string) => void;
 }
 
 const GridContext = createContext<GridContextValue | null>(null);
@@ -386,6 +387,11 @@ export function GridProvider({ children }: { children: ReactNode }) {
     triggerSync();
   };
 
+  const handleSetCycleStart = (date: string) => {
+    Storage.setCycleStart(date);
+    triggerSync();
+  };
+
   const handleResetData = () => { Storage.clearAll(); window.location.reload(); };
 
   const clearPhaseChange = () => setPhaseChange(null);
@@ -399,7 +405,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
       handleAddHabit, handleDeleteHabit, handleEditHabit, handleCompleteMission,
       handleFocusMinutes, handleToggleTheme, handleUpdateCodename, handleResetData,
       handleToggleFavorite, handleReorderHabits,
-      handleLogTrade, handleDeleteTradeSession, handleSetPriorities,
+      handleLogTrade, handleDeleteTradeSession, handleSetPriorities, handleSetCycleStart,
     }}>
       {children}
     </GridContext.Provider>

@@ -431,7 +431,7 @@ function WeeklyReview() {
 }
 
 export default function BodyTab() {
-  const { phaseChange, clearPhaseChange } = useGridContext();
+  const { phaseChange, clearPhaseChange, handleSetCycleStart } = useGridContext();
   const [subTab,      setSubTab]      = useState<SubTab>('home');
   const [menuOpen,    setMenuOpen]    = useState(false);
   const [cycleStart,  setCycleStart]  = useState<string | null>(null);
@@ -564,7 +564,7 @@ export default function BodyTab() {
 
   const saveCycle = () => {
     if (!cycleInput) return;
-    Storage.setCycleStart(cycleInput);
+    handleSetCycleStart(cycleInput);
     setCycleStart(cycleInput);
   };
   const saveEnergy = (e: EnergyLevel) => {
