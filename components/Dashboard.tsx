@@ -393,11 +393,12 @@ const STOIC_QUOTES: { text: string; author: string }[] = [
 ];
 
 function getDailyQuote() {
-  // One unique quote per calendar day — cycles through all 365
+  // Two quotes per day — changes at local midnight and noon
   const now = new Date();
   const y = now.getFullYear(), mo = now.getMonth(), d = now.getDate();
   const dayNumber = Math.floor(new Date(y, mo, d).getTime() / 86_400_000);
-  return STOIC_QUOTES[dayNumber % STOIC_QUOTES.length];
+  const halfDayIdx = dayNumber * 2 + (now.getHours() >= 12 ? 1 : 0);
+  return STOIC_QUOTES[halfDayIdx % STOIC_QUOTES.length];
 }
 
 function getGreeting() {
@@ -461,7 +462,20 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
   const [priorityInputs, setPriorityInputs] = useState<string[]>(['']);
   const [priorityStruck, setPriorityStruck] = useState<boolean[]>(() => dailyPriorities.map(() => false));
   const [habitsView, setHabitsView] = useState<'protocol' | 'favorites'>('protocol');
+  const [quoteVersion, setQuoteVersion] = useState(0);
   const cals = useDailyCalories();
+
+  // Schedule a re-render at the next local noon (or midnight) so the quote rotates
+  useEffect(() => {
+    const now = new Date();
+    const h = now.getHours();
+    // ms until next boundary: noon if before noon, else midnight
+    const msUntilBoundary = h < 12
+      ? (12 - h) * 3_600_000 - now.getMinutes() * 60_000 - now.getSeconds() * 1_000 - now.getMilliseconds()
+      : (24 - h) * 3_600_000 - now.getMinutes() * 60_000 - now.getSeconds() * 1_000 - now.getMilliseconds();
+    const timer = setTimeout(() => setQuoteVersion(v => v + 1), msUntilBoundary);
+    return () => clearTimeout(timer);
+  }, [quoteVersion]); // re-arms after each rotation
 
   useEffect(() => {
     const sc = localStorage.getItem('grid_cycle_start');
@@ -484,7 +498,8 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
   };
 
   const lvl        = getLevel(profile.xp);
-  const quote      = getDailyQuote();
+  // quoteVersion forces re-evaluation when the noon/midnight timer fires
+  const quote      = getDailyQuote(); // eslint-disable-line react-hooks/exhaustive-deps
   const incomplete = habits.filter(h => !h.completedToday);
   const favorites  = habits.filter(h => h.favorited);
   const doneCount  = habits.filter(h => h.completedToday).length;
