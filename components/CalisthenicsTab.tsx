@@ -375,11 +375,12 @@ const TIER_META = [
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function CalisthenicsTab() {
-  const [view,        setView]        = useState<View>('trees');
-  const [levels,      setLevels]      = useState<Partial<Record<TreeId, number>>>({});
-  const [done,        setDone]        = useState<Record<string, boolean>>({});
-  const [expandedEx,  setExpandedEx]  = useState<string | null>(null);
-  const [expandedNode,setExpandedNode]= useState<string | null>(null);
+  const [view,         setView]         = useState<View>('trees');
+  const [levels,       setLevels]       = useState<Partial<Record<TreeId, number>>>({});
+  const [done,         setDone]         = useState<Record<string, boolean>>({});
+  const [expandedEx,   setExpandedEx]   = useState<string | null>(null);
+  const [expandedNode, setExpandedNode] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -407,6 +408,12 @@ export default function CalisthenicsTab() {
   };
 
   const getLvl = (id: TreeId) => levels[id] ?? 0;
+
+  const resetAllTrees = () => {
+    setLevels({});
+    setConfirmReset(false);
+    try { localStorage.removeItem(LEVELS_KEY); } catch {}
+  };
 
   // Total XP across all trees
   const totalXP = TREES.reduce((sum, t) => sum + getLvl(t.id), 0);
@@ -503,8 +510,27 @@ export default function CalisthenicsTab() {
       {/* ═══════════════════ SKILL TREES VIEW ══════════════════════ */}
       {view === 'trees' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', paddingBottom: 4 }}>
-            Tap a tree to expand. Advance when you meet the criteria.
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 4 }}>
+            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+              Tap a tree to expand. Advance when you meet the criteria.
+            </div>
+            {confirmReset ? (
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button onClick={() => setConfirmReset(false)}
+                  style={{ padding: '4px 8px', background: 'transparent', border: '0.5px solid var(--ng-border)', borderRadius: 6, color: 'var(--ng-muted)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <span className="font-orbitron" style={{ fontSize: 7 }}>CANCEL</span>
+                </button>
+                <button onClick={resetAllTrees}
+                  style={{ padding: '4px 8px', background: 'rgba(255,71,87,0.12)', border: '1px solid var(--ng-red)', borderRadius: 6, color: 'var(--ng-red)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <span className="font-orbitron" style={{ fontSize: 7, letterSpacing: '0.5px' }}>CONFIRM</span>
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmReset(true)}
+                style={{ flexShrink: 0, padding: '4px 10px', background: 'transparent', border: '0.5px solid var(--ng-border)', borderRadius: 6, color: 'var(--ng-dimmer)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                <span className="font-orbitron" style={{ fontSize: 7, letterSpacing: '0.5px' }}>RESET ALL</span>
+              </button>
+            )}
           </div>
 
           {TREES.map(tree => {

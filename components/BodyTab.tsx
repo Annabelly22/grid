@@ -592,7 +592,7 @@ export default function BodyTab() {
   const movements = getMovementsForContext(phase, energyLevel);
 
   const SUB_TABS = [
-    { id: 'cali'  as SubTab, label: 'CALI',   icon: '⚡',  color: 'var(--ng-purple)', desc: 'Bodyweight skill progression system' },
+    { id: 'cali'  as SubTab, label: 'CALISTHENICS', icon: '⊛',  color: 'var(--ng-purple)', desc: 'Bodyweight skill progression system' },
     { id: 'stack' as SubTab, label: 'STACK',  icon: '◆',  color: 'var(--ng-green)',  desc: 'Phase-synced supplement protocol'   },
     { id: 'cart'  as SubTab, label: 'CART',   icon: '🛒',  color: 'var(--ng-amber)',  desc: 'Buy list',                           badge: pendingSupps.size > 0 ? pendingSupps.size : undefined },
     { id: 'metab' as SubTab, label: 'METAB',  icon: '⚗',  color: '#FF6B35',          desc: 'Metabolism & fat loss protocol'     },
@@ -670,7 +670,7 @@ export default function BodyTab() {
 
         {/* ═══ HOME GRID ═══════════════════════════════════════ */}
         {subTab === 'home' && (() => {
-          const DAILY_IDS: SubTab[] = ['cali', 'fast', 'gym', 'log', 'move'];
+          const DAILY_IDS: SubTab[] = ['cali', 'gym', 'log', 'fast', 'move'];
           const REF_IDS:   SubTab[] = ['stack', 'cycle', 'tea', 'metab', 'cart'];
           const dailyTabs = SUB_TABS.filter(t => DAILY_IDS.includes(t.id));
           const refTabs   = SUB_TABS.filter(t => REF_IDS.includes(t.id));
