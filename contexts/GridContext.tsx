@@ -105,6 +105,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
 
   // Debounced cloud sync — fires 3s after the last state change
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const midnightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggerSync = useCallback(() => {
     if (syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(() => {
@@ -193,6 +194,35 @@ export function GridProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
+
+    // Midnight reset — re-run loadHabits (which calls resetHabitsForNewDay) at 12:00am
+    function scheduleReset() {
+      const now = new Date();
+      const msUntilMidnight =
+        (24 - now.getHours()) * 3_600_000
+        - now.getMinutes() * 60_000
+        - now.getSeconds() * 1_000
+        - now.getMilliseconds();
+      return setTimeout(() => {
+        setHabits(loadHabits());
+        // Re-arm for the next midnight
+        midnightTimer.current = scheduleReset();
+      }, msUntilMidnight);
+    }
+    midnightTimer.current = scheduleReset();
+
+    // Visibility reset — catches returning to a tab that was left open overnight
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') {
+        setHabits(loadHabits());
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      if (midnightTimer.current) clearTimeout(midnightTimer.current);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   const addXPPopup = (amount: number) => {
