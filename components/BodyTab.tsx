@@ -170,6 +170,7 @@ function Divider({ label, color }: { label: string; color: string }) {
 
 // ── Sleep log view ────────────────────────────────────────────────
 function SleepLog() {
+  const { syncNow } = useGridContext();
   const today = new Date().toISOString().split('T')[0];
   const [bedtime, setBedtime] = useState('22:30');
   const [waketime, setWaketime] = useState('06:30');
@@ -194,6 +195,7 @@ function SleepLog() {
     const updated = [entry, ...log.filter(e => e.date !== today)].slice(0, 30);
     Storage.setSleepLog(updated);
     setLog(updated);
+    syncNow();
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -431,7 +433,7 @@ function WeeklyReview() {
 }
 
 export default function BodyTab() {
-  const { phaseChange, clearPhaseChange, handleSetCycleStart } = useGridContext();
+  const { phaseChange, clearPhaseChange, handleSetCycleStart, syncNow } = useGridContext();
   const [subTab,      setSubTab]      = useState<SubTab>('home');
   const [menuOpen,    setMenuOpen]    = useState(false);
   const [cycleStart,  setCycleStart]  = useState<string | null>(null);
@@ -489,6 +491,7 @@ export default function BodyTab() {
     const all = Storage.getSteps();
     all[stepsDateKey()] = clamped;
     Storage.setSteps(all);
+    syncNow();
   };
 
   const addSteps = (n: number) => saveSteps(steps + n);
@@ -496,6 +499,7 @@ export default function BodyTab() {
   const changeSuppView = (v: 'list' | 'grid') => {
     setSuppView(v);
     Storage.setSuppView(v);
+    syncNow();
   };
 
   const toggleOwned = (id: string) => {
@@ -503,6 +507,7 @@ export default function BodyTab() {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       Storage.setOwnedSupps(next);
+      syncNow();
       return next;
     });
   };
@@ -512,6 +517,7 @@ export default function BodyTab() {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       Storage.setPendingSupps(next);
+      syncNow();
       return next;
     });
   };
@@ -574,6 +580,7 @@ export default function BodyTab() {
     const el = Storage.getEnergyLog();
     el[today] = e;
     Storage.setEnergyLog(el);
+    syncNow();
   };
 
   const smartSupps = phase ? getSupplementsForContext(phase, energyLevel) : SUPPLEMENTS;

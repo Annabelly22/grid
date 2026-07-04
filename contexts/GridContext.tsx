@@ -56,6 +56,7 @@ interface GridContextValue {
   handleDeleteTradeSession: (id: string) => void;
   handleSetPriorities: (items: string[]) => void;
   handleSetCycleStart: (date: string) => void;
+  syncNow: () => void;
 }
 
 const GridContext = createContext<GridContextValue | null>(null);
@@ -406,6 +407,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
       handleFocusMinutes, handleToggleTheme, handleUpdateCodename, handleResetData,
       handleToggleFavorite, handleReorderHabits,
       handleLogTrade, handleDeleteTradeSession, handleSetPriorities, handleSetCycleStart,
+      syncNow: triggerSync,
     }}>
       {children}
     </GridContext.Provider>
