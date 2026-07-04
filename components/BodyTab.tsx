@@ -672,8 +672,8 @@ export default function BodyTab() {
         {subTab === 'home' && (() => {
           const DAILY_IDS: SubTab[] = ['cali', 'gym', 'log', 'fast', 'move'];
           const REF_IDS:   SubTab[] = ['stack', 'cycle', 'tea', 'metab', 'cart'];
-          const dailyTabs = SUB_TABS.filter(t => DAILY_IDS.includes(t.id));
-          const refTabs   = SUB_TABS.filter(t => REF_IDS.includes(t.id));
+          const dailyTabs = DAILY_IDS.map(id => SUB_TABS.find(t => t.id === id)!).filter(Boolean);
+          const refTabs   = REF_IDS.map(id => SUB_TABS.find(t => t.id === id)!).filter(Boolean);
           const renderDailyTile = (t: typeof SUB_TABS[0]) => (
             <button key={t.id} onClick={() => setSubTab(t.id)}
               style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 16px', width: '100%', background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderLeft: `4px solid ${t.color}`, borderRadius: 14, cursor: 'pointer', position: 'relative', transition: 'background 0.15s', textAlign: 'left' }}>
