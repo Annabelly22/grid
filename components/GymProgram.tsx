@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GYM_DAYS, GymDay, GymExercise, getTodayGymDay } from '../lib/gymData';
 import { Storage } from '../lib/storage';
 
@@ -167,16 +167,47 @@ function DayPanel({ day, onClose }: { day: GymDay; onClose: () => void }) {
   const panelDayId = day.id + (useAlt ? '_alt' : '');
   const panelDate  = todayKey();
 
+  // Rest timer state
+  const [restActive, setRestActive]   = useState(false);
+  const [restTime, setRestTime]       = useState(60);
+  const [restTarget, setRestTarget]   = useState(60);
+  const [restExName, setRestExName]   = useState('');
+  const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!restActive) return;
+    restIntervalRef.current = setInterval(() => {
+      setRestTime(t => {
+        if (t <= 1) {
+          setRestActive(false);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => { if (restIntervalRef.current) clearInterval(restIntervalRef.current); };
+  }, [restActive]);
+
   useEffect(() => {
     setChecks(loadChecks(day.id + (useAlt ? '_alt' : '')));
   }, [day.id, useAlt]);
 
-  const toggleSet = (id: string, setIdx: number) => {
+  const startRest = (exName: string, seconds: number) => {
+    setRestExName(exName);
+    setRestTarget(seconds);
+    setRestTime(seconds);
+    setRestActive(true);
+  };
+
+  const toggleSet = (id: string, setIdx: number, exName: string) => {
     const current = checks[id] || 0;
+    const wasCompleting = setIdx + 1 > current;
     // Tap a done set → uncheck it and everything above; tap an undone set → check up to it
     const next = { ...checks, [id]: setIdx + 1 <= current ? setIdx : setIdx + 1 };
     setChecks(next);
     saveChecks(day.id + (useAlt ? '_alt' : ''), next);
+    // Start rest timer after completing any set
+    if (wasCompleting) startRest(exName, restTarget);
   };
 
   const doneCount  = activeSet.filter(ex => (checks[ex.id] || 0) >= NUM_SETS).length;
@@ -264,7 +295,7 @@ function DayPanel({ day, onClose }: { day: GymDay; onClose: () => void }) {
         </div>
 
         {/* Exercise list — scrollable, extra bottom padding so last item is never cut off */}
-        <div style={{ overflowY: 'auto', flex: 1 }}>
+        <div style={{ overflowY: 'auto', flex: 1, paddingBottom: restActive ? 100 : 0 }}>
           <div style={{ background: 'var(--ng-surface)' }}>
             {hasSections ? (
               sections.map(sec => (
@@ -277,7 +308,7 @@ function DayPanel({ day, onClose }: { day: GymDay; onClose: () => void }) {
                       key={ex.id}
                       ex={ex}
                       setsCompleted={checks[ex.id] || 0}
-                      onSetToggle={(setIdx) => toggleSet(ex.id, setIdx)}
+                      onSetToggle={(setIdx) => toggleSet(ex.id, setIdx, ex.name)}
                       dayId={panelDayId}
                       date={panelDate}
                     />
@@ -290,7 +321,7 @@ function DayPanel({ day, onClose }: { day: GymDay; onClose: () => void }) {
                   key={ex.id}
                   ex={ex}
                   setsCompleted={checks[ex.id] || 0}
-                  onSetToggle={(setIdx) => toggleSet(ex.id, setIdx)}
+                  onSetToggle={(setIdx) => toggleSet(ex.id, setIdx, ex.name)}
                   dayId={panelDayId}
                   date={panelDate}
                 />
@@ -300,6 +331,36 @@ function DayPanel({ day, onClose }: { day: GymDay; onClose: () => void }) {
           {/* Bottom padding — keeps last exercise clear of mobile nav bar */}
           <div style={{ height: 120 }} />
         </div>
+
+        {/* ── Rest timer ────────────────────────────────────── */}
+        {restActive && (
+          <div style={{ flexShrink: 0, padding: '12px 16px 16px', background: 'rgba(0,14,20,0.98)', borderTop: '1px solid var(--ng-cyan)', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-cyan)', letterSpacing: '2px', marginBottom: 2 }}>
+                REST — {restExName.length > 22 ? restExName.slice(0, 22) + '…' : restExName}
+              </div>
+              <div className="font-orbitron font-bold" style={{ fontSize: 26, color: restTime <= 10 ? 'var(--ng-amber)' : 'var(--ng-cyan)', lineHeight: 1 }}>
+                {restTime}s
+              </div>
+              <div style={{ height: 3, background: 'var(--ng-border)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(restTime / restTarget) * 100}%`, background: restTime <= 10 ? 'var(--ng-amber)' : 'var(--ng-cyan)', transition: 'width 1s linear', borderRadius: 2 }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {([45, 60, 90] as const).map(s => (
+                <button key={s} onClick={() => { setRestTarget(s); setRestTime(s); }}
+                  className="font-orbitron"
+                  style={{ fontSize: 9, padding: '4px 8px', border: `1px solid ${restTarget === s ? 'var(--ng-cyan)' : 'var(--ng-border)'}`, color: restTarget === s ? 'var(--ng-cyan)' : 'var(--ng-muted)', background: restTarget === s ? 'rgba(0,212,255,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer', letterSpacing: '1px' }}>
+                  {s}s
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setRestActive(false)} className="font-orbitron"
+              style={{ padding: '10px 14px', background: 'rgba(0,212,255,0.12)', border: '1px solid var(--ng-cyan)', color: 'var(--ng-cyan)', borderRadius: 8, cursor: 'pointer', fontSize: 10, letterSpacing: '1px', flexShrink: 0 }}>
+              SKIP
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

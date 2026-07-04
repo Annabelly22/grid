@@ -303,6 +303,17 @@ function WeeklyReview() {
     days.push(d.toISOString().split('T')[0]);
   }
 
+  // Past 30 days energy log
+  const energyDots: { day: string; level: string | null }[] = [];
+  try {
+    const el = Storage.getEnergyLog();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86_400_000);
+      const dateStr = d.toISOString().split('T')[0];
+      energyDots.push({ day: dateStr, level: el[dateStr] ?? null });
+    }
+  } catch {}
+
   // Habit hit rate
   let habitTotal = 0, habitDone = 0;
   try {
@@ -389,6 +400,27 @@ function WeeklyReview() {
                   <div style={{ width: '100%', height: `${pct}%`, background: pct >= 70 ? 'var(--ng-green)' : pct >= 40 ? 'var(--ng-amber)' : 'var(--ng-red)', borderRadius: 3, transition: 'height 0.4s ease', minHeight: pct > 0 ? 3 : 0 }} />
                 </div>
                 <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-dimmer)' }}>{day}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 30-day energy trend dots */}
+      {energyDots.length > 0 && (
+        <div style={{ background: 'var(--ng-bg)', border: '0.5px solid var(--ng-border)', padding: 14, borderRadius: 10, marginTop: 12 }}>
+          <div className="font-orbitron mb-3" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '2px' }}>30-DAY ENERGY TREND</div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+            {energyDots.map(({ day, level }) => (
+              <div key={day} title={`${day}: ${level ?? '—'}`}
+                style={{ width: 11, height: 11, borderRadius: '50%', background: level === 'high' ? 'var(--ng-green)' : level === 'medium' ? 'var(--ng-amber)' : level === 'low' ? 'var(--ng-red)' : 'var(--ng-border)', flexShrink: 0 }} />
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {([['HIGH', 'var(--ng-green)'], ['MEDIUM', 'var(--ng-amber)'], ['LOW', 'var(--ng-red)'], ['NO DATA', 'var(--ng-border)']] as [string, string][]).map(([label, color]) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                <span className="font-mono" style={{ fontSize: 8, color: 'var(--ng-dimmer)' }}>{label}</span>
               </div>
             ))}
           </div>
@@ -535,7 +567,14 @@ export default function BodyTab() {
     Storage.setCycleStart(cycleInput);
     setCycleStart(cycleInput);
   };
-  const saveEnergy = (e: EnergyLevel) => { setEnergyLevel(e); Storage.setEnergyLevel(e); };
+  const saveEnergy = (e: EnergyLevel) => {
+    setEnergyLevel(e);
+    Storage.setEnergyLevel(e);
+    const today = new Date().toISOString().split('T')[0];
+    const el = Storage.getEnergyLog();
+    el[today] = e;
+    Storage.setEnergyLog(el);
+  };
 
   const smartSupps = phase ? getSupplementsForContext(phase, energyLevel) : SUPPLEMENTS;
   const categories = ['all', ...Array.from(new Set(SUPPLEMENTS.map(s => s.category)))];

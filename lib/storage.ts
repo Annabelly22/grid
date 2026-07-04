@@ -42,6 +42,8 @@ const K = {
   focusLog:        'grid_focus_log',
   dailyPriorities: 'grid_daily_priorities',
   sleepLog:        'grid_sleep_log',
+  habitTimes:      'grid_habit_times',
+  energyLog:       'grid_energy_log',
 } as const;
 
 function get<T>(key: string, fallback: T): T {
@@ -137,6 +139,14 @@ export const Storage = {
   getSleepLog: () => get<SleepEntry[]>(K.sleepLog, []),
   setSleepLog: (log: SleepEntry[]) => set(K.sleepLog, log),
 
+  // Habit completion times (date → habitId → 'HH:MM')
+  getHabitTimes: () => get<Record<string, Record<string, string>>>(K.habitTimes, {}),
+  setHabitTimes: (t: Record<string, Record<string, string>>) => set(K.habitTimes, t),
+
+  // Energy log (date → EnergyLevel string)
+  getEnergyLog: () => get<Record<string, string>>(K.energyLog, {}),
+  setEnergyLog: (log: Record<string, string>) => set(K.energyLog, log),
+
   // Gym performance (per exercise per day per date)
   getGymPerf: (dayId: string, exId: string, date: string): { w: string; reps: number; rpe: number }[] =>
     get<{ w: string; reps: number; rpe: number }[]>(`grid_gym_perf_${dayId}_${exId}_${date}`, []),
@@ -212,7 +222,7 @@ export const Storage = {
       'grid_supplements_view', 'grid_owned_supps', 'grid_pending_supps',
       'grid_steps', 'grid_fast_start', 'grid_theme', 'grid_habits_view', 'grid_quote_idx',
       'grid_trade_journal', 'grid_alphawill_chat', 'grid_focus_log', 'grid_daily_priorities',
-      'grid_fast_history', 'grid_sleep_log',
+      'grid_fast_history', 'grid_sleep_log', 'grid_habit_times', 'grid_energy_log',
     ];
     for (const key of staticKeys) {
       const raw = localStorage.getItem(key);

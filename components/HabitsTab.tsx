@@ -369,6 +369,16 @@ function HabitCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onToggle
 
   const isWeekly = habit.weeklyTarget !== undefined;
 
+  // Read completion time from localStorage on each render
+  const completionTime: string | null = (() => {
+    if (!habit.completedToday || typeof window === 'undefined') return null;
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const times = JSON.parse(localStorage.getItem('grid_habit_times') || '{}') as Record<string, Record<string, string>>;
+      return times[today]?.[habit.id] ?? null;
+    } catch { return null; }
+  })();
+
   return (
     <div className="mb-3" style={{ background: 'var(--ng-surface)', border: `0.5px solid ${habit.completedToday ? color + '44' : 'var(--ng-border)'}`, borderLeft: `3px solid ${color}`, borderRadius: 12, opacity: habit.completedToday ? 0.7 : 1, transition: 'all 0.2s' }}>
       <div className="flex items-center gap-2 p-3">
@@ -402,6 +412,7 @@ function HabitCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onToggle
               habit.streak > 0 && <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-amber)' }}>🔥 {habit.streak}d</span>
             )}
             {habit.totalCompletions > 0 && <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)' }}>×{habit.totalCompletions}</span>}
+            {completionTime && <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>@{completionTime}</span>}
           </div>
         </div>
 

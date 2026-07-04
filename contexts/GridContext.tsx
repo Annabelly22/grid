@@ -241,6 +241,13 @@ export function GridProvider({ children }: { children: ReactNode }) {
     });
     saveHabits(updated); setHabits(updated);
     snapshotHabitLog(updated);
+    // Save completion time (HH:MM)
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const times = Storage.getHabitTimes();
+    if (!times[today]) times[today] = {};
+    times[today][id] = timeStr;
+    Storage.setHabitTimes(times);
     const habit = habits.find(h => h.id === id);
     if (!habit) return;
     let currentProfile = awardXP(
