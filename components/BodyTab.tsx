@@ -9,13 +9,14 @@ import {
 } from '../lib/supplementData';
 import { Storage } from '../lib/storage';
 import { useGridContext } from '../contexts/GridContext';
-import FastingTimer from './FastingTimer';
-import GymTracker   from './GymTracker';
-import GymProgram   from './GymProgram';
-import MonthLog     from './MonthLog';
+import FastingTimer       from './FastingTimer';
+import GymTracker         from './GymTracker';
+import GymProgram         from './GymProgram';
+import MonthLog           from './MonthLog';
+import CalisthenicsTab    from './CalisthenicsTab';
 
 const STEPS_GOAL = 10000;
-type SubTab = 'home' | 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move' | 'gym' | 'cart' | 'metab';
+type SubTab = 'home' | 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move' | 'gym' | 'cart' | 'metab' | 'cali';
 
 interface MetabSupp {
   rank: number; name: string; dose: string; timing: string;
@@ -591,6 +592,7 @@ export default function BodyTab() {
   const movements = getMovementsForContext(phase, energyLevel);
 
   const SUB_TABS = [
+    { id: 'cali'  as SubTab, label: 'CALI',   icon: '⚡',  color: 'var(--ng-purple)', desc: 'Bodyweight skill progression system' },
     { id: 'stack' as SubTab, label: 'STACK',  icon: '◆',  color: 'var(--ng-green)',  desc: 'Phase-synced supplement protocol'   },
     { id: 'cart'  as SubTab, label: 'CART',   icon: '🛒',  color: 'var(--ng-amber)',  desc: 'Buy list',                           badge: pendingSupps.size > 0 ? pendingSupps.size : undefined },
     { id: 'metab' as SubTab, label: 'METAB',  icon: '⚗',  color: '#FF6B35',          desc: 'Metabolism & fat loss protocol'     },
@@ -668,7 +670,7 @@ export default function BodyTab() {
 
         {/* ═══ HOME GRID ═══════════════════════════════════════ */}
         {subTab === 'home' && (() => {
-          const DAILY_IDS: SubTab[] = ['fast', 'gym', 'log', 'move'];
+          const DAILY_IDS: SubTab[] = ['cali', 'fast', 'gym', 'log', 'move'];
           const REF_IDS:   SubTab[] = ['stack', 'cycle', 'tea', 'metab', 'cart'];
           const dailyTabs = SUB_TABS.filter(t => DAILY_IDS.includes(t.id));
           const refTabs   = SUB_TABS.filter(t => REF_IDS.includes(t.id));
@@ -1373,6 +1375,17 @@ export default function BodyTab() {
               <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Tap a day to open the session. Check off exercises as you go.</div>
             </div>
             <GymProgram />
+          </>
+        )}
+
+        {/* ═══ CALI ═════════════════════════════════════════════ */}
+        {subTab === 'cali' && (
+          <>
+            <div style={{ padding: '4px 0 16px' }}>
+              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-purple)', letterSpacing: '3px', marginBottom: 4 }}>CALISTHENICS TRAINING</div>
+              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Skill-tree progression system. Advance each tree when you meet the unlock criteria.</div>
+            </div>
+            <CalisthenicsTab />
           </>
         )}
       </div>
