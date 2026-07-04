@@ -14,9 +14,10 @@ import GymTracker         from './GymTracker';
 import GymProgram         from './GymProgram';
 import MonthLog           from './MonthLog';
 import CalisthenicsTab    from './CalisthenicsTab';
+import KBTrainingTab      from './KBTrainingTab';
 
 const STEPS_GOAL = 10000;
-type SubTab = 'home' | 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move' | 'gym' | 'cart' | 'metab' | 'cali';
+type SubTab = 'home' | 'stack' | 'cycle' | 'fast' | 'log' | 'tea' | 'move' | 'gym' | 'cart' | 'metab' | 'cali' | 'kb';
 
 interface MetabSupp {
   rank: number; name: string; dose: string; timing: string;
@@ -593,6 +594,7 @@ export default function BodyTab() {
 
   const SUB_TABS = [
     { id: 'cali'  as SubTab, label: 'CALISTHENICS', icon: '⊛',  color: 'var(--ng-purple)', desc: 'Bodyweight skill progression system' },
+    { id: 'kb'    as SubTab, label: 'KB + DB',      icon: '◉',  color: 'var(--ng-cyan)',   desc: 'Kettlebell & dumbbell training system' },
     { id: 'stack' as SubTab, label: 'STACK',  icon: '◆',  color: 'var(--ng-green)',  desc: 'Phase-synced supplement protocol'   },
     { id: 'cart'  as SubTab, label: 'CART',   icon: '🛒',  color: 'var(--ng-amber)',  desc: 'Buy list',                           badge: pendingSupps.size > 0 ? pendingSupps.size : undefined },
     { id: 'metab' as SubTab, label: 'METAB',  icon: '⚗',  color: '#FF6B35',          desc: 'Metabolism & fat loss protocol'     },
@@ -670,7 +672,7 @@ export default function BodyTab() {
 
         {/* ═══ HOME GRID ═══════════════════════════════════════ */}
         {subTab === 'home' && (() => {
-          const DAILY_IDS: SubTab[] = ['cali', 'gym', 'log', 'fast', 'move'];
+          const DAILY_IDS: SubTab[] = ['cali', 'kb', 'gym', 'log', 'fast', 'move'];
           const REF_IDS:   SubTab[] = ['stack', 'cycle', 'tea', 'metab', 'cart'];
           const dailyTabs = DAILY_IDS.map(id => SUB_TABS.find(t => t.id === id)!).filter(Boolean);
           const refTabs   = REF_IDS.map(id => SUB_TABS.find(t => t.id === id)!).filter(Boolean);
@@ -1386,6 +1388,17 @@ export default function BodyTab() {
               <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Skill-tree progression system. Advance each tree when you meet the unlock criteria.</div>
             </div>
             <CalisthenicsTab />
+          </>
+        )}
+
+        {/* ═══ KB + DB ══════════════════════════════════════════ */}
+        {subTab === 'kb' && (
+          <>
+            <div style={{ padding: '4px 0 16px' }}>
+              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-cyan)', letterSpacing: '3px', marginBottom: 4 }}>KB + DB TRAINING</div>
+              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>Gym split replaced with kettlebell, dumbbell & bodyweight. Tap a day to expand.</div>
+            </div>
+            <KBTrainingTab />
           </>
         )}
       </div>
