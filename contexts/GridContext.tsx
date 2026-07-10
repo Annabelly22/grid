@@ -1,5 +1,6 @@
 'use client';
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { getTodayStr, getYesterdayStr, getNowTimeStr, getMsUntilMidnight } from '../lib/time';
 import {
   UserProfile, Habit, Mission, Achievement, TradeSession,
   loadProfile, saveProfile, loadHabits, saveHabits,
@@ -130,8 +131,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
     setProfile(p); setHabits(h); setMissions(m); setAchievements(a); setTradeJournal(tj);
     if (!p.onboarded) setOnboarded(false);
     const dp = Storage.getDailyPriorities();
-    const today = new Date().toISOString().split('T')[0];
-    setDailyPriorities(dp.date === today ? dp.items : []);
+    setDailyPriorities(dp.date === getTodayStr() ? dp.items : []);
 
     const t = Storage.getTheme();
     setTheme(t);
@@ -149,8 +149,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
       setProfile(cp); setHabits(ch); setMissions(cm); setAchievements(ca); setTradeJournal(ctj);
       if (!cp.onboarded) setOnboarded(false);
       const cdp = Storage.getDailyPriorities();
-      const ctoday = new Date().toISOString().split('T')[0];
-      setDailyPriorities(cdp.date === ctoday ? cdp.items : []);
+      setDailyPriorities(cdp.date === getTodayStr() ? cdp.items : []);
       const ct = Storage.getTheme();
       setTheme(ct);
     });
@@ -195,19 +194,12 @@ export function GridProvider({ children }: { children: ReactNode }) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
 
-    // Midnight reset — re-run loadHabits (which calls resetHabitsForNewDay) at 12:00am
+    // Midnight reset — re-run loadHabits at midnight in the home timezone
     function scheduleReset() {
-      const now = new Date();
-      const msUntilMidnight =
-        (24 - now.getHours()) * 3_600_000
-        - now.getMinutes() * 60_000
-        - now.getSeconds() * 1_000
-        - now.getMilliseconds();
       return setTimeout(() => {
         setHabits(loadHabits());
-        // Re-arm for the next midnight
         midnightTimer.current = scheduleReset();
-      }, msUntilMidnight);
+      }, getMsUntilMidnight());
     }
     midnightTimer.current = scheduleReset();
 
@@ -252,7 +244,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const snapshotHabitLog = (updatedHabits: Habit[]) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     const log = Storage.getHabitLog();
     log[today] = {
       completed: updatedHabits.filter(h => h.completedToday).length,
@@ -263,8 +255,8 @@ export function GridProvider({ children }: { children: ReactNode }) {
 
   const handleCompleteHabit = (id: string) => {
     if (!profile) return;
-    const today     = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const today     = getTodayStr();
+    const yesterday = getYesterdayStr();
     const updated = habits.map(h => {
       if (h.id !== id || h.completedToday) return h;
       const streak = (h.lastCompleted === yesterday || h.streak === 0) ? h.streak + 1 : 1;
@@ -273,9 +265,8 @@ export function GridProvider({ children }: { children: ReactNode }) {
     });
     saveHabits(updated); setHabits(updated);
     snapshotHabitLog(updated);
-    // Save completion time (HH:MM)
-    const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    // Save completion time (HH:MM) in home timezone
+    const timeStr = getNowTimeStr();
     const times = Storage.getHabitTimes();
     if (!times[today]) times[today] = {};
     times[today][id] = timeStr;
@@ -309,7 +300,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
   };
 
   const handleUncompleteHabit = (id: string) => {
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const yesterday = getYesterdayStr();
     const updated = habits.map(h => {
       if (h.id !== id || !h.completedToday) return h;
       const weeklyCompletions = h.weeklyTarget !== undefined ? Math.max(0, (h.weeklyCompletions ?? 0) - 1) : (h.weeklyCompletions ?? 0);
@@ -358,7 +349,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
     const u = { ...profile, focusMinutes: profile.focusMinutes + minutes };
     saveProfile(u); setProfile(u);
     awardXP(minutes * 2, u, habits, achievements);
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     const log = Storage.getFocusLog();
     log[today] = (log[today] || 0) + minutes;
     Storage.setFocusLog(log);
@@ -412,8 +403,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
   };
 
   const handleSetPriorities = (items: string[]) => {
-    const today = new Date().toISOString().split('T')[0];
-    Storage.setDailyPriorities({ date: today, items });
+    Storage.setDailyPriorities({ date: getTodayStr(), items });
     setDailyPriorities(items);
     triggerSync();
   };

@@ -8,6 +8,7 @@ import {
   CATEGORY_META, TIMING_META, Supplement, SUPPLEMENT_CONFLICTS,
 } from '../lib/supplementData';
 import { Storage } from '../lib/storage';
+import { getTodayStr, getPastNDays } from '../lib/time';
 import { useGridContext } from '../contexts/GridContext';
 import FastingTimer       from './FastingTimer';
 import GymTracker         from './GymTracker';
@@ -173,7 +174,7 @@ function Divider({ label, color }: { label: string; color: string }) {
 // ── Sleep log view ────────────────────────────────────────────────
 function SleepLog() {
   const { syncNow } = useGridContext();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayStr();
   const [bedtime, setBedtime] = useState('22:30');
   const [waketime, setWaketime] = useState('06:30');
   const [quality, setQuality] = useState<1|2|3|4|5>(4);
@@ -300,20 +301,14 @@ function LogTab() {
 function WeeklyReview() {
   const { missions } = useGridContext();
 
-  // Past 7 days
-  const days: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(Date.now() - i * 86_400_000);
-    days.push(d.toISOString().split('T')[0]);
-  }
+  // Past 7 days in home timezone
+  const days = getPastNDays(7);
 
   // Past 30 days energy log
   const energyDots: { day: string; level: string | null }[] = [];
   try {
     const el = Storage.getEnergyLog();
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(Date.now() - i * 86_400_000);
-      const dateStr = d.toISOString().split('T')[0];
+    for (const dateStr of getPastNDays(30)) {
       energyDots.push({ day: dateStr, level: el[dateStr] ?? null });
     }
   } catch {}
@@ -460,7 +455,7 @@ export default function BodyTab() {
   const MOTION_PERM_KEY = 'grid_motion_perm';
   const autoStepRef  = useRef(false);
 
-  const stepsDateKey = () => new Date().toISOString().split('T')[0];
+  const stepsDateKey = () => getTodayStr();
 
   useEffect(() => {
     const sc = Storage.getCycleStart();
@@ -578,7 +573,7 @@ export default function BodyTab() {
   const saveEnergy = (e: EnergyLevel) => {
     setEnergyLevel(e);
     Storage.setEnergyLevel(e);
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     const el = Storage.getEnergyLog();
     el[today] = e;
     Storage.setEnergyLog(el);

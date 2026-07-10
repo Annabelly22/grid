@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import { UserProfile, TradeSession } from '../lib/gameStore';
 import { Storage } from '../lib/storage';
+import { getTodayStr } from '../lib/time';
 
 interface Props {
   profile: UserProfile;
@@ -61,7 +62,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
   const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Journal form state
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayStr();
   const [journalDate, setJournalDate] = useState(today);
   const [journalQuality, setJournalQuality] = useState<1|2|3|4|5>(3);
   const [journalRules, setJournalRules] = useState<boolean | null>(null);

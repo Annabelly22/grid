@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { getTodayStr, getCurrentWeekDays } from '../lib/time';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type EqType  = 'bar' | 'wall' | 'bw' | 'vest';
@@ -639,7 +640,7 @@ export default function CalisthenicsTab() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [exTiers,      setExTiers]      = useState<Record<string, 0 | 1 | 2>>({});
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayStr();
 
   useEffect(() => {
     try { const r = localStorage.getItem(LEVELS_KEY); if (r) setLevels(JSON.parse(r)); } catch {}
@@ -678,12 +679,7 @@ export default function CalisthenicsTab() {
   const xpPct   = Math.round((totalXP / maxXP) * 100);
 
   // Weekly sessions done
-  const now = new Date(); const monday = new Date(now);
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday); d.setDate(monday.getDate() + i);
-    return d.toISOString().split('T')[0];
-  });
+  const weekDays = getCurrentWeekDays();
   const weekDone = weekDays.filter(d =>
     (['1','2','3','4','5','6','7'] as DayKey[]).some(k => done[`day${k}_${d}`])
   ).length;

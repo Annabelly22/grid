@@ -1,5 +1,6 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getHomeTimezone, setHomeTimezone, getSupportedTimezones, getNowTimeStr } from '../lib/time';
 import { UserProfile, Habit, Achievement, Mission, getLevel, CATEGORY_COLORS, CATEGORY_ICONS } from '../lib/gameStore';
 
 const DIFFICULTY_CONFIG = {
@@ -79,6 +80,26 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
   const [newName, setNewName] = useState(profile.codename);
   const [confirmReset, setConfirmReset] = useState(false);
   const [showCompletedMissions, setShowCompletedMissions] = useState(false);
+
+  // ── Home Clock ────────────────────────────────────────────────────────────
+  const allTimezones = getSupportedTimezones();
+  const [savedTz,    setSavedTz]    = useState(() => getHomeTimezone());
+  const [selectedTz, setSelectedTz] = useState(() => getHomeTimezone());
+  const [tzSearch,   setTzSearch]   = useState('');
+  const [clockTime,  setClockTime]  = useState(() => getNowTimeStr());
+  const filteredTzs = tzSearch
+    ? allTimezones.filter(tz => tz.toLowerCase().includes(tzSearch.toLowerCase()))
+    : allTimezones;
+  // Tick the clock every second
+  useEffect(() => {
+    const tick = setInterval(() => setClockTime(getNowTimeStr()), 1_000);
+    return () => clearInterval(tick);
+  }, []);
+  const handleSaveTz = () => {
+    setHomeTimezone(selectedTz);
+    setSavedTz(selectedTz);
+    window.location.reload();
+  };
 
   const lvl = getLevel(profile.xp);
   const daysSinceJoin = Math.floor((Date.now() - new Date(profile.joinDate).getTime()) / 86400000);
@@ -241,6 +262,44 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
               <span className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-dimmer)' }}>+{a.xpReward}</span>
             </div>
           ))}
+        </div>
+
+        {/* Home Clock */}
+        <div className="card mb-4" style={{ borderColor: 'rgba(0,212,255,0.2)' }}>
+          <div className="font-orbitron mb-3" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>◈ HOME CLOCK</div>
+          <div className="flex items-baseline gap-3 mb-3">
+            <span className="font-mono font-bold" style={{ fontSize: 20, color: 'var(--ng-text)', letterSpacing: '2px' }}>{clockTime}</span>
+            <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{savedTz}</span>
+          </div>
+          <input
+            className="ng-input w-full mb-2"
+            placeholder="Search timezone... (e.g. London, Tokyo, New_York)"
+            value={tzSearch}
+            onChange={e => setTzSearch(e.target.value)}
+            style={{ fontSize: 10 }}
+          />
+          <select
+            className="ng-input w-full mb-3"
+            value={selectedTz}
+            onChange={e => setSelectedTz(e.target.value)}
+            style={{ fontSize: 10, height: 36 }}
+          >
+            {filteredTzs.map(tz => (
+              <option key={tz} value={tz}>{tz}</option>
+            ))}
+          </select>
+          {selectedTz !== savedTz && (
+            <button
+              onClick={handleSaveTz}
+              className="font-orbitron w-full mb-2"
+              style={{ padding: '10px', fontSize: 11, letterSpacing: '2px', background: 'rgba(0,212,255,0.1)', border: '1px solid var(--ng-cyan)', color: 'var(--ng-cyan)', borderRadius: 8, cursor: 'pointer' }}
+            >
+              SAVE &amp; RELOAD
+            </button>
+          )}
+          <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)', lineHeight: 1.6 }}>
+            Set to your home timezone. Change when travelling — habits reset and quotes update at midnight here.
+          </div>
         </div>
 
         {/* Danger zone */}

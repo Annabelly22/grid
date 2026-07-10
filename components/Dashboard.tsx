@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { UserProfile, Habit, getLevel, CATEGORY_COLORS } from '../lib/gameStore';
 import GridLogo from './GridLogo';
 import { getCyclePhase, getDayOfCycle, CYCLE_PHASES } from '../lib/supplementData';
+import { getTodayStr, getNowHour, getMsUntilNextQuoteBoundary } from '../lib/time';
 import { GYM_DAYS } from '../lib/gymData';
 
 type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile';
@@ -393,16 +394,16 @@ const STOIC_QUOTES: { text: string; author: string }[] = [
 ];
 
 function getDailyQuote() {
-  // Two quotes per day — changes at local midnight and noon
-  const now = new Date();
-  const y = now.getFullYear(), mo = now.getMonth(), d = now.getDate();
-  const dayNumber = Math.floor(new Date(y, mo, d).getTime() / 86_400_000);
-  const halfDayIdx = dayNumber * 2 + (now.getHours() >= 12 ? 1 : 0);
+  // Two quotes per day — changes at home-timezone midnight and noon
+  const todayStr = getTodayStr();
+  const [y, mo, d] = todayStr.split('-').map(Number);
+  const dayNumber = Math.floor(new Date(y, mo - 1, d).getTime() / 86_400_000);
+  const halfDayIdx = dayNumber * 2 + (getNowHour() >= 12 ? 1 : 0);
   return STOIC_QUOTES[halfDayIdx % STOIC_QUOTES.length];
 }
 
 function getGreeting() {
-  const h = new Date().getHours();
+  const h = getNowHour();
   if (h < 5)  return 'LATE NIGHT OPS';
   if (h < 12) return 'MORNING BRIEF';
   if (h < 17) return 'AFTERNOON SITREP';
@@ -415,7 +416,7 @@ function useDailyCalories() {
   const [fastHours, setFastHours] = useState(0);
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
 
     // Steps calories: ~0.038 kcal/step for 57 kg
     try {
@@ -465,15 +466,9 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
   const [quoteVersion, setQuoteVersion] = useState(0);
   const cals = useDailyCalories();
 
-  // Schedule a re-render at the next local noon (or midnight) so the quote rotates
+  // Schedule a re-render at the next home-TZ noon or midnight so the quote rotates
   useEffect(() => {
-    const now = new Date();
-    const h = now.getHours();
-    // ms until next boundary: noon if before noon, else midnight
-    const msUntilBoundary = h < 12
-      ? (12 - h) * 3_600_000 - now.getMinutes() * 60_000 - now.getSeconds() * 1_000 - now.getMilliseconds()
-      : (24 - h) * 3_600_000 - now.getMinutes() * 60_000 - now.getSeconds() * 1_000 - now.getMilliseconds();
-    const timer = setTimeout(() => setQuoteVersion(v => v + 1), msUntilBoundary);
+    const timer = setTimeout(() => setQuoteVersion(v => v + 1), getMsUntilNextQuoteBoundary());
     return () => clearTimeout(timer);
   }, [quoteVersion]); // re-arms after each rotation
 

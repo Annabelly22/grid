@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { getTodayStr, getCurrentWeekDays } from '../lib/time';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type EqType = 'kb' | 'db' | 'bw';
@@ -487,7 +488,7 @@ export default function KBTrainingTab() {
   const [tiers,      setTiers]      = useState<Record<string, 0 | 1 | 2>>({});
   const [expandedEx, setExpandedEx] = useState<string | null>(null);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayStr();
 
   useEffect(() => {
     try { const r = localStorage.getItem(DONE_KEY);  if (r) setDone(JSON.parse(r));  } catch {}
@@ -507,14 +508,7 @@ export default function KBTrainingTab() {
   };
 
   // ── Weekly progress ──────────────────────────────────────────────
-  const now    = new Date();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  const weekDays: string[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday); d.setDate(monday.getDate() + i);
-    weekDays.push(d.toISOString().split('T')[0]);
-  }
+  const weekDays = getCurrentWeekDays();
   const weekDone = weekDays.filter(d =>
     (['1','2','3','4','5','6','7'] as DayKey[]).some(k => done[`day${k}_${d}`])
   ).length;

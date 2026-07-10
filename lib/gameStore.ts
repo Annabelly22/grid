@@ -1,6 +1,7 @@
 // ============================================================
 // GRID — Game Store & Data Models
 // ============================================================
+import { getTodayStr, getMondayStr } from './time';
 
 export interface UserProfile {
   codename: string;
@@ -258,13 +259,8 @@ function defaultProfile(): UserProfile {
 
 // Reset completedToday if it's a new day; reset weeklyCompletions on Monday
 function resetHabitsForNewDay(habits: Habit[]): Habit[] {
-  const today = new Date().toISOString().split('T')[0];
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon
-  // Monday of the current week (ISO: Mon–Sun)
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7));
-  const mondayStr = monday.toISOString().split('T')[0];
+  const today    = getTodayStr();
+  const mondayStr = getMondayStr();
 
   return habits.map(h => {
     const resetWeekly = h.weeklyTarget !== undefined &&

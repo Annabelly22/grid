@@ -4,6 +4,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEn
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Habit, HabitCategory, CATEGORY_COLORS, CATEGORY_ICONS } from '../lib/gameStore';
+import { getTodayStr } from '../lib/time';
 
 const VIEW_KEY = 'grid_habits_view';
 
@@ -373,7 +374,7 @@ function HabitCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onToggle
   const completionTime: string | null = (() => {
     if (!habit.completedToday || typeof window === 'undefined') return null;
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayStr();
       const times = JSON.parse(localStorage.getItem('grid_habit_times') || '{}') as Record<string, Record<string, string>>;
       return times[today]?.[habit.id] ?? null;
     } catch { return null; }
