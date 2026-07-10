@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { getHomeTimezone, setHomeTimezone, getSupportedTimezones, getNowTimeStr } from '../lib/time';
+import { getHomeTimezone, setHomeTimezone, getSupportedTimezones, getNowTimeParts } from '../lib/time';
 import { UserProfile, Habit, Achievement, Mission, getLevel, CATEGORY_COLORS, CATEGORY_ICONS } from '../lib/gameStore';
 
 const DIFFICULTY_CONFIG = {
@@ -86,13 +86,13 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
   const [savedTz,    setSavedTz]    = useState(() => getHomeTimezone());
   const [selectedTz, setSelectedTz] = useState(() => getHomeTimezone());
   const [tzSearch,   setTzSearch]   = useState('');
-  const [clockTime,  setClockTime]  = useState(() => getNowTimeStr());
+  const [clockParts, setClockParts] = useState(() => getNowTimeParts());
   const filteredTzs = tzSearch
     ? allTimezones.filter(tz => tz.toLowerCase().includes(tzSearch.toLowerCase()))
     : allTimezones;
   // Tick the clock every second
   useEffect(() => {
-    const tick = setInterval(() => setClockTime(getNowTimeStr()), 1_000);
+    const tick = setInterval(() => setClockParts(getNowTimeParts()), 1_000);
     return () => clearInterval(tick);
   }, []);
   const handleSaveTz = () => {
@@ -267,9 +267,14 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
         {/* Home Clock */}
         <div className="card mb-4" style={{ borderColor: 'rgba(0,212,255,0.2)' }}>
           <div className="font-orbitron mb-3" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>◈ HOME CLOCK</div>
-          <div className="flex items-baseline gap-3 mb-3">
-            <span className="font-mono font-bold" style={{ fontSize: 20, color: 'var(--ng-text)', letterSpacing: '2px' }}>{clockTime}</span>
-            <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{savedTz}</span>
+          <div className="flex items-center gap-3 mb-3">
+            <span className="font-mono font-bold" style={{ fontSize: 28, color: 'var(--ng-text)', letterSpacing: '2px', lineHeight: 1 }}>{clockParts.time}</span>
+            {/* AM / PM dials */}
+            <div className="flex flex-col" style={{ gap: 3 }}>
+              <span className="font-orbitron font-bold" style={{ fontSize: 9, letterSpacing: '1px', color: clockParts.period === 'AM' ? 'var(--ng-cyan)' : 'var(--ng-dimmer)' }}>AM</span>
+              <span className="font-orbitron font-bold" style={{ fontSize: 9, letterSpacing: '1px', color: clockParts.period === 'PM' ? 'var(--ng-amber)' : 'var(--ng-dimmer)' }}>PM</span>
+            </div>
+            <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', marginLeft: 4 }}>{savedTz}</span>
           </div>
           <input
             className="ng-input w-full mb-2"

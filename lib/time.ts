@@ -36,14 +36,21 @@ export function getNowHour(): number {
   return parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10) % 24;
 }
 
-/** Returns the current time as "HH:MM" in the home timezone. */
-export function getNowTimeStr(): string {
+/** Returns the current time as "h:mm" and period "AM"|"PM" in the home timezone. */
+export function getNowTimeParts(): { time: string; period: 'AM' | 'PM' } {
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: getHomeTimezone(), hour: '2-digit', minute: '2-digit', hour12: false,
+    timeZone: getHomeTimezone(), hour: 'numeric', minute: '2-digit', hour12: true,
   }).formatToParts(new Date());
-  const h = parts.find(p => p.type === 'hour')?.value ?? '00';
-  const m = parts.find(p => p.type === 'minute')?.value ?? '00';
-  return `${h}:${m}`;
+  const h   = parts.find(p => p.type === 'hour')?.value ?? '12';
+  const m   = parts.find(p => p.type === 'minute')?.value ?? '00';
+  const raw = (parts.find(p => p.type === 'dayPeriod')?.value ?? 'AM').toUpperCase();
+  return { time: `${h}:${m}`, period: raw === 'PM' ? 'PM' : 'AM' };
+}
+
+/** Returns the current time as "h:mm AM/PM" — used for habit completion timestamps. */
+export function getNowTimeStr(): string {
+  const { time, period } = getNowTimeParts();
+  return `${time} ${period}`;
 }
 
 function getHomeTzHMS(): { h: number; m: number; s: number } {
