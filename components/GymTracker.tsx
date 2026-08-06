@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useGridContext } from '../contexts/GridContext';
 
 const TRACKER_KEY = 'grid_workout_week';
 
@@ -38,6 +39,8 @@ export default function GymTracker() {
   const [week]     = useState<Date[]>(getWeekDates);
   const [log,      setLog]      = useState<Record<string, string[]>>({});
   const [selected, setSelected] = useState<string | null>(null);
+  const [saved,    setSaved]    = useState(false);
+  const { syncNow, saveNow } = useGridContext();
 
   useEffect(() => {
     try {
@@ -49,6 +52,13 @@ export default function GymTracker() {
   const save = (next: Record<string, string[]>) => {
     setLog(next);
     localStorage.setItem(TRACKER_KEY, JSON.stringify(next));
+    syncNow();
+  };
+
+  const handleSave = () => {
+    saveNow();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   const handleDayTap = (d: Date) => {
@@ -69,11 +79,26 @@ export default function GymTracker() {
 
   return (
     <div>
-      {/* Instruction */}
-      <div className="font-mono" style={{ fontSize: 13, color: sel ? sel.color : 'var(--ng-muted)', marginBottom: 16, minHeight: 20 }}>
-        {sel
-          ? `${sel.icon} ${sel.label} selected — tap a day to log it`
-          : 'Select an activity, then tap a day to log it.'}
+      {/* Instruction + Save */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div className="font-mono" style={{ fontSize: 13, color: sel ? sel.color : 'var(--ng-muted)', minHeight: 20 }}>
+          {sel
+            ? `${sel.icon} ${sel.label} selected — tap a day to log it`
+            : 'Select an activity, then tap a day to log it.'}
+        </div>
+        <button onClick={handleSave} className="font-orbitron"
+          style={{
+            padding: '6px 14px', fontSize: 9, letterSpacing: '2px',
+            border: `1px solid ${saved ? 'var(--ng-green)' : 'var(--ng-border)'}`,
+            color: saved ? 'var(--ng-green)' : 'var(--ng-muted)',
+            background: saved ? 'rgba(48,209,88,0.08)' : 'var(--ng-surface)',
+            borderRadius: 20, cursor: 'pointer',
+            transition: 'all 0.3s',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}>
+          {saved ? 'SAVED ✓' : 'SAVE'}
+        </button>
       </div>
 
       {/* Activity chips */}

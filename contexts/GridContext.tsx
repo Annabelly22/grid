@@ -58,6 +58,7 @@ interface GridContextValue {
   handleSetPriorities: (items: string[]) => void;
   handleSetCycleStart: (date: string) => void;
   syncNow: () => void;
+  saveNow: () => void;
 }
 
 const GridContext = createContext<GridContextValue | null>(null);
@@ -115,6 +116,14 @@ export function GridProvider({ children }: { children: ReactNode }) {
       const payload = Storage.getAllData();
       cloudSave(uid, payload);
     }, 3000);
+  }, []);
+
+  // Immediate cloud sync — cancels any pending debounce and saves right now
+  const saveNow = useCallback(() => {
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    const uid = Storage.getUserId();
+    if (!uid) return;
+    cloudSave(uid, Storage.getAllData());
   }, []);
 
   useEffect(() => {
@@ -207,6 +216,10 @@ export function GridProvider({ children }: { children: ReactNode }) {
     function handleVisibility() {
       if (document.visibilityState === 'visible') {
         setHabits(loadHabits());
+      } else if (document.visibilityState === 'hidden') {
+        // Flush any pending sync immediately when app is closed or backgrounded
+        const uid = Storage.getUserId();
+        if (uid) cloudSave(uid, Storage.getAllData());
       }
     }
     document.addEventListener('visibilitychange', handleVisibility);
@@ -428,6 +441,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
       handleToggleFavorite, handleReorderHabits,
       handleLogTrade, handleDeleteTradeSession, handleSetPriorities, handleSetCycleStart,
       syncNow: triggerSync,
+      saveNow,
     }}>
       {children}
     </GridContext.Provider>
