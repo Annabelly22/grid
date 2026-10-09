@@ -195,6 +195,14 @@ export const Storage = {
   getDailyPriorities: () => get<{ date: string; items: string[] }>(K.dailyPriorities, { date: '', items: [] }),
   setDailyPriorities: (v: { date: string; items: string[] }) => set(K.dailyPriorities, v),
 
+  // Meal plan
+  getMealPlan: () => get<unknown>('grid_meal_plan', null),
+  setMealPlan: (plan: unknown) => set('grid_meal_plan', plan),
+
+  // Fasting hours target
+  getFastingHours: () => { const v = getRaw('grid_fasting_hours'); return v ? parseInt(v, 10) : 16; },
+  setFastingHours: (h: number) => setRaw('grid_fasting_hours', String(h)),
+
   // Clear all data
   clearAll: () => {
     if (typeof window !== 'undefined') localStorage.clear();
@@ -223,7 +231,7 @@ export const Storage = {
       'grid_steps', 'grid_fast_start', 'grid_theme', 'grid_habits_view', 'grid_quote_idx',
       'grid_trade_journal', 'grid_alphawill_chat', 'grid_focus_log', 'grid_daily_priorities',
       'grid_fast_history', 'grid_sleep_log', 'grid_habit_times', 'grid_energy_log',
-      'grid_workout_week',
+      'grid_workout_week', 'grid_meal_plan', 'grid_fasting_hours',
     ];
     for (const key of staticKeys) {
       const raw = localStorage.getItem(key);

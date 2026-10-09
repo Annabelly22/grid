@@ -5,6 +5,7 @@ import GridLogo from './GridLogo';
 import { getCyclePhase, getDayOfCycle, CYCLE_PHASES } from '../lib/supplementData';
 import { getTodayStr, getNowHour, getMsUntilNextQuoteBoundary } from '../lib/time';
 import { GYM_DAYS } from '../lib/gymData';
+import MealPlanTab from './MealPlanTab';
 
 type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile';
 
@@ -462,7 +463,7 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
   const [cycleStart, setCycleStart] = useState<string | null>(null);
   const [priorityInputs, setPriorityInputs] = useState<string[]>(['']);
   const [priorityStruck, setPriorityStruck] = useState<boolean[]>(() => dailyPriorities.map(() => false));
-  const [habitsView, setHabitsView] = useState<'protocol' | 'favorites'>('protocol');
+  const [habitsView, setHabitsView] = useState<'protocol' | 'favorites' | 'meals'>('protocol');
   const [quoteVersion, setQuoteVersion] = useState(0);
   const cals = useDailyCalories();
 
@@ -704,7 +705,7 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
         ) : !allDone && (
           <div style={{ marginBottom: 24 }}>
             {/* Tab toggle */}
-            <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
+            <div className="flex items-center gap-2" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
               <button onClick={() => setHabitsView('protocol')}
                 className="font-orbitron"
                 style={{ fontSize: 8, letterSpacing: '2px', padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer',
@@ -718,6 +719,13 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
                   background: habitsView === 'favorites' ? 'var(--ng-amber)' : 'transparent',
                   color: habitsView === 'favorites' ? '#000' : 'var(--ng-muted)' }}>
                 ★ FAVORITES
+              </button>
+              <button onClick={() => setHabitsView('meals')}
+                className="font-orbitron"
+                style={{ fontSize: 8, letterSpacing: '2px', padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                  background: habitsView === 'meals' ? 'var(--ng-cyan)' : 'transparent',
+                  color: habitsView === 'meals' ? '#000' : 'var(--ng-muted)' }}>
+                🍽️ MEALS
               </button>
               <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', marginLeft: 'auto' }}>{doneCount}/{total}</div>
             </div>
@@ -767,7 +775,7 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
                   </div>
                 )}
               </>
-            ) : (
+            ) : habitsView === 'favorites' ? (
               <>
                 {favorites.length === 0 ? (
                   <div style={{ padding: '32px 0', textAlign: 'center' }}>
@@ -817,12 +825,16 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
                   </div>
                 )}
               </>
+            ) : (
+              <MealPlanTab />
             )}
 
-            <button onClick={() => onNavigate('habits')} className="w-full font-orbitron"
-              style={{ marginTop: 8, padding: '9px', fontSize: 8, letterSpacing: '2px', color: 'var(--ng-dimmer)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-              MANAGE HABITS →
-            </button>
+            {habitsView !== 'meals' && (
+              <button onClick={() => onNavigate('habits')} className="w-full font-orbitron"
+                style={{ marginTop: 8, padding: '9px', fontSize: 8, letterSpacing: '2px', color: 'var(--ng-dimmer)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                MANAGE HABITS →
+              </button>
+            )}
           </div>
         )}
 
