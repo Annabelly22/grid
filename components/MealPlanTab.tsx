@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Storage } from '../lib/storage';
 import { getTodayStr } from '../lib/time';
+import { getTodayQuote } from '../lib/dailyQuotes';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export interface MealItem {
@@ -122,10 +123,9 @@ const MINDFUL_TIPS = [
   "Stop eating when you're 80% full (hara hachi bu)",
 ];
 
-// ── 365 Daily Quotes for Mindful Eating ──────────────────────────────────────
-const DAILY_QUOTES: string[] = [
-  // January (1-31)
-  "Your body is a temple, but only if you treat it as one.",
+// Note: DAILY_QUOTES moved to lib/dailyQuotes.ts for attributed quotes from notable figures
+
+// First quote marker - to be removed
   "Today I choose to nourish my body with intention and love.",
   "Every meal is a chance to honor your health.",
   "Slow down. Taste your food. Feel your body.",
@@ -641,11 +641,11 @@ export default function MealPlanTab() {
   const randomTip = FASTING_TIPS[Math.floor(Date.now() / 86400000) % FASTING_TIPS.length];
   const randomMindful = MINDFUL_TIPS[Math.floor(Date.now() / 43200000) % MINDFUL_TIPS.length];
 
-  // Get day of year (1-365/366)
+  // Get day of year and today's quote
   const now = new Date();
   const startOfYear = new Date(now.getFullYear(), 0, 0);
   const dayOfYear = Math.floor((now.getTime() - startOfYear.getTime()) / 86400000);
-  const dailyQuote = DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
+  const dailyQuote = getTodayQuote();
 
   return (
     <div style={{ padding: '0 0 100px' }}>
@@ -701,7 +701,15 @@ export default function MealPlanTab() {
           lineHeight: 1.6,
           fontStyle: 'italic',
         }}>
-          &ldquo;{dailyQuote}&rdquo;
+          &ldquo;{dailyQuote.text}&rdquo;
+        </div>
+        <div className="font-mono" style={{
+          fontSize: 9,
+          color: 'var(--ng-cyan)',
+          marginTop: 6,
+          textAlign: 'right',
+        }}>
+          — {dailyQuote.author}
         </div>
       </div>
 
