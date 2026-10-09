@@ -28,6 +28,7 @@ export interface Habit {
   favorited?: boolean;
   weeklyTarget?: number;      // if set, habit is X-times-per-week (1–7)
   weeklyCompletions: number;  // completions this Mon–Sun week, reset each Monday
+  reminderTime?: string;      // HH:MM format, if set shows bell icon and schedules notification
 }
 
 export interface TradeSession {

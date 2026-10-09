@@ -305,6 +305,47 @@ export function scheduleGridNotifications(habits: Habit[]): void {
       } catch {}
     }, delay);
   }
+
+  // ── HABIT-SPECIFIC REMINDERS ─────────────────────────────────────────────────
+  // Schedule notifications for habits with reminderTime set
+  for (const habit of habits) {
+    if (!habit.reminderTime) continue;
+    if (habit.completedToday) continue; // Don't remind for already-completed habits
+
+    const [hourStr, minStr] = habit.reminderTime.split(':');
+    const hour = parseInt(hourStr, 10);
+    const minute = parseInt(minStr, 10);
+    if (isNaN(hour) || isNaN(minute)) continue;
+
+    const key = `habit_${habit.id}`;
+    if (Storage.getNotifDate(key) === today) continue;
+
+    const target = new Date(now);
+    target.setHours(hour, minute, 0, 0);
+    const delay = target.getTime() - now.getTime();
+    if (delay < 0) continue;
+
+    setTimeout(() => {
+      const fireDate = new Date().toISOString().split('T')[0];
+      if (Storage.getNotifDate(key) === fireDate) return;
+
+      // Re-check if habit is still not completed
+      const currentHabits = Storage.getHabits?.([]) || [];
+      const currentHabit = currentHabits.find(h => h.id === habit.id);
+      if (currentHabit?.completedToday) return;
+
+      Storage.setNotifDate(key, fireDate);
+      try {
+        new Notification(`🔔 GRID — ${habit.name.toUpperCase()}`, {
+          body: `Time for: ${habit.icon} ${habit.name}`,
+          icon: '/icon.png',
+          badge: '/icon.png',
+          tag: `grid-${key}`,
+          renotify: true,
+        } as NotificationOptions);
+      } catch {}
+    }, delay);
+  }
 }
 
 // ── Request Notification Permission ───────────────────────────────────────────

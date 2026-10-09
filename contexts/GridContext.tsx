@@ -45,7 +45,7 @@ interface GridContextValue {
   handleUncompleteHabit: (id: string) => void;
   handleAddHabit: (data: Omit<Habit, 'id' | 'streak' | 'completedToday' | 'lastCompleted' | 'totalCompletions' | 'createdAt' | 'weeklyCompletions'>) => void;
   handleDeleteHabit: (id: string) => void;
-  handleEditHabit: (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward' | 'weeklyTarget'>) => void;
+  handleEditHabit: (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward' | 'weeklyTarget' | 'reminderTime'>) => void;
   handleToggleFavorite: (id: string) => void;
   handleReorderHabits: (reordered: Habit[]) => void;
   handleCompleteMission: (id: string) => void;
@@ -341,9 +341,13 @@ export function GridProvider({ children }: { children: ReactNode }) {
     triggerSync();
   };
 
-  const handleEditHabit = (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward' | 'weeklyTarget'>) => {
+  const handleEditHabit = (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward' | 'weeklyTarget' | 'reminderTime'>) => {
     const updated = habits.map(h => h.id === id ? { ...h, ...updates } : h);
     saveHabits(updated); setHabits(updated);
+    // Reschedule notifications with updated reminder times
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      scheduleGridNotifications(updated);
+    }
     triggerSync();
   };
 

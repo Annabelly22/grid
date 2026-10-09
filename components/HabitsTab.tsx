@@ -8,13 +8,15 @@ import { getTodayStr } from '../lib/time';
 
 const VIEW_KEY = 'grid_habits_view';
 
+type HabitEditFields = Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward' | 'weeklyTarget' | 'reminderTime'>;
+
 interface Props {
   habits: Habit[];
   onCompleteHabit:   (id: string) => void;
   onUncompleteHabit: (id: string) => void;
   onAddHabit: (data: Omit<Habit, 'id' | 'streak' | 'completedToday' | 'lastCompleted' | 'totalCompletions' | 'createdAt' | 'weeklyCompletions'>) => void;
   onDeleteHabit: (id: string) => void;
-  onEditHabit: (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward' | 'weeklyTarget'>) => void;
+  onEditHabit: (id: string, updates: HabitEditFields) => void;
   onToggleFavorite: (id: string) => void;
   onReorderHabits: (reordered: Habit[]) => void;
 }
@@ -310,7 +312,7 @@ function SortableHabitCard({ habit, onComplete, onUncomplete, onDelete, onEdit, 
   onComplete: (id: string) => void;
   onUncomplete: (id: string) => void;
   onDelete: (id: string) => void;
-  onEdit: (updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward' | 'weeklyTarget'>) => void;
+  onEdit: (updates: HabitEditFields) => void;
   onToggleFavorite: (id: string) => void;
   sortable?: boolean;
 }) {
@@ -334,7 +336,7 @@ function HabitCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onToggle
   onComplete: (id: string) => void;
   onUncomplete: (id: string) => void;
   onDelete: (id: string) => void;
-  onEdit: (updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward' | 'weeklyTarget'>) => void;
+  onEdit: (updates: HabitEditFields) => void;
   onToggleFavorite: (id: string) => void;
   dragHandleProps?: Record<string, unknown>;
 }) {
@@ -347,11 +349,20 @@ function HabitCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onToggle
   const [editXp,       setEditXp]       = useState(habit.xpReward);
   const [editWeeklyMode, setEditWeeklyMode] = useState(habit.weeklyTarget !== undefined);
   const [editWeeklyTarget, setEditWeeklyTarget] = useState(habit.weeklyTarget || 3);
+  const [editReminderEnabled, setEditReminderEnabled] = useState(!!habit.reminderTime);
+  const [editReminderTime, setEditReminderTime] = useState(habit.reminderTime || '09:00');
   const color = CATEGORY_COLORS[habit.category];
 
   const handleSaveEdit = () => {
     if (!editName.trim()) return;
-    onEdit({ name: editName.trim(), icon: editIcon, category: editCategory, xpReward: editXp, weeklyTarget: editWeeklyMode ? editWeeklyTarget : undefined });
+    onEdit({
+      name: editName.trim(),
+      icon: editIcon,
+      category: editCategory,
+      xpReward: editXp,
+      weeklyTarget: editWeeklyMode ? editWeeklyTarget : undefined,
+      reminderTime: editReminderEnabled ? editReminderTime : undefined,
+    });
     setShowEdit(false);
     setMenuOpen(false);
   };
@@ -363,6 +374,8 @@ function HabitCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onToggle
     setEditXp(habit.xpReward);
     setEditWeeklyMode(habit.weeklyTarget !== undefined);
     setEditWeeklyTarget(habit.weeklyTarget || 3);
+    setEditReminderEnabled(!!habit.reminderTime);
+    setEditReminderTime(habit.reminderTime || '09:00');
     setShowDelete(false);
     setShowEdit(true);
     setMenuOpen(false);
@@ -417,6 +430,13 @@ function HabitCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onToggle
           </div>
         </div>
 
+        {/* Reminder bell */}
+        {habit.reminderTime && (
+          <span style={{ fontSize: 12, color: 'var(--ng-amber)', flexShrink: 0 }} title={`Reminder at ${habit.reminderTime}`}>
+            🔔
+          </span>
+        )}
+
         {/* Favorite star */}
         <button onClick={() => onToggleFavorite(habit.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: habit.favorited ? '#FFD700' : 'var(--ng-dimmer)', padding: '2px', flexShrink: 0, lineHeight: 1 }} title={habit.favorited ? 'Remove from favorites' : 'Add to favorites'}>
           {habit.favorited ? '★' : '☆'}
@@ -462,7 +482,7 @@ function HabitCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onToggle
               <input type="number" className="ng-input" style={{ width: 60 }} value={editXp} onChange={e => setEditXp(Number(e.target.value))} min={5} max={100} step={5} />
             </div>
           </div>
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-2">
             <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>FREQ:</span>
             <button onClick={() => setEditWeeklyMode(false)} className="font-orbitron"
               style={{ padding: '4px 10px', fontSize: 9, border: `1px solid ${!editWeeklyMode ? 'var(--ng-cyan)' : 'var(--ng-border)'}`, color: !editWeeklyMode ? 'var(--ng-cyan)' : 'var(--ng-muted)', background: !editWeeklyMode ? 'rgba(0,212,255,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer', letterSpacing: '1px' }}>DAILY</button>
@@ -473,6 +493,16 @@ function HabitCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onToggle
                 <input type="number" className="ng-input" style={{ width: 48, textAlign: 'center' }} value={editWeeklyTarget} onChange={e => setEditWeeklyTarget(Math.min(7, Math.max(1, Number(e.target.value))))} min={1} max={7} />
                 <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>×/wk</span>
               </div>
+            )}
+          </div>
+          {/* Reminder time */}
+          <div className="flex items-center gap-2 mb-3">
+            <button onClick={() => setEditReminderEnabled(!editReminderEnabled)} className="font-orbitron"
+              style={{ padding: '4px 10px', fontSize: 9, border: `1px solid ${editReminderEnabled ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: editReminderEnabled ? 'var(--ng-amber)' : 'var(--ng-muted)', background: editReminderEnabled ? 'rgba(255,184,0,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer', letterSpacing: '1px' }}>
+              🔔 REMINDER
+            </button>
+            {editReminderEnabled && (
+              <input type="time" className="ng-input" style={{ width: 90, fontSize: 11, padding: '4px 8px' }} value={editReminderTime} onChange={e => setEditReminderTime(e.target.value)} />
             )}
           </div>
           <div className="flex gap-2">
@@ -491,7 +521,7 @@ function HabitGridCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onTo
   onComplete: (id: string) => void;
   onUncomplete: (id: string) => void;
   onDelete: (id: string) => void;
-  onEdit: (updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward' | 'weeklyTarget'>) => void;
+  onEdit: (updates: HabitEditFields) => void;
   onToggleFavorite: (id: string) => void;
 }) {
   const [menuOpen,   setMenuOpen]   = useState(false);
@@ -503,11 +533,20 @@ function HabitGridCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onTo
   const [editXp,       setEditXp]       = useState(habit.xpReward);
   const [editWeeklyMode, setEditWeeklyMode] = useState(habit.weeklyTarget !== undefined);
   const [editWeeklyTarget, setEditWeeklyTarget] = useState(habit.weeklyTarget || 3);
+  const [editReminderEnabled, setEditReminderEnabled] = useState(!!habit.reminderTime);
+  const [editReminderTime, setEditReminderTime] = useState(habit.reminderTime || '09:00');
   const color = CATEGORY_COLORS[habit.category];
 
   const handleSaveEdit = () => {
     if (!editName.trim()) return;
-    onEdit({ name: editName.trim(), icon: editIcon, category: editCategory, xpReward: editXp, weeklyTarget: editWeeklyMode ? editWeeklyTarget : undefined });
+    onEdit({
+      name: editName.trim(),
+      icon: editIcon,
+      category: editCategory,
+      xpReward: editXp,
+      weeklyTarget: editWeeklyMode ? editWeeklyTarget : undefined,
+      reminderTime: editReminderEnabled ? editReminderTime : undefined,
+    });
     setShowEdit(false);
     setMenuOpen(false);
   };
@@ -519,6 +558,8 @@ function HabitGridCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onTo
     setEditXp(habit.xpReward);
     setEditWeeklyMode(habit.weeklyTarget !== undefined);
     setEditWeeklyTarget(habit.weeklyTarget || 3);
+    setEditReminderEnabled(!!habit.reminderTime);
+    setEditReminderTime(habit.reminderTime || '09:00');
     setShowDelete(false);
     setShowEdit(true);
     setMenuOpen(false);
@@ -532,6 +573,7 @@ function HabitGridCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onTo
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
           <span style={{ fontSize: 22 }}>{habit.icon}</span>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            {habit.reminderTime && <span style={{ fontSize: 10, color: 'var(--ng-amber)' }} title={`Reminder at ${habit.reminderTime}`}>🔔</span>}
             <button onClick={() => onToggleFavorite(habit.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: habit.favorited ? '#FFD700' : 'var(--ng-dimmer)', padding: '1px', lineHeight: 1 }}>{habit.favorited ? '★' : '☆'}</button>
             <button onClick={() => { setMenuOpen(!menuOpen); setShowEdit(false); setShowDelete(false); }} style={{ color: 'var(--ng-dimmer)', fontSize: 14, background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}>⋯</button>
           </div>
@@ -598,6 +640,11 @@ function HabitGridCard({ habit, onComplete, onUncomplete, onDelete, onEdit, onTo
             <button onClick={() => setEditWeeklyMode(true)} className="font-orbitron"
               style={{ flex: 1, padding: '3px 6px', fontSize: 8, border: `1px solid ${editWeeklyMode ? 'var(--ng-cyan)' : 'var(--ng-border)'}`, color: editWeeklyMode ? 'var(--ng-cyan)' : 'var(--ng-muted)', background: 'transparent', borderRadius: 5, cursor: 'pointer', letterSpacing: '0.5px' }}>WEEKLY</button>
             {editWeeklyMode && <input type="number" className="ng-input" style={{ width: 38, textAlign: 'center', fontSize: 10 }} value={editWeeklyTarget} onChange={e => setEditWeeklyTarget(Math.min(7, Math.max(1, Number(e.target.value))))} min={1} max={7} />}
+          </div>
+          <div className="flex items-center gap-1 mb-2">
+            <button onClick={() => setEditReminderEnabled(!editReminderEnabled)} className="font-orbitron"
+              style={{ flex: 1, padding: '3px 6px', fontSize: 8, border: `1px solid ${editReminderEnabled ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: editReminderEnabled ? 'var(--ng-amber)' : 'var(--ng-muted)', background: editReminderEnabled ? 'rgba(255,184,0,0.08)' : 'transparent', borderRadius: 5, cursor: 'pointer' }}>🔔</button>
+            {editReminderEnabled && <input type="time" className="ng-input" style={{ flex: 2, fontSize: 10, padding: '3px' }} value={editReminderTime} onChange={e => setEditReminderTime(e.target.value)} />}
           </div>
           <div className="flex gap-1">
             <button onClick={handleSaveEdit} className="btn-green-solid" style={{ flex: 1, padding: '6px', fontSize: 9 }}>SAVE</button>
