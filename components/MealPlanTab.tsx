@@ -137,10 +137,10 @@ export default function MealPlanTab() {
 
   // Load from storage on mount
   useEffect(() => {
-    const saved = Storage.getMealPlan?.();
-    if (saved) setPlan(saved);
+    const saved = Storage.getMealPlan?.() as MealPlan | null;
+    if (saved && saved.days) setPlan(saved);
     const fh = Storage.getFastingHours?.();
-    if (fh) setFastingHours(fh);
+    if (typeof fh === 'number') setFastingHours(fh);
   }, []);
 
   // Save to storage on change
