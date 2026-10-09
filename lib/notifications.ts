@@ -5,6 +5,7 @@
 
 import type { Habit } from './gameStore';
 import { Storage } from './storage';
+import { getTodayGymDay, GYM_DAYS, type GymDay } from './gymData';
 
 // ── 100 Motivational Quotes — Mindset · Money · Discipline · Trading · Patience
 const QUOTES: string[] = [
@@ -126,6 +127,35 @@ function nextQuote(): string {
   return quote;
 }
 
+// ── Meal Plan Helper ──────────────────────────────────────────────────────────
+function getTodayMeal(): { breakfast: string; lunch: string; dinner: string } | null {
+  try {
+    const raw = Storage.getMealPlan?.();
+    if (!raw || typeof raw !== 'object') return null;
+    const plan = raw as { days?: Array<{ breakfast?: Array<{ name: string }>; lunch?: Array<{ name: string }>; dinner?: Array<{ name: string }> }> };
+    if (!plan.days || !Array.isArray(plan.days)) return null;
+    const dow = new Date().getDay();
+    const dayMap: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6 };
+    const idx = dayMap[dow];
+    const day = plan.days[idx];
+    if (!day) return null;
+    return {
+      breakfast: day.breakfast?.map(m => m.name).join(', ') || 'Check your meal plan',
+      lunch: day.lunch?.map(m => m.name).join(', ') || 'Check your meal plan',
+      dinner: day.dinner?.map(m => m.name).join(', ') || 'Check your meal plan',
+    };
+  } catch { return null; }
+}
+
+// ── Check if user logged gym today ────────────────────────────────────────────
+function hasGymLogToday(): boolean {
+  const gymDay = getTodayGymDay();
+  if (!gymDay) return false;
+  const today = new Date().toISOString().split('T')[0];
+  const checks = Storage.getGymChecks(gymDay.id, '', today);
+  return Object.values(checks).some(v => v === true);
+}
+
 // ── Scheduler ─────────────────────────────────────────────────────────────────
 export function scheduleGridNotifications(habits: Habit[]): void {
   if (typeof window === 'undefined') return;
@@ -133,10 +163,13 @@ export function scheduleGridNotifications(habits: Habit[]): void {
 
   const now   = new Date();
   const today = now.toISOString().split('T')[0];
+  const gymDay = getTodayGymDay();
+  const meals = getTodayMeal();
 
   type Slot = {
     key: string; hour: number; minute: number;
     title: string; body: string | (() => string);
+    condition?: () => boolean;
   };
 
   const slots: Slot[] = [
@@ -161,6 +194,67 @@ export function scheduleGridNotifications(habits: Habit[]): void {
       title: '🌙 GRID — EVENING STACK',
       body: 'Magnesium Glycinate + Ashwagandha + L-Glutamine. Screens off in 30 min.',
     },
+
+    // ── GYM reminders ────────────────────────────────────────────────────────
+    {
+      key: 'gym_morning', hour: 9, minute: 0,
+      title: `🏋️ GRID — GYM DAY: ${gymDay?.focus || 'REST'}`,
+      body: () => gymDay
+        ? `Today is ${gymDay.label} — ${gymDay.focus}. Get your workout in!`
+        : 'Rest day. Focus on recovery and mobility.',
+      condition: () => !!gymDay,
+    },
+    {
+      key: 'gym_reminder', hour: 16, minute: 0,
+      title: '🏋️ GRID — GYM CHECK',
+      body: () => hasGymLogToday()
+        ? '✓ Workout logged! Great job crushing it today.'
+        : `Haven't logged your workout yet. ${gymDay?.focus} day won't do itself!`,
+      condition: () => !!gymDay,
+    },
+
+    // ── MEAL reminders ───────────────────────────────────────────────────────
+    {
+      key: 'meal_breakfast', hour: 10, minute: 0,
+      title: '🍳 GRID — BREAKFAST',
+      body: () => meals
+        ? `Mindful eating: ${meals.breakfast}`
+        : 'Remember to eat a balanced breakfast. Check your meal plan.',
+    },
+    {
+      key: 'meal_lunch', hour: 13, minute: 30,
+      title: '🥗 GRID — LUNCH TIME',
+      body: () => meals
+        ? `Stay on plan: ${meals.lunch}`
+        : 'Lunch time! Check your meal plan for today.',
+    },
+    {
+      key: 'meal_dinner', hour: 18, minute: 30,
+      title: '🍽️ GRID — DINNER',
+      body: () => meals
+        ? `Tonight's plan: ${meals.dinner}`
+        : 'Dinner time! Eat mindfully and stop at 80% full.',
+    },
+    {
+      key: 'fasting_start', hour: 20, minute: 0,
+      title: '⏰ GRID — FASTING WINDOW',
+      body: 'Kitchen closes soon. Last meal should be finishing up. Begin your overnight fast.',
+    },
+
+    // ── HABIT end-of-day warning ─────────────────────────────────────────────
+    {
+      key: 'habits_warning', hour: 21, minute: 30,
+      title: '⚠️ GRID — HABITS CHECK',
+      body: () => {
+        const incomplete = habits.filter(h => !h.completedToday);
+        if (incomplete.length === 0) return '✓ All habits complete! Perfect day.';
+        if (incomplete.length <= 3) {
+          return `${incomplete.length} habits left: ${incomplete.map(h => h.name).join(', ')}`;
+        }
+        return `${incomplete.length} habits still incomplete. Don't break your streak!`;
+      },
+    },
+
     // ── Motivational quotes (cycle through all 100) ──────────────────────────
     {
       key: 'quote_am', hour: 7, minute: 30,
@@ -168,19 +262,23 @@ export function scheduleGridNotifications(habits: Habit[]): void {
       body: () => nextQuote(),
     },
     {
-      key: 'quote_pm', hour: 13, minute: 0,
+      key: 'quote_pm', hour: 14, minute: 0,
       title: '⚡ GRID — MINDSET',
       body: () => nextQuote(),
     },
     {
-      key: 'quote_eve', hour: 20, minute: 0,
+      key: 'quote_eve', hour: 19, minute: 0,
       title: '⚡ GRID — MINDSET',
       body: () => nextQuote(),
     },
   ];
 
   for (const slot of slots) {
+    // Skip if already fired today
     if (Storage.getNotifDate(slot.key) === today) continue;
+
+    // Skip if condition exists and returns false
+    if (slot.condition && !slot.condition()) continue;
 
     const target = new Date(now);
     target.setHours(slot.hour, slot.minute, 0, 0);
@@ -190,6 +288,10 @@ export function scheduleGridNotifications(habits: Habit[]): void {
     setTimeout(() => {
       const fireDate = new Date().toISOString().split('T')[0];
       if (Storage.getNotifDate(slot.key) === fireDate) return;
+
+      // Re-check condition at fire time
+      if (slot.condition && !slot.condition()) return;
+
       Storage.setNotifDate(slot.key, fireDate);
       try {
         const body = typeof slot.body === 'function' ? slot.body() : slot.body;
@@ -203,4 +305,29 @@ export function scheduleGridNotifications(habits: Habit[]): void {
       } catch {}
     }, delay);
   }
+}
+
+// ── Request Notification Permission ───────────────────────────────────────────
+export async function requestNotificationPermission(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  if (!('Notification' in window)) return false;
+
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+
+  try {
+    const result = await Notification.requestPermission();
+    Storage.markAskedNotifPerm();
+    return result === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+// ── Check if notifications are supported and enabled ──────────────────────────
+export function getNotificationStatus(): { supported: boolean; permission: NotificationPermission | 'unsupported' } {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return { supported: false, permission: 'unsupported' };
+  }
+  return { supported: true, permission: Notification.permission };
 }

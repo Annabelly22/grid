@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { getHomeTimezone, setHomeTimezone, getSupportedTimezones, getNowTimeParts } from '../lib/time';
 import { UserProfile, Habit, Achievement, Mission, getLevel, CATEGORY_COLORS, CATEGORY_ICONS } from '../lib/gameStore';
+import { requestNotificationPermission, getNotificationStatus, scheduleGridNotifications } from '../lib/notifications';
 
 const DIFFICULTY_CONFIG = {
   EASY:    { color: 'var(--ng-green)',  bg: 'rgba(0,255,65,0.08)'   },
@@ -59,6 +60,117 @@ function MissionCard({ mission, progress, onComplete }: { mission: Mission; prog
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Notification Settings Component ──────────────────────────────────────────
+function NotificationSettings({ habits }: { habits: Habit[] }) {
+  const [status, setStatus] = useState<{ supported: boolean; permission: string }>({ supported: false, permission: 'default' });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setStatus(getNotificationStatus());
+  }, []);
+
+  const handleEnable = async () => {
+    setLoading(true);
+    const granted = await requestNotificationPermission();
+    setStatus(getNotificationStatus());
+    if (granted) {
+      scheduleGridNotifications(habits);
+    }
+    setLoading(false);
+  };
+
+  const statusColor = status.permission === 'granted' ? 'var(--ng-green)' :
+                      status.permission === 'denied' ? 'var(--ng-red)' : 'var(--ng-amber)';
+  const statusLabel = status.permission === 'granted' ? 'ENABLED' :
+                      status.permission === 'denied' ? 'BLOCKED' :
+                      !status.supported ? 'NOT SUPPORTED' : 'DISABLED';
+
+  const notificationSlots = [
+    { time: '07:30', label: 'Morning mindset quote' },
+    { time: '08:00', label: 'Morning stack reminder' },
+    { time: '09:00', label: 'Gym day announcement' },
+    { time: '10:00', label: 'Breakfast reminder' },
+    { time: '13:30', label: 'Lunch reminder' },
+    { time: '14:00', label: 'Afternoon mindset quote' },
+    { time: '16:00', label: 'Gym check-in' },
+    { time: '18:00', label: 'Habit streak warning' },
+    { time: '18:30', label: 'Dinner reminder' },
+    { time: '19:00', label: 'Evening mindset quote' },
+    { time: '20:00', label: 'Fasting window start' },
+    { time: '21:00', label: 'Evening stack reminder' },
+    { time: '21:30', label: 'Final habit check' },
+  ];
+
+  return (
+    <div className="card mb-4" style={{ borderColor: 'rgba(255,184,0,0.2)' }}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-amber)', letterSpacing: '2px' }}>🔔 NOTIFICATIONS</div>
+        <span className="font-orbitron" style={{ fontSize: 8, color: statusColor, letterSpacing: '1px', padding: '2px 8px', background: `${statusColor}15`, borderRadius: 4 }}>
+          {statusLabel}
+        </span>
+      </div>
+
+      <div className="font-mono mb-3" style={{ fontSize: 10, color: 'var(--ng-muted)', lineHeight: 1.6 }}>
+        Get reminders for habits, meals, gym days, and motivational quotes. Notifications work best when GRID is added to your home screen.
+      </div>
+
+      {!status.supported && (
+        <div className="p-3 mb-3" style={{ background: 'rgba(255,71,87,0.1)', border: '1px solid rgba(255,71,87,0.2)', borderRadius: 8 }}>
+          <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-red)' }}>
+            Your browser doesn't support notifications. For iPhone, add GRID to your Home Screen (requires iOS 16.4+).
+          </div>
+        </div>
+      )}
+
+      {status.supported && status.permission === 'denied' && (
+        <div className="p-3 mb-3" style={{ background: 'rgba(255,71,87,0.1)', border: '1px solid rgba(255,71,87,0.2)', borderRadius: 8 }}>
+          <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-red)' }}>
+            Notifications are blocked. Go to your browser/device settings to enable them for GRID.
+          </div>
+        </div>
+      )}
+
+      {status.supported && status.permission === 'default' && (
+        <button
+          onClick={handleEnable}
+          disabled={loading}
+          className="font-orbitron w-full mb-3"
+          style={{
+            padding: '12px',
+            fontSize: 11,
+            letterSpacing: '2px',
+            background: 'rgba(255,184,0,0.1)',
+            border: '1px solid var(--ng-amber)',
+            color: 'var(--ng-amber)',
+            borderRadius: 8,
+            cursor: loading ? 'wait' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          {loading ? 'REQUESTING...' : 'ENABLE NOTIFICATIONS'}
+        </button>
+      )}
+
+      {status.permission === 'granted' && (
+        <>
+          <div className="font-orbitron mb-2" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>DAILY SCHEDULE</div>
+          <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 12 }}>
+            {notificationSlots.map((slot, idx) => (
+              <div key={idx} className="flex items-center gap-3 py-2" style={{ borderBottom: idx < notificationSlots.length - 1 ? '1px solid var(--ng-border)' : 'none' }}>
+                <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-cyan)', width: 45 }}>{slot.time}</span>
+                <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-text)' }}>{slot.label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)', lineHeight: 1.5 }}>
+            Notifications fire when GRID is open or in your PWA tray. For background notifications, keep the app installed as a PWA.
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -306,6 +418,9 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
             Set to your home timezone. Change when travelling — habits reset and quotes update at midnight here.
           </div>
         </div>
+
+        {/* Notification Settings */}
+        <NotificationSettings habits={habits} />
 
         {/* Danger zone */}
         <div className="card mb-4" style={{ borderColor: 'rgba(255,71,87,0.3)' }}>
