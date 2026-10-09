@@ -116,12 +116,32 @@ export const CATEGORY_ICONS: Record<HabitCategory, string> = {
 
 // ─── DEFAULT DATA ─────────────────────────────────────────────
 const DEFAULT_HABITS: Habit[] = [
-  { id: 'h1', name: 'Morning sunlight walk', category: 'body', icon: '☀️', xpReward: 20, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
-  { id: 'h2', name: 'Training session', category: 'body', icon: '🏋️', xpReward: 30, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
-  { id: 'h3', name: 'Nadi Shodhana before charts', category: 'mind', icon: '🌬️', xpReward: 15, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
-  { id: 'h4', name: 'Log one thing learned', category: 'mind', icon: '📖', xpReward: 15, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
-  { id: 'h5', name: 'Trading session review', category: 'trade', icon: '📊', xpReward: 25, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
-  { id: 'h6', name: 'Evening supplement stack', category: 'recovery', icon: '🌙', xpReward: 10, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  // Morning habits
+  { id: 'h1', name: 'Lay bed when you wake up', category: 'mind', icon: '🛏️', xpReward: 20, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h2', name: 'Fit, healthy and happy podcast', category: 'mind', icon: '⚡', xpReward: 50, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h3', name: 'Positive words of affirmation 🙏💕', category: 'mind', icon: '💖', xpReward: 40, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h4', name: 'Fast until 2pm / Skip Breakfast', category: 'body', icon: '⚡', xpReward: 60, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h5', name: 'Lymphatic drainage movements', category: 'recovery', icon: '🧘‍♀️', xpReward: 20, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h6', name: 'Morning sunlight and walk 🚶☀️', category: 'body', icon: '🌤️', xpReward: 30, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h7', name: 'Morning supplements stack', category: 'recovery', icon: '🍵', xpReward: 30, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h8', name: 'Training/Gym session', category: 'body', icon: '🏋️', xpReward: 30, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h9', name: 'Joel Osteen podcast', category: 'spirit', icon: '📜', xpReward: 50, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h10', name: 'Shower with cold water', category: 'recovery', icon: '🚿', xpReward: 20, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h11', name: 'Morning skincare', category: 'recovery', icon: '🧴', xpReward: 20, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h12', name: 'Log one thing learned', category: 'mind', icon: '💻', xpReward: 15, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h13', name: 'Drink 4 bottles of water', category: 'recovery', icon: '⚡', xpReward: 20, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h14', name: 'Trading session review', category: 'trade', icon: '📊', xpReward: 25, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h15', name: 'Forex News Podcast 📉', category: 'trade', icon: '📜', xpReward: 30, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0, weeklyTarget: 3 },
+  { id: 'h16', name: 'Read a psychology book', category: 'mind', icon: '📚', xpReward: 20, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h17', name: 'Read a trading book', category: 'trade', icon: '📉', xpReward: 40, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  // Evening habits
+  { id: 'h18', name: 'Evening skincare', category: 'recovery', icon: '🧴', xpReward: 30, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h19', name: 'Evening supplement stack', category: 'recovery', icon: '🌙', xpReward: 10, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h20', name: 'Mindful Eating', category: 'recovery', icon: '⚡', xpReward: 90, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h21', name: 'Trading podcast', category: 'trade', icon: '📜', xpReward: 30, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h22', name: 'Sleep on the floor', category: 'recovery', icon: '⚡', xpReward: 20, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h23', name: 'Sleep before 12am 💤', category: 'recovery', icon: '😴', xpReward: 30, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
+  { id: 'h24', name: 'Calisthenics Training', category: 'body', icon: '🤸‍♀️', xpReward: 30, streak: 0, completedToday: false, lastCompleted: null, totalCompletions: 0, createdAt: new Date().toISOString(), weeklyCompletions: 0 },
 ];
 
 const DEFAULT_MISSIONS: Mission[] = [
