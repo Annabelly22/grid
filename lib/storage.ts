@@ -44,6 +44,7 @@ const K = {
   sleepLog:        'grid_sleep_log',
   habitTimes:      'grid_habit_times',
   energyLog:       'grid_energy_log',
+  mealChecks:      'grid_meal_checks',
 } as const;
 
 function get<T>(key: string, fallback: T): T {
@@ -147,6 +148,10 @@ export const Storage = {
   getEnergyLog: () => get<Record<string, string>>(K.energyLog, {}),
   setEnergyLog: (log: Record<string, string>) => set(K.energyLog, log),
 
+  // Meal checks (date → { breakfast: boolean, lunch: boolean, dinner: boolean, snack: boolean })
+  getMealChecks: () => get<Record<string, Record<string, boolean>>>(K.mealChecks, {}),
+  setMealChecks: (checks: Record<string, Record<string, boolean>>) => set(K.mealChecks, checks),
+
   // Gym performance (per exercise per day per date)
   getGymPerf: (dayId: string, exId: string, date: string): { w: string; reps: number; rpe: number }[] =>
     get<{ w: string; reps: number; rpe: number }[]>(`grid_gym_perf_${dayId}_${exId}_${date}`, []),
@@ -231,7 +236,7 @@ export const Storage = {
       'grid_steps', 'grid_fast_start', 'grid_theme', 'grid_habits_view', 'grid_quote_idx',
       'grid_trade_journal', 'grid_alphawill_chat', 'grid_focus_log', 'grid_daily_priorities',
       'grid_fast_history', 'grid_sleep_log', 'grid_habit_times', 'grid_energy_log',
-      'grid_workout_week', 'grid_meal_plan', 'grid_fasting_hours',
+      'grid_workout_week', 'grid_meal_plan', 'grid_fasting_hours', 'grid_meal_checks',
     ];
     for (const key of staticKeys) {
       const raw = localStorage.getItem(key);

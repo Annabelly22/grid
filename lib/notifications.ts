@@ -215,24 +215,24 @@ export function scheduleGridNotifications(habits: Habit[]): void {
 
     // ── MEAL reminders ───────────────────────────────────────────────────────
     {
-      key: 'meal_breakfast', hour: 10, minute: 0,
-      title: '🍳 GRID — BREAKFAST',
+      key: 'meal_breakfast', hour: 9, minute: 30,
+      title: '🍳 GRID — BREAKFAST TIME',
       body: () => meals
-        ? `Mindful eating: ${meals.breakfast}`
-        : 'Remember to eat a balanced breakfast. Check your meal plan.',
+        ? `Today's breakfast: ${meals.breakfast}`
+        : 'Breakfast time! Check your meal plan.',
     },
     {
-      key: 'meal_lunch', hour: 13, minute: 30,
+      key: 'meal_lunch', hour: 12, minute: 30,
       title: '🥗 GRID — LUNCH TIME',
       body: () => meals
-        ? `Stay on plan: ${meals.lunch}`
-        : 'Lunch time! Check your meal plan for today.',
+        ? `Today's lunch: ${meals.lunch}`
+        : 'Lunch time! Check your meal plan.',
     },
     {
-      key: 'meal_dinner', hour: 18, minute: 30,
-      title: '🍽️ GRID — DINNER',
+      key: 'meal_dinner', hour: 21, minute: 30,
+      title: '🍽️ GRID — DINNER TIME',
       body: () => meals
-        ? `Tonight's plan: ${meals.dinner}`
+        ? `Tonight's dinner: ${meals.dinner}`
         : 'Dinner time! Eat mindfully and stop at 80% full.',
     },
     {

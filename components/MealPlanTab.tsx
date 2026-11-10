@@ -142,6 +142,7 @@ export default function MealPlanTab() {
   const [newMealName, setNewMealName] = useState('');
   const [newMealKcal, setNewMealKcal] = useState('');
   const [addToMealType, setAddToMealType] = useState<typeof MEAL_TYPES[number] | null>(null);
+  const [mealChecks, setMealChecks] = useState<Record<string, boolean>>({});
 
   // Load from storage on mount
   useEffect(() => {
@@ -149,12 +150,27 @@ export default function MealPlanTab() {
     if (saved && saved.days) setPlan(saved);
     const fh = Storage.getFastingHours?.();
     if (typeof fh === 'number') setFastingHours(fh);
+    // Load meal checks for today
+    const today = getTodayStr();
+    const allChecks = Storage.getMealChecks?.() || {};
+    setMealChecks(allChecks[today] || {});
   }, []);
 
   // Save to storage on change
   const savePlan = useCallback((newPlan: MealPlan) => {
     setPlan(newPlan);
     Storage.setMealPlan?.(newPlan);
+  }, []);
+
+  // Toggle meal check for today
+  const toggleMealCheck = useCallback((mealType: string) => {
+    const today = getTodayStr();
+    const allChecks = Storage.getMealChecks?.() || {};
+    const todayChecks = { ...(allChecks[today] || {}) };
+    todayChecks[mealType] = !todayChecks[mealType];
+    allChecks[today] = todayChecks;
+    Storage.setMealChecks?.(allChecks);
+    setMealChecks(todayChecks);
   }, []);
 
   // Calculate totals for a day
@@ -365,6 +381,143 @@ export default function MealPlanTab() {
           — {dailyQuote.author}
         </div>
       </div>
+
+      {/* Today's Meals Checklist */}
+      {(() => {
+        // Get today's day index (Mon=0, Tue=1, ... Sun=6)
+        const dow = new Date().getDay();
+        const dayMap: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6 };
+        const todayIdx = dayMap[dow];
+        const todayMeals = plan.days[todayIdx];
+        const todayName = DAY_NAMES[todayIdx];
+
+        const mealSlots = [
+          { key: 'breakfast', label: '🌅 BREAKFAST', time: '9:30 AM', items: todayMeals?.breakfast || [] },
+          { key: 'lunch', label: '☀️ LUNCH', time: '12:30 PM', items: todayMeals?.lunch || [] },
+          { key: 'dinner', label: '🌙 DINNER', time: '9:30 PM', items: todayMeals?.dinner || [] },
+        ];
+
+        const completedCount = mealSlots.filter(s => mealChecks[s.key]).length;
+
+        return (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(0,212,255,0.08), rgba(191,0,255,0.05))',
+            border: '1px solid rgba(0,212,255,0.2)',
+            borderRadius: 12,
+            padding: 14,
+            marginBottom: 16,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>✅</span>
+                <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>
+                  TODAY&apos;S MEALS • {todayName}
+                </div>
+              </div>
+              <div className="font-mono" style={{
+                fontSize: 10,
+                color: completedCount === 3 ? 'var(--ng-green)' : 'var(--ng-amber)',
+              }}>
+                {completedCount}/3 done
+              </div>
+            </div>
+
+            {mealSlots.map((slot) => {
+              const isChecked = mealChecks[slot.key] || false;
+              const mealText = slot.items.length > 0
+                ? slot.items.map(m => m.name).join(', ')
+                : 'No meal planned';
+              const totalKcal = slot.items.reduce((sum, m) => sum + m.kcal, 0);
+
+              return (
+                <div
+                  key={slot.key}
+                  onClick={() => toggleMealCheck(slot.key)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 12,
+                    padding: '12px 10px',
+                    marginBottom: 8,
+                    background: isChecked ? 'rgba(0,255,65,0.08)' : 'rgba(0,0,0,0.2)',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    border: `1px solid ${isChecked ? 'rgba(0,255,65,0.3)' : 'var(--ng-border)'}`,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {/* Checkbox */}
+                  <div style={{
+                    width: 22,
+                    height: 22,
+                    border: `2px solid ${isChecked ? 'var(--ng-green)' : 'var(--ng-muted)'}`,
+                    borderRadius: 4,
+                    background: isChecked ? 'var(--ng-green)' : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: 2,
+                  }}>
+                    {isChecked && <span style={{ color: '#000', fontSize: 12, fontWeight: 900 }}>✓</span>}
+                  </div>
+
+                  {/* Meal info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <div className="font-orbitron" style={{
+                        fontSize: 9,
+                        color: isChecked ? 'var(--ng-green)' : 'var(--ng-text)',
+                        letterSpacing: '1px',
+                        textDecoration: isChecked ? 'line-through' : 'none',
+                        opacity: isChecked ? 0.7 : 1,
+                      }}>
+                        {slot.label}
+                      </div>
+                      <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>
+                        {slot.time}
+                      </div>
+                    </div>
+                    <div className="font-mono" style={{
+                      fontSize: 11,
+                      color: isChecked ? 'var(--ng-muted)' : 'var(--ng-text)',
+                      lineHeight: 1.5,
+                      textDecoration: isChecked ? 'line-through' : 'none',
+                      opacity: isChecked ? 0.6 : 1,
+                    }}>
+                      {mealText}
+                    </div>
+                    {totalKcal > 0 && (
+                      <div className="font-mono" style={{
+                        fontSize: 9,
+                        color: 'var(--ng-amber)',
+                        marginTop: 4,
+                        opacity: isChecked ? 0.5 : 1,
+                      }}>
+                        {totalKcal} kcal
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {completedCount === 3 && (
+              <div className="font-mono" style={{
+                textAlign: 'center',
+                fontSize: 10,
+                color: 'var(--ng-green)',
+                marginTop: 8,
+                padding: 8,
+                background: 'rgba(0,255,65,0.1)',
+                borderRadius: 6,
+              }}>
+                🎉 All meals completed! Great job staying on plan.
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Day selector */}
       <div style={{
