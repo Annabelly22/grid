@@ -22,6 +22,7 @@ export interface MealPlan {
   days: DayMeals[];
   shoppingList: { item: string; checked: boolean }[];
   swaps: { from: string; to: string; kcal: string }[];
+  savedMeals?: { id: string; name: string; kcal: number }[];
 }
 
 // ── Default 7-Day Plan ───────────────────────────────────────────────────────
@@ -137,6 +138,10 @@ export default function MealPlanTab() {
   const [showTips, setShowTips] = useState(false);
   const [dragItem, setDragItem] = useState<{ day: number; type: typeof MEAL_TYPES[number]; idx: number } | null>(null);
   const [fastingHours, setFastingHours] = useState(0);
+  const [addingSavedMeal, setAddingSavedMeal] = useState(false);
+  const [newMealName, setNewMealName] = useState('');
+  const [newMealKcal, setNewMealKcal] = useState('');
+  const [addToMealType, setAddToMealType] = useState<typeof MEAL_TYPES[number] | null>(null);
 
   // Load from storage on mount
   useEffect(() => {
@@ -238,6 +243,44 @@ export default function MealPlanTab() {
     const newPlan = { ...plan, shoppingList: [...plan.shoppingList] };
     newPlan.shoppingList[idx] = { ...newPlan.shoppingList[idx], checked: !newPlan.shoppingList[idx].checked };
     savePlan(newPlan);
+  };
+
+  // Add saved meal to library
+  const addSavedMeal = () => {
+    if (!newMealName.trim() || !newMealKcal.trim()) return;
+    const newPlan = { ...plan };
+    const savedMeals = [...(newPlan.savedMeals || [])];
+    savedMeals.push({
+      id: `sm-${Date.now()}`,
+      name: newMealName.trim(),
+      kcal: parseInt(newMealKcal) || 0,
+    });
+    newPlan.savedMeals = savedMeals;
+    savePlan(newPlan);
+    setNewMealName('');
+    setNewMealKcal('');
+    setAddingSavedMeal(false);
+  };
+
+  // Delete saved meal from library
+  const deleteSavedMeal = (id: string) => {
+    const newPlan = { ...plan };
+    newPlan.savedMeals = (newPlan.savedMeals || []).filter(m => m.id !== id);
+    savePlan(newPlan);
+  };
+
+  // Add saved meal to a day's meal type
+  const addSavedMealToDay = (meal: { id: string; name: string; kcal: number }, mealType: typeof MEAL_TYPES[number]) => {
+    const newPlan = { ...plan, days: [...plan.days] };
+    const dayObj = { ...newPlan.days[selectedDay] };
+    dayObj[mealType] = [...dayObj[mealType], {
+      id: `${mealType[0]}${selectedDay}-${Date.now()}`,
+      name: meal.name,
+      kcal: meal.kcal
+    }];
+    newPlan.days[selectedDay] = dayObj;
+    savePlan(newPlan);
+    setAddToMealType(null);
   };
 
   // Reset to default
@@ -648,6 +691,140 @@ export default function MealPlanTab() {
               <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', width: 70, textAlign: 'right' }}>{swap.kcal}</span>
             </div>
           ))}
+
+          {/* Saved Meals Section */}
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--ng-border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-green)', letterSpacing: '2px' }}>
+                📋 MY SAVED MEALS
+              </div>
+              <button
+                onClick={() => setAddingSavedMeal(!addingSavedMeal)}
+                style={{
+                  background: addingSavedMeal ? 'var(--ng-green)' : 'transparent',
+                  border: '1px solid var(--ng-green)',
+                  color: addingSavedMeal ? '#000' : 'var(--ng-green)',
+                  borderRadius: 4,
+                  padding: '4px 8px',
+                  fontSize: 9,
+                  cursor: 'pointer',
+                }}
+              >
+                {addingSavedMeal ? '✕ CANCEL' : '+ ADD MEAL'}
+              </button>
+            </div>
+
+            {/* Add new meal form */}
+            {addingSavedMeal && (
+              <div style={{ background: 'rgba(0,255,65,0.05)', border: '1px solid rgba(0,255,65,0.2)', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <input
+                    value={newMealName}
+                    onChange={(e) => setNewMealName(e.target.value)}
+                    placeholder="Meal name (e.g., Jollof rice)"
+                    className="ng-input"
+                    style={{ flex: 1, fontSize: 11, padding: '8px 10px' }}
+                    autoFocus
+                  />
+                  <input
+                    value={newMealKcal}
+                    onChange={(e) => setNewMealKcal(e.target.value)}
+                    placeholder="kcal"
+                    type="number"
+                    className="ng-input"
+                    style={{ width: 70, fontSize: 11, padding: '8px 10px', textAlign: 'right' }}
+                  />
+                </div>
+                <button
+                  onClick={addSavedMeal}
+                  disabled={!newMealName.trim() || !newMealKcal.trim()}
+                  className="font-orbitron"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    fontSize: 9,
+                    letterSpacing: '1px',
+                    background: newMealName.trim() && newMealKcal.trim() ? 'var(--ng-green)' : 'var(--ng-surface)',
+                    color: newMealName.trim() && newMealKcal.trim() ? '#000' : 'var(--ng-muted)',
+                    border: '1px solid var(--ng-border)',
+                    borderRadius: 6,
+                    cursor: newMealName.trim() && newMealKcal.trim() ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  SAVE TO LIBRARY
+                </button>
+              </div>
+            )}
+
+            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', marginBottom: 10 }}>
+              Tap a meal to add it to {DAY_NAMES[selectedDay]}&apos;s plan
+            </div>
+
+            {/* Saved meals list */}
+            {(plan.savedMeals || []).length === 0 ? (
+              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', textAlign: 'center', padding: 16, opacity: 0.6 }}>
+                No saved meals yet. Add your favorites above!
+              </div>
+            ) : (
+              (plan.savedMeals || []).map((meal) => (
+                <div
+                  key={meal.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '10px 8px',
+                    marginBottom: 4,
+                    background: addToMealType && addToMealType === meal.id ? 'rgba(0,255,65,0.1)' : 'transparent',
+                    borderRadius: 6,
+                    border: '1px solid var(--ng-border)',
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-text)' }}>{meal.name}</div>
+                    <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-amber)' }}>{meal.kcal} kcal</div>
+                  </div>
+
+                  {/* Quick add buttons */}
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {MEAL_TYPES.map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => addSavedMealToDay(meal, type)}
+                        title={`Add to ${type}`}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid var(--ng-border)',
+                          color: 'var(--ng-cyan)',
+                          borderRadius: 4,
+                          padding: '4px 6px',
+                          fontSize: 10,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {type === 'breakfast' ? '🌅' : type === 'lunch' ? '☀️' : type === 'dinner' ? '🌙' : '🥜'}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => deleteSavedMeal(meal.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--ng-muted)',
+                      fontSize: 14,
+                      cursor: 'pointer',
+                      padding: '0 4px',
+                      opacity: 0.5,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
