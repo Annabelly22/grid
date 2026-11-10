@@ -392,9 +392,9 @@ export default function MealPlanTab() {
         const todayName = DAY_NAMES[todayIdx];
 
         const mealSlots = [
-          { key: 'breakfast', label: '🌅 BREAKFAST', time: '9:30 AM', items: todayMeals?.breakfast || [] },
-          { key: 'lunch', label: '☀️ LUNCH', time: '12:30 PM', items: todayMeals?.lunch || [] },
-          { key: 'dinner', label: '🌙 DINNER', time: '9:30 PM', items: todayMeals?.dinner || [] },
+          { key: 'breakfast', label: '🌅 BREAKFAST', time: '9:00 AM', items: todayMeals?.breakfast || [] },
+          { key: 'lunch', label: '☀️ LUNCH', time: '3:00 PM', items: todayMeals?.lunch || [] },
+          { key: 'dinner', label: '🌙 DINNER', time: '10:00 PM', items: todayMeals?.dinner || [] },
         ];
 
         const completedCount = mealSlots.filter(s => mealChecks[s.key]).length;
