@@ -233,30 +233,30 @@ export default function MealPlanTab() {
 
   // Get stats for meal log
   const getLogStats = useCallback(() => {
-    const entries = Object.values(mealLog);
+    const entries = Object.values(mealLog).filter(e => e && typeof e === 'object');
     if (entries.length === 0) return { avgKcal: 0, totalDays: 0, cheatDays: 0, daysSinceCheat: 0, expectedLoss: 0 };
 
-    const sorted = entries.sort((a, b) => b.date.localeCompare(a.date));
-    const lastCheat = sorted.find(e => e.isCheatDay);
-    const daysSinceCheat = lastCheat
+    const sorted = entries.sort((a, b) => (b?.date ?? '').localeCompare(a?.date ?? ''));
+    const lastCheat = sorted.find(e => e?.isCheatDay);
+    const daysSinceCheat = lastCheat?.date
       ? Math.floor((Date.now() - new Date(lastCheat.date).getTime()) / 86400000)
       : entries.length;
 
-    const nonCheatDays = entries.filter(e => !e.isCheatDay);
+    const nonCheatDays = entries.filter(e => !e?.isCheatDay);
     const avgKcal = nonCheatDays.length > 0
-      ? Math.round(nonCheatDays.reduce((s, e) => s + e.totalKcal, 0) / nonCheatDays.length)
+      ? Math.round(nonCheatDays.reduce((s, e) => s + (e?.totalKcal ?? 0), 0) / nonCheatDays.length)
       : 0;
 
     // Expected loss: (TDEE - avgKcal) * days / 3500 lbs
     // Assume TDEE ~1800 for active female (adjustable)
     const TDEE = 1800;
-    const totalDeficit = nonCheatDays.reduce((s, e) => s + Math.max(0, TDEE - e.totalKcal), 0);
+    const totalDeficit = nonCheatDays.reduce((s, e) => s + Math.max(0, TDEE - (e?.totalKcal ?? 0)), 0);
     const expectedLoss = totalDeficit / 3500; // lbs
 
     return {
       avgKcal,
       totalDays: entries.length,
-      cheatDays: entries.filter(e => e.isCheatDay).length,
+      cheatDays: entries.filter(e => e?.isCheatDay).length,
       daysSinceCheat,
       expectedLoss: Math.round(expectedLoss * 10) / 10,
     };
@@ -573,7 +573,7 @@ export default function MealPlanTab() {
             }}>
               <span style={{ fontSize: 20 }}>✓</span>
               <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-green)', marginTop: 4 }}>
-                Today logged: {mealLog[today].totalKcal} kcal {mealLog[today].isCheatDay && '🍔'}
+                Today logged: {mealLog[today]?.totalKcal ?? 0} kcal {mealLog[today]?.isCheatDay && '🍔'}
               </div>
             </div>
           )}
@@ -641,13 +641,13 @@ export default function MealPlanTab() {
                   let bgColor = 'transparent';
                   let borderColor = 'var(--ng-border)';
                   if (entry) {
-                    if (entry.isCheatDay) {
+                    if (entry?.isCheatDay) {
                       bgColor = 'rgba(255,184,0,0.2)';
                       borderColor = 'var(--ng-amber)';
-                    } else if (entry.totalKcal <= 1150) {
+                    } else if ((entry?.totalKcal ?? 0) <= 1150) {
                       bgColor = 'rgba(0,255,65,0.15)';
                       borderColor = 'var(--ng-green)';
-                    } else if (entry.totalKcal <= 1400) {
+                    } else if ((entry?.totalKcal ?? 0) <= 1400) {
                       bgColor = 'rgba(0,212,255,0.15)';
                       borderColor = 'var(--ng-cyan)';
                     } else {
@@ -670,12 +670,12 @@ export default function MealPlanTab() {
                         borderRadius: 6,
                         cursor: entry ? 'pointer' : 'default',
                       }}
-                      title={entry ? `${entry.totalKcal} kcal${entry.isCheatDay ? ' (cheat)' : ''}${entry.notes ? ': ' + entry.notes : ''}` : ''}
+                      title={entry ? `${entry?.totalKcal ?? 0} kcal${entry?.isCheatDay ? ' (cheat)' : ''}${entry?.notes ? ': ' + entry.notes : ''}` : ''}
                     >
                       <div className="font-mono" style={{ fontSize: 10, color: isToday ? 'var(--ng-cyan)' : 'var(--ng-text)' }}>{day}</div>
                       {entry && (
                         <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>
-                          {entry.isCheatDay ? '🍔' : entry.totalKcal}
+                          {entry?.isCheatDay ? '🍔' : entry?.totalKcal ?? 0}
                         </div>
                       )}
                     </div>
@@ -733,17 +733,17 @@ export default function MealPlanTab() {
                     <div>
                       <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-text)' }}>
                         {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                        {entry.isCheatDay && ' 🍔'}
+                        {entry?.isCheatDay && ' 🍔'}
                       </div>
-                      {entry.notes && (
+                      {entry?.notes && (
                         <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{entry.notes}</div>
                       )}
                     </div>
                     <div className="font-orbitron" style={{
                       fontSize: 12,
-                      color: entry.isCheatDay ? 'var(--ng-amber)' : entry.totalKcal <= 1150 ? 'var(--ng-green)' : entry.totalKcal <= 1400 ? 'var(--ng-cyan)' : 'var(--ng-red)',
+                      color: entry?.isCheatDay ? 'var(--ng-amber)' : (entry?.totalKcal ?? 0) <= 1150 ? 'var(--ng-green)' : (entry?.totalKcal ?? 0) <= 1400 ? 'var(--ng-cyan)' : 'var(--ng-red)',
                     }}>
-                      {entry.totalKcal} kcal
+                      {entry?.totalKcal ?? 0} kcal
                     </div>
                   </div>
                 ))}
@@ -1053,7 +1053,7 @@ export default function MealPlanTab() {
                 background: 'rgba(0,212,255,0.1)',
                 borderRadius: 6,
               }}>
-                ✓ Logged: {mealLog[today].totalKcal} kcal {mealLog[today].isCheatDay && '🍔'}
+                ✓ Logged: {mealLog[today]?.totalKcal ?? 0} kcal {mealLog[today]?.isCheatDay && '🍔'}
               </div>
             )}
           </div>

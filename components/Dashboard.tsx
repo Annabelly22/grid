@@ -506,10 +506,21 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load body stats
+  // Load body stats (merge with defaults to handle missing fields from old data)
   useEffect(() => {
     const saved = Storage.getBodyStats?.();
-    if (saved) setBodyStats(saved);
+    if (saved) {
+      setBodyStats(prev => ({
+        ...prev,
+        ...saved,
+        // Ensure numeric fields are valid numbers
+        age: typeof saved.age === 'number' ? saved.age : prev.age,
+        heightFt: typeof saved.heightFt === 'number' ? saved.heightFt : prev.heightFt,
+        heightIn: typeof saved.heightIn === 'number' ? saved.heightIn : prev.heightIn,
+        weight: typeof saved.weight === 'number' ? saved.weight : prev.weight,
+        goalWeight: typeof saved.goalWeight === 'number' ? saved.goalWeight : prev.goalWeight,
+      }));
+    }
   }, []);
 
   // Save body stats
