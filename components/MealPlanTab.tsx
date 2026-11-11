@@ -299,10 +299,11 @@ export default function MealPlanTab() {
     setAddToMealType(null);
   };
 
-  // Reset to default
+  // Reset to default (preserves saved meals)
   const resetPlan = () => {
-    if (confirm('Reset meal plan to default? This will lose any customizations.')) {
-      savePlan(DEFAULT_PLAN);
+    if (confirm('Reset meal plan to default? Your saved meals library will be kept.')) {
+      const preservedSavedMeals = plan.savedMeals || [];
+      savePlan({ ...DEFAULT_PLAN, savedMeals: preservedSavedMeals });
     }
   };
 
@@ -913,13 +914,14 @@ export default function MealPlanTab() {
               Tap a meal to add it to {DAY_NAMES[selectedDay]}&apos;s plan
             </div>
 
-            {/* Saved meals list */}
+            {/* Saved meals list - scrollable */}
             {(plan.savedMeals || []).length === 0 ? (
               <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', textAlign: 'center', padding: 16, opacity: 0.6 }}>
                 No saved meals yet. Add your favorites above!
               </div>
             ) : (
-              (plan.savedMeals || []).map((meal) => (
+              <div style={{ maxHeight: 240, overflowY: 'auto', paddingRight: 4 }}>
+              {(plan.savedMeals || []).map((meal) => (
                 <div
                   key={meal.id}
                   style={{
@@ -975,7 +977,8 @@ export default function MealPlanTab() {
                     ×
                   </button>
                 </div>
-              ))
+              ))}
+              </div>
             )}
           </div>
         </div>
