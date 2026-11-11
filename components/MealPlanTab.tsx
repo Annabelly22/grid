@@ -25,6 +25,20 @@ export interface MealPlan {
   savedMeals?: { id: string; name: string; kcal: number }[];
 }
 
+// ── Meal Log Types ──────────────────────────────────────────────────────────
+export interface MealLogEntry {
+  date: string; // YYYY-MM-DD
+  meals: {
+    breakfast: { name: string; kcal: number }[];
+    lunch: { name: string; kcal: number }[];
+    dinner: { name: string; kcal: number }[];
+    snack: { name: string; kcal: number }[];
+  };
+  totalKcal: number;
+  isCheatDay: boolean;
+  notes?: string;
+}
+
 // ── Default 7-Day Plan ───────────────────────────────────────────────────────
 const DEFAULT_PLAN: MealPlan = {
   days: [
@@ -144,6 +158,15 @@ export default function MealPlanTab() {
   const [addToMealType, setAddToMealType] = useState<typeof MEAL_TYPES[number] | null>(null);
   const [mealChecks, setMealChecks] = useState<Record<string, boolean>>({});
 
+  // Meal log state
+  const [viewMode, setViewMode] = useState<'plan' | 'log'>('plan');
+  const [mealLog, setMealLog] = useState<Record<string, MealLogEntry>>({});
+  const [selectedLogMonth, setSelectedLogMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [logNotes, setLogNotes] = useState('');
+
   // Load from storage on mount
   useEffect(() => {
     const saved = Storage.getMealPlan?.() as MealPlan | null;
@@ -154,6 +177,9 @@ export default function MealPlanTab() {
     const today = getTodayStr();
     const allChecks = Storage.getMealChecks?.() || {};
     setMealChecks(allChecks[today] || {});
+    // Load meal log
+    const savedLog = Storage.getMealLog?.() as Record<string, MealLogEntry> | null;
+    if (savedLog) setMealLog(savedLog);
   }, []);
 
   // Save to storage on change
@@ -161,6 +187,68 @@ export default function MealPlanTab() {
     setPlan(newPlan);
     Storage.setMealPlan?.(newPlan);
   }, []);
+
+  // Save meal log
+  const saveMealLog = useCallback((newLog: Record<string, MealLogEntry>) => {
+    setMealLog(newLog);
+    Storage.setMealLog?.(newLog);
+  }, []);
+
+  // Log today's meals from plan
+  const logTodayMeals = useCallback((isCheatDay: boolean = false, notes: string = '') => {
+    const today = getTodayStr();
+    const dow = new Date().getDay();
+    const dayMap: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6 };
+    const todayIdx = dayMap[dow];
+    const todayMeals = plan.days[todayIdx];
+
+    const entry: MealLogEntry = {
+      date: today,
+      meals: {
+        breakfast: todayMeals.breakfast.map(m => ({ name: m.name, kcal: m.kcal })),
+        lunch: todayMeals.lunch.map(m => ({ name: m.name, kcal: m.kcal })),
+        dinner: todayMeals.dinner.map(m => ({ name: m.name, kcal: m.kcal })),
+        snack: todayMeals.snack.map(m => ({ name: m.name, kcal: m.kcal })),
+      },
+      totalKcal: MEAL_TYPES.reduce((sum, type) =>
+        sum + todayMeals[type].reduce((s, m) => s + m.kcal, 0), 0),
+      isCheatDay,
+      notes: notes || undefined,
+    };
+
+    saveMealLog({ ...mealLog, [today]: entry });
+  }, [plan, mealLog, saveMealLog]);
+
+  // Get stats for meal log
+  const getLogStats = useCallback(() => {
+    const entries = Object.values(mealLog);
+    if (entries.length === 0) return { avgKcal: 0, totalDays: 0, cheatDays: 0, daysSinceCheat: 0, expectedLoss: 0 };
+
+    const sorted = entries.sort((a, b) => b.date.localeCompare(a.date));
+    const lastCheat = sorted.find(e => e.isCheatDay);
+    const daysSinceCheat = lastCheat
+      ? Math.floor((Date.now() - new Date(lastCheat.date).getTime()) / 86400000)
+      : entries.length;
+
+    const nonCheatDays = entries.filter(e => !e.isCheatDay);
+    const avgKcal = nonCheatDays.length > 0
+      ? Math.round(nonCheatDays.reduce((s, e) => s + e.totalKcal, 0) / nonCheatDays.length)
+      : 0;
+
+    // Expected loss: (TDEE - avgKcal) * days / 3500 lbs
+    // Assume TDEE ~1800 for active female (adjustable)
+    const TDEE = 1800;
+    const totalDeficit = nonCheatDays.reduce((s, e) => s + Math.max(0, TDEE - e.totalKcal), 0);
+    const expectedLoss = totalDeficit / 3500; // lbs
+
+    return {
+      avgKcal,
+      totalDays: entries.length,
+      cheatDays: entries.filter(e => e.isCheatDay).length,
+      daysSinceCheat,
+      expectedLoss: Math.round(expectedLoss * 10) / 10,
+    };
+  }, [mealLog]);
 
   // Toggle meal check for today
   const toggleMealCheck = useCallback((mealType: string) => {
@@ -317,18 +405,351 @@ export default function MealPlanTab() {
   const dayOfYear = Math.floor((now.getTime() - startOfYear.getTime()) / 86400000);
   const dailyQuote = getTodayQuote();
 
+  // Get today's date for log
+  const today = getTodayStr();
+  const isTodayLogged = !!mealLog[today];
+  const logStats = getLogStats();
+
   return (
     <div style={{ padding: '0 0 100px' }}>
-      {/* Header */}
+      {/* Header with view toggle */}
       <div style={{ marginBottom: 16 }}>
-        <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-cyan)', letterSpacing: '2px', marginBottom: 4 }}>
-          🍽️ 7-DAY MEAL PLAN
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>
+            🍽️ MEALS
+          </div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              onClick={() => setViewMode('plan')}
+              className="font-orbitron"
+              style={{
+                padding: '6px 12px',
+                fontSize: 8,
+                letterSpacing: '1px',
+                background: viewMode === 'plan' ? 'var(--ng-cyan)' : 'transparent',
+                color: viewMode === 'plan' ? '#000' : 'var(--ng-muted)',
+                border: '1px solid var(--ng-border)',
+                borderRadius: '6px 0 0 6px',
+                cursor: 'pointer',
+              }}
+            >
+              PLAN
+            </button>
+            <button
+              onClick={() => setViewMode('log')}
+              className="font-orbitron"
+              style={{
+                padding: '6px 12px',
+                fontSize: 8,
+                letterSpacing: '1px',
+                background: viewMode === 'log' ? 'var(--ng-green)' : 'transparent',
+                color: viewMode === 'log' ? '#000' : 'var(--ng-muted)',
+                border: '1px solid var(--ng-border)',
+                borderRadius: '0 6px 6px 0',
+                cursor: 'pointer',
+              }}
+            >
+              LOG
+            </button>
+          </div>
         </div>
         <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)' }}>
-          1,100 kcal daily · Akamu & yam based
+          {viewMode === 'plan' ? '1,100 kcal daily · Akamu & yam based' : `${Object.keys(mealLog).length} days logged`}
         </div>
       </div>
 
+      {/* ══════════════════════════════════════════════════════════════════════════
+          LOG VIEW
+          ══════════════════════════════════════════════════════════════════════════ */}
+      {viewMode === 'log' && (
+        <div>
+          {/* Stats Banner */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(0,255,65,0.08), rgba(0,212,255,0.05))',
+            border: '1px solid rgba(0,255,65,0.2)',
+            borderRadius: 12,
+            padding: 14,
+            marginBottom: 16,
+          }}>
+            <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-green)', letterSpacing: '2px', marginBottom: 10 }}>
+              📊 TRACKING STATS
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div className="font-orbitron" style={{ fontSize: 18, color: 'var(--ng-amber)' }}>{logStats.avgKcal}</div>
+                <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>AVG KCAL</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div className="font-orbitron" style={{ fontSize: 18, color: 'var(--ng-cyan)' }}>{logStats.daysSinceCheat}</div>
+                <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>DAYS NO CHEAT</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div className="font-orbitron" style={{ fontSize: 18, color: 'var(--ng-green)' }}>{logStats.expectedLoss}</div>
+                <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>LBS DEFICIT</div>
+              </div>
+            </div>
+            {logStats.daysSinceCheat >= 7 && (
+              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-amber)', textAlign: 'center', marginTop: 10 }}>
+                🎉 {logStats.daysSinceCheat} days clean! You&apos;ve earned a cheat meal.
+              </div>
+            )}
+          </div>
+
+          {/* Log Today Button */}
+          {!isTodayLogged ? (
+            <div style={{
+              background: 'var(--ng-surface)',
+              border: '1px solid var(--ng-border)',
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 16,
+            }}>
+              <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px', marginBottom: 10 }}>
+                📝 LOG TODAY&apos;S MEALS
+              </div>
+              <input
+                value={logNotes}
+                onChange={(e) => setLogNotes(e.target.value)}
+                placeholder="Notes (optional)..."
+                className="ng-input"
+                style={{ width: '100%', marginBottom: 10, fontSize: 11, padding: '8px 10px' }}
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => { logTodayMeals(false, logNotes); setLogNotes(''); }}
+                  className="font-orbitron"
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    fontSize: 9,
+                    letterSpacing: '1px',
+                    background: 'var(--ng-green)',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                  }}
+                >
+                  LOG AS PLANNED
+                </button>
+                <button
+                  onClick={() => { logTodayMeals(true, logNotes); setLogNotes(''); }}
+                  className="font-orbitron"
+                  style={{
+                    padding: '10px 16px',
+                    fontSize: 9,
+                    letterSpacing: '1px',
+                    background: 'transparent',
+                    color: 'var(--ng-amber)',
+                    border: '1px solid var(--ng-amber)',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🍔 CHEAT DAY
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              background: 'rgba(0,255,65,0.05)',
+              border: '1px solid rgba(0,255,65,0.2)',
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 16,
+              textAlign: 'center',
+            }}>
+              <span style={{ fontSize: 20 }}>✓</span>
+              <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-green)', marginTop: 4 }}>
+                Today logged: {mealLog[today].totalKcal} kcal {mealLog[today].isCheatDay && '🍔'}
+              </div>
+            </div>
+          )}
+
+          {/* Month Selector */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <button
+              onClick={() => {
+                const [y, m] = selectedLogMonth.split('-').map(Number);
+                const prev = new Date(y, m - 2, 1);
+                setSelectedLogMonth(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`);
+              }}
+              style={{ background: 'none', border: 'none', color: 'var(--ng-muted)', fontSize: 16, cursor: 'pointer', padding: 8 }}
+            >
+              ←
+            </button>
+            <div className="font-orbitron" style={{ fontSize: 11, color: 'var(--ng-text)', letterSpacing: '2px' }}>
+              {new Date(selectedLogMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}
+            </div>
+            <button
+              onClick={() => {
+                const [y, m] = selectedLogMonth.split('-').map(Number);
+                const next = new Date(y, m, 1);
+                setSelectedLogMonth(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`);
+              }}
+              style={{ background: 'none', border: 'none', color: 'var(--ng-muted)', fontSize: 16, cursor: 'pointer', padding: 8 }}
+            >
+              →
+            </button>
+          </div>
+
+          {/* Calendar Grid */}
+          <div style={{
+            background: 'var(--ng-surface)',
+            border: '1px solid var(--ng-border)',
+            borderRadius: 12,
+            padding: 12,
+            marginBottom: 16,
+          }}>
+            {/* Day headers */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 8 }}>
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                <div key={i} className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', textAlign: 'center' }}>{d}</div>
+              ))}
+            </div>
+            {/* Calendar days */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+              {(() => {
+                const [year, month] = selectedLogMonth.split('-').map(Number);
+                const firstDay = new Date(year, month - 1, 1).getDay();
+                const daysInMonth = new Date(year, month, 0).getDate();
+                const cells = [];
+
+                // Empty cells before first day
+                for (let i = 0; i < firstDay; i++) {
+                  cells.push(<div key={`empty-${i}`} />);
+                }
+
+                // Day cells
+                for (let day = 1; day <= daysInMonth; day++) {
+                  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const entry = mealLog[dateStr];
+                  const isToday = dateStr === today;
+
+                  let bgColor = 'transparent';
+                  let borderColor = 'var(--ng-border)';
+                  if (entry) {
+                    if (entry.isCheatDay) {
+                      bgColor = 'rgba(255,184,0,0.2)';
+                      borderColor = 'var(--ng-amber)';
+                    } else if (entry.totalKcal <= 1150) {
+                      bgColor = 'rgba(0,255,65,0.15)';
+                      borderColor = 'var(--ng-green)';
+                    } else if (entry.totalKcal <= 1400) {
+                      bgColor = 'rgba(0,212,255,0.15)';
+                      borderColor = 'var(--ng-cyan)';
+                    } else {
+                      bgColor = 'rgba(255,71,87,0.15)';
+                      borderColor = 'var(--ng-red)';
+                    }
+                  }
+
+                  cells.push(
+                    <div
+                      key={day}
+                      style={{
+                        aspectRatio: '1',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: bgColor,
+                        border: `1px solid ${isToday ? 'var(--ng-cyan)' : borderColor}`,
+                        borderRadius: 6,
+                        cursor: entry ? 'pointer' : 'default',
+                      }}
+                      title={entry ? `${entry.totalKcal} kcal${entry.isCheatDay ? ' (cheat)' : ''}${entry.notes ? ': ' + entry.notes : ''}` : ''}
+                    >
+                      <div className="font-mono" style={{ fontSize: 10, color: isToday ? 'var(--ng-cyan)' : 'var(--ng-text)' }}>{day}</div>
+                      {entry && (
+                        <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>
+                          {entry.isCheatDay ? '🍔' : entry.totalKcal}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                return cells;
+              })()}
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ width: 12, height: 12, background: 'rgba(0,255,65,0.15)', border: '1px solid var(--ng-green)', borderRadius: 3 }} />
+              ≤1150
+            </div>
+            <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ width: 12, height: 12, background: 'rgba(0,212,255,0.15)', border: '1px solid var(--ng-cyan)', borderRadius: 3 }} />
+              ≤1400
+            </div>
+            <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ width: 12, height: 12, background: 'rgba(255,71,87,0.15)', border: '1px solid var(--ng-red)', borderRadius: 3 }} />
+              &gt;1400
+            </div>
+            <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ width: 12, height: 12, background: 'rgba(255,184,0,0.2)', border: '1px solid var(--ng-amber)', borderRadius: 3 }} />
+              Cheat
+            </div>
+          </div>
+
+          {/* Recent Logs */}
+          <div style={{ marginTop: 20 }}>
+            <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px', marginBottom: 10 }}>
+              📅 RECENT ENTRIES
+            </div>
+            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              {Object.entries(mealLog)
+                .sort(([a], [b]) => b.localeCompare(a))
+                .slice(0, 10)
+                .map(([date, entry]) => (
+                  <div
+                    key={date}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 12px',
+                      marginBottom: 4,
+                      background: 'var(--ng-surface)',
+                      border: '1px solid var(--ng-border)',
+                      borderRadius: 8,
+                    }}
+                  >
+                    <div>
+                      <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-text)' }}>
+                        {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        {entry.isCheatDay && ' 🍔'}
+                      </div>
+                      {entry.notes && (
+                        <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{entry.notes}</div>
+                      )}
+                    </div>
+                    <div className="font-orbitron" style={{
+                      fontSize: 12,
+                      color: entry.isCheatDay ? 'var(--ng-amber)' : entry.totalKcal <= 1150 ? 'var(--ng-green)' : entry.totalKcal <= 1400 ? 'var(--ng-cyan)' : 'var(--ng-red)',
+                    }}>
+                      {entry.totalKcal} kcal
+                    </div>
+                  </div>
+                ))}
+              {Object.keys(mealLog).length === 0 && (
+                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', textAlign: 'center', padding: 20 }}>
+                  No entries yet. Start logging your meals!
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════════
+          PLAN VIEW
+          ══════════════════════════════════════════════════════════════════════════ */}
+      {viewMode === 'plan' && (
+        <>
       {/* Fasting encouragement banner */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(255,184,0,0.08), rgba(0,212,255,0.05))',
@@ -1035,6 +1456,8 @@ export default function MealPlanTab() {
       >
         ↺ RESET TO DEFAULT PLAN
       </button>
+        </>
+      )}
     </div>
   );
 }
