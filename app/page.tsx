@@ -7,15 +7,17 @@ import MissionsTab from '../components/MissionsTab';
 import BodyTab from '../components/BodyTab';
 import CoachTab from '../components/CoachTab';
 import ProfileTab from '../components/ProfileTab';
+import MealPlanTab from '../components/MealPlanTab';
 import ErrorBoundary from '../components/ErrorBoundary';
 
-type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile';
+type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile' | 'meals';
 
 const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: 'dashboard', icon: '⬡', label: 'HUB' },
   { id: 'habits',    icon: '◈', label: 'HABITS' },
-  { id: 'body',      icon: '❋', label: 'BODY' },
   { id: 'coach',     icon: '⚡', label: 'ALPHAWILL' },
+  { id: 'meals',     icon: '🍽️', label: 'MEALS' },
+  { id: 'body',      icon: '❋', label: 'BODY' },
 ];
 
 function App() {
@@ -121,6 +123,7 @@ function App() {
         {tab === 'body'      && <BodyTab />}
         {tab === 'coach'     && <CoachTab profile={profile} onFocusMinutes={handleFocusMinutes} tradeJournal={tradeJournal} onLogTrade={handleLogTrade} onDeleteTradeSession={handleDeleteTradeSession} />}
         {tab === 'profile'   && <ProfileTab profile={profile} habits={habits} achievements={achievements} missions={missions} theme={theme} onUpdateCodename={handleUpdateCodename} onToggleTheme={handleToggleTheme} onResetData={handleResetData} onCompleteMission={handleCompleteMission} />}
+        {tab === 'meals'     && <div className="content-area" style={{ paddingBottom: 80 }}><MealPlanTab /></div>}
 
         {/* Mobile bottom nav */}
         <nav className="bottom-nav">
