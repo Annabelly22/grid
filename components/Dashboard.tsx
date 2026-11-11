@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { UserProfile, Habit, getLevel, CATEGORY_COLORS } from '../lib/gameStore';
+import { UserProfile, Habit, Achievement, Mission, getLevel, CATEGORY_COLORS } from '../lib/gameStore';
 import GridLogo from './GridLogo';
 import { getCyclePhase, getDayOfCycle, CYCLE_PHASES } from '../lib/supplementData';
 import { getTodayStr, getNowHour, getMsUntilNextQuoteBoundary } from '../lib/time';
@@ -16,6 +16,13 @@ interface Props {
   onCompleteHabit: (id: string) => void;
   dailyPriorities: string[];
   onSetPriorities: (items: string[]) => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
+  achievements: Achievement[];
+  missions: Mission[];
+  onUpdateCodename: (name: string) => void;
+  onResetData: () => void;
+  onCompleteMission: (id: string) => void;
 }
 
 const STOIC_QUOTES: { text: string; author: string }[] = [
@@ -459,12 +466,15 @@ function useDailyCalories() {
   return { stepKcal, gymKcal, fastKcal, fastHours, total };
 }
 
-export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit, dailyPriorities, onSetPriorities }: Props) {
+export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit, dailyPriorities, onSetPriorities, theme, onToggleTheme, achievements, missions, onUpdateCodename, onResetData, onCompleteMission }: Props) {
   const [cycleStart, setCycleStart] = useState<string | null>(null);
   const [priorityInputs, setPriorityInputs] = useState<string[]>(['']);
   const [priorityStruck, setPriorityStruck] = useState<boolean[]>(() => dailyPriorities.map(() => false));
   const [habitsView, setHabitsView] = useState<'protocol' | 'favorites' | 'meals'>('protocol');
   const [quoteVersion, setQuoteVersion] = useState(0);
+  const [profileExpanded, setProfileExpanded] = useState(false);
+  const [editingCodename, setEditingCodename] = useState(false);
+  const [newCodename, setNewCodename] = useState(profile.codename);
   const cals = useDailyCalories();
 
   // Schedule a re-render at the next home-TZ noon or midnight so the quote rotates
@@ -529,6 +539,106 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
         <div style={{ height: 2, background: 'var(--ng-border)', marginTop: 10, borderRadius: 1, overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${lvl.progress}%`, background: 'linear-gradient(90deg, var(--ng-green), var(--ng-cyan))', transition: 'width 0.5s ease' }} />
         </div>
+      </div>
+
+      {/* ── Expandable Profile Section ─────────────────────── */}
+      <div className="px-4 pt-3">
+        <button
+          onClick={() => setProfileExpanded(!profileExpanded)}
+          style={{
+            width: '100%',
+            background: profileExpanded ? 'rgba(0,212,255,0.08)' : 'var(--ng-surface)',
+            border: '1px solid var(--ng-border)',
+            borderRadius: 10,
+            padding: '10px 14px',
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span style={{ fontSize: 16 }}>▣</span>
+              <div>
+                <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '1px' }}>PROFILE</div>
+                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+                  {profile.codename} · {lvl.title} · {achievements.filter(a => a.unlocked).length} badges
+                </div>
+              </div>
+            </div>
+            <span style={{ color: 'var(--ng-muted)', fontSize: 12, transform: profileExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>▼</span>
+          </div>
+        </button>
+
+        {profileExpanded && (
+          <div style={{ background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 14, marginTop: -1 }}>
+            {/* Codename Edit */}
+            <div style={{ marginBottom: 14 }}>
+              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px', marginBottom: 6 }}>CODENAME</div>
+              {editingCodename ? (
+                <div className="flex gap-2">
+                  <input
+                    className="ng-input"
+                    value={newCodename}
+                    onChange={(e) => setNewCodename(e.target.value.toUpperCase())}
+                    maxLength={16}
+                    autoFocus
+                    style={{ flex: 1, fontSize: 11, padding: '6px 10px' }}
+                  />
+                  <button
+                    onClick={() => { onUpdateCodename(newCodename.trim() || profile.codename); setEditingCodename(false); }}
+                    style={{ background: 'var(--ng-green)', border: 'none', color: '#000', padding: '6px 12px', borderRadius: 6, fontSize: 9, cursor: 'pointer' }}
+                  >SAVE</button>
+                  <button
+                    onClick={() => { setNewCodename(profile.codename); setEditingCodename(false); }}
+                    style={{ background: 'transparent', border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', padding: '6px 12px', borderRadius: 6, fontSize: 9, cursor: 'pointer' }}
+                  >✕</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingCodename(true)}
+                  className="font-mono"
+                  style={{ background: 'var(--ng-bg)', border: '1px solid var(--ng-border)', color: 'var(--ng-text)', padding: '8px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer', width: '100%', textAlign: 'left' }}
+                >
+                  {profile.codename} <span style={{ color: 'var(--ng-muted)', float: 'right' }}>✎</span>
+                </button>
+              )}
+            </div>
+
+            {/* Stats Row */}
+            <div className="flex gap-3" style={{ marginBottom: 14 }}>
+              <div style={{ flex: 1, background: 'var(--ng-bg)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                <div className="font-orbitron" style={{ fontSize: 16, color: 'var(--ng-amber)' }}>{profile.xp.toLocaleString()}</div>
+                <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>TOTAL XP</div>
+              </div>
+              <div style={{ flex: 1, background: 'var(--ng-bg)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                <div className="font-orbitron" style={{ fontSize: 16, color: 'var(--ng-green)' }}>{profile.totalHabitsCompleted}</div>
+                <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>COMPLETIONS</div>
+              </div>
+              <div style={{ flex: 1, background: 'var(--ng-bg)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                <div className="font-orbitron" style={{ fontSize: 16, color: 'var(--ng-cyan)' }}>{Math.floor((Date.now() - new Date(profile.joinDate).getTime()) / 86400000)}</div>
+                <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>DAYS</div>
+              </div>
+            </div>
+
+            {/* Theme + Reset */}
+            <div className="flex gap-2">
+              <button
+                onClick={onToggleTheme}
+                className="font-orbitron"
+                style={{ flex: 1, padding: '10px', fontSize: 9, border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'transparent', borderRadius: 8, cursor: 'pointer' }}
+              >
+                {theme === 'dark' ? '☀ LIGHT MODE' : '☾ DARK MODE'}
+              </button>
+              <button
+                onClick={() => { if (confirm('Reset all data? This cannot be undone.')) onResetData(); }}
+                className="font-orbitron"
+                style={{ padding: '10px 16px', fontSize: 9, border: '1px solid rgba(255,71,87,0.3)', color: 'var(--ng-red)', background: 'transparent', borderRadius: 8, cursor: 'pointer' }}
+              >
+                RESET
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="px-4">

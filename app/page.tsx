@@ -16,7 +16,6 @@ const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: 'habits',    icon: '◈', label: 'HABITS' },
   { id: 'body',      icon: '❋', label: 'BODY' },
   { id: 'coach',     icon: '⚡', label: 'ALPHAWILL' },
-  { id: 'profile',   icon: '▣', label: 'PROFILE' },
 ];
 
 function App() {
@@ -117,7 +116,7 @@ function App() {
           ))}
         </div>
 
-        {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} onNavigate={t => setTab(t as Tab)} onCompleteHabit={handleCompleteHabit} dailyPriorities={dailyPriorities} onSetPriorities={handleSetPriorities} />}
+        {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} onNavigate={t => setTab(t as Tab)} onCompleteHabit={handleCompleteHabit} dailyPriorities={dailyPriorities} onSetPriorities={handleSetPriorities} theme={theme} onToggleTheme={handleToggleTheme} achievements={achievements} missions={missions} onUpdateCodename={handleUpdateCodename} onResetData={handleResetData} onCompleteMission={handleCompleteMission} />}
         {tab === 'habits'    && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onUncompleteHabit={handleUncompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} onEditHabit={handleEditHabit} onToggleFavorite={handleToggleFavorite} onReorderHabits={handleReorderHabits} />}
         {tab === 'body'      && <BodyTab />}
         {tab === 'coach'     && <CoachTab profile={profile} onFocusMinutes={handleFocusMinutes} tradeJournal={tradeJournal} onLogTrade={handleLogTrade} onDeleteTradeSession={handleDeleteTradeSession} />}
