@@ -5,6 +5,7 @@ import GridLogo from './GridLogo';
 import { getCyclePhase, getDayOfCycle, CYCLE_PHASES } from '../lib/supplementData';
 import { getTodayStr, getNowHour, getMsUntilNextQuoteBoundary } from '../lib/time';
 import { GYM_DAYS } from '../lib/gymData';
+import { Storage } from '../lib/storage';
 import MealPlanTab from './MealPlanTab';
 
 type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile';
@@ -475,6 +476,16 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
   const [profileExpanded, setProfileExpanded] = useState(false);
   const [editingCodename, setEditingCodename] = useState(false);
   const [newCodename, setNewCodename] = useState(profile.codename);
+  const [bodyStatsExpanded, setBodyStatsExpanded] = useState(false);
+  const [bodyStats, setBodyStats] = useState({
+    age: 23,
+    heightFt: 5,
+    heightIn: 11,
+    weight: 192,
+    goalWeight: 165,
+    sex: 'female' as 'female' | 'male',
+    activityLevel: 'active' as 'sedentary' | 'light' | 'moderate' | 'active' | 'veryActive',
+  });
   const cals = useDailyCalories();
 
   // Schedule a re-render at the next home-TZ noon or midnight so the quote rotates
@@ -494,6 +505,46 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
       } catch {}
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load body stats
+  useEffect(() => {
+    const saved = Storage.getBodyStats?.();
+    if (saved) setBodyStats(saved);
+  }, []);
+
+  // Save body stats
+  const saveBodyStats = (newStats: typeof bodyStats) => {
+    setBodyStats(newStats);
+    Storage.setBodyStats?.(newStats);
+  };
+
+  // Calculate TDEE using Mifflin-St Jeor formula
+  const calculateTDEE = () => {
+    const heightCm = (bodyStats.heightFt * 12 + bodyStats.heightIn) * 2.54;
+    const weightKg = bodyStats.weight * 0.453592;
+
+    // Mifflin-St Jeor: BMR = 10*weight(kg) + 6.25*height(cm) - 5*age + s (s = +5 male, -161 female)
+    const bmr = 10 * weightKg + 6.25 * heightCm - 5 * bodyStats.age + (bodyStats.sex === 'male' ? 5 : -161);
+
+    // Activity multipliers
+    const activityMultipliers = {
+      sedentary: 1.2,
+      light: 1.375,
+      moderate: 1.55,
+      active: 1.725,
+      veryActive: 1.9,
+    };
+
+    return Math.round(bmr * activityMultipliers[bodyStats.activityLevel]);
+  };
+
+  // Calculate weeks to goal
+  const calculateWeeksToGoal = (dailyDeficit: number) => {
+    const lbsToLose = bodyStats.weight - bodyStats.goalWeight;
+    if (lbsToLose <= 0 || dailyDeficit <= 0) return 0;
+    const daysToGoal = (lbsToLose * 3500) / dailyDeficit;
+    return Math.round(daysToGoal / 7);
+  };
 
   const toggleStruck = (i: number) => {
     setPriorityStruck(prev => {
@@ -621,7 +672,7 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
             </div>
 
             {/* Theme + Reset */}
-            <div className="flex gap-2">
+            <div className="flex gap-2" style={{ marginBottom: 14 }}>
               <button
                 onClick={onToggleTheme}
                 className="font-orbitron"
@@ -636,6 +687,200 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
               >
                 RESET
               </button>
+            </div>
+
+            {/* ═══════════════════════════════════════════════════════════════════
+                BODY STATS & CALORIE CALCULATOR
+                ═══════════════════════════════════════════════════════════════════ */}
+            <div style={{ borderTop: '1px solid var(--ng-border)', paddingTop: 14 }}>
+              <button
+                onClick={() => setBodyStatsExpanded(!bodyStatsExpanded)}
+                style={{
+                  width: '100%',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: 0,
+                }}
+              >
+                <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-green)', letterSpacing: '2px' }}>
+                  ⚖️ BODY STATS & CALORIES
+                </div>
+                <span style={{ color: 'var(--ng-muted)', fontSize: 10, transform: bodyStatsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>▼</span>
+              </button>
+
+              {/* Quick TDEE Display (always visible) */}
+              {!bodyStatsExpanded && (
+                <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  <div style={{ background: 'var(--ng-bg)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
+                    <div className="font-orbitron" style={{ fontSize: 14, color: 'var(--ng-amber)' }}>{calculateTDEE()}</div>
+                    <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>TDEE</div>
+                  </div>
+                  <div style={{ background: 'var(--ng-bg)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
+                    <div className="font-orbitron" style={{ fontSize: 14, color: 'var(--ng-cyan)' }}>{bodyStats.weight}</div>
+                    <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>CURRENT</div>
+                  </div>
+                  <div style={{ background: 'var(--ng-bg)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
+                    <div className="font-orbitron" style={{ fontSize: 14, color: 'var(--ng-green)' }}>{bodyStats.goalWeight}</div>
+                    <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>GOAL</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Expanded Body Stats */}
+              {bodyStatsExpanded && (
+                <div style={{ marginTop: 12 }}>
+                  {/* TDEE Calculator Results */}
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(0,255,65,0.08), rgba(0,212,255,0.05))',
+                    border: '1px solid rgba(0,255,65,0.2)',
+                    borderRadius: 10,
+                    padding: 14,
+                    marginBottom: 14,
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div className="font-orbitron" style={{ fontSize: 28, color: 'var(--ng-amber)' }}>{calculateTDEE()}</div>
+                        <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>DAILY BURN (TDEE)</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div className="font-orbitron" style={{ fontSize: 28, color: 'var(--ng-green)' }}>{calculateTDEE() - 500}</div>
+                        <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>TARGET (-500)</div>
+                      </div>
+                    </div>
+
+                    {/* Progress to goal */}
+                    <div style={{ marginBottom: 10 }}>
+                      <div className="flex justify-between" style={{ marginBottom: 4 }}>
+                        <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-text)' }}>{bodyStats.weight} lbs</span>
+                        <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-green)' }}>{bodyStats.goalWeight} lbs</span>
+                      </div>
+                      <div style={{ height: 6, background: 'var(--ng-bg)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%',
+                          width: `${Math.min(100, Math.max(0, 100 - ((bodyStats.weight - bodyStats.goalWeight) / (bodyStats.weight - bodyStats.goalWeight + 30)) * 100))}%`,
+                          background: 'linear-gradient(90deg, var(--ng-cyan), var(--ng-green))',
+                          borderRadius: 3,
+                        }} />
+                      </div>
+                      <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', marginTop: 4, textAlign: 'center' }}>
+                        {bodyStats.weight - bodyStats.goalWeight} lbs to go
+                      </div>
+                    </div>
+
+                    {/* Time to goal */}
+                    <div style={{ textAlign: 'center', padding: '8px 0', borderTop: '1px solid var(--ng-border)' }}>
+                      <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-text)' }}>
+                        At 500 cal deficit: <strong style={{ color: 'var(--ng-cyan)' }}>{calculateWeeksToGoal(500)} weeks</strong> to goal
+                      </div>
+                      <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', marginTop: 2 }}>
+                        (~1 lb/week = safe, sustainable loss)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Input Fields */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                    {/* Age */}
+                    <div>
+                      <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>AGE</div>
+                      <input
+                        type="number"
+                        value={bodyStats.age}
+                        onChange={(e) => saveBodyStats({ ...bodyStats, age: parseInt(e.target.value) || 0 })}
+                        className="ng-input"
+                        style={{ width: '100%', fontSize: 11, padding: '8px 10px' }}
+                      />
+                    </div>
+
+                    {/* Sex */}
+                    <div>
+                      <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>SEX</div>
+                      <select
+                        value={bodyStats.sex}
+                        onChange={(e) => saveBodyStats({ ...bodyStats, sex: e.target.value as 'female' | 'male' })}
+                        className="ng-input"
+                        style={{ width: '100%', fontSize: 11, padding: '8px 10px' }}
+                      >
+                        <option value="female">Female</option>
+                        <option value="male">Male</option>
+                      </select>
+                    </div>
+
+                    {/* Height */}
+                    <div>
+                      <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>HEIGHT</div>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={bodyStats.heightFt}
+                          onChange={(e) => saveBodyStats({ ...bodyStats, heightFt: parseInt(e.target.value) || 0 })}
+                          className="ng-input"
+                          style={{ width: '50%', fontSize: 11, padding: '8px 10px' }}
+                          placeholder="ft"
+                        />
+                        <input
+                          type="number"
+                          value={bodyStats.heightIn}
+                          onChange={(e) => saveBodyStats({ ...bodyStats, heightIn: parseInt(e.target.value) || 0 })}
+                          className="ng-input"
+                          style={{ width: '50%', fontSize: 11, padding: '8px 10px' }}
+                          placeholder="in"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Activity */}
+                    <div>
+                      <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>ACTIVITY</div>
+                      <select
+                        value={bodyStats.activityLevel}
+                        onChange={(e) => saveBodyStats({ ...bodyStats, activityLevel: e.target.value as typeof bodyStats.activityLevel })}
+                        className="ng-input"
+                        style={{ width: '100%', fontSize: 11, padding: '8px 10px' }}
+                      >
+                        <option value="sedentary">Sedentary</option>
+                        <option value="light">Light (1-2x/wk)</option>
+                        <option value="moderate">Moderate (3-5x/wk)</option>
+                        <option value="active">Active (6-7x/wk)</option>
+                        <option value="veryActive">Very Active (2x/day)</option>
+                      </select>
+                    </div>
+
+                    {/* Current Weight */}
+                    <div>
+                      <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>CURRENT (lbs)</div>
+                      <input
+                        type="number"
+                        value={bodyStats.weight}
+                        onChange={(e) => saveBodyStats({ ...bodyStats, weight: parseInt(e.target.value) || 0 })}
+                        className="ng-input"
+                        style={{ width: '100%', fontSize: 11, padding: '8px 10px' }}
+                      />
+                    </div>
+
+                    {/* Goal Weight */}
+                    <div>
+                      <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>GOAL (lbs)</div>
+                      <input
+                        type="number"
+                        value={bodyStats.goalWeight}
+                        onChange={(e) => saveBodyStats({ ...bodyStats, goalWeight: parseInt(e.target.value) || 0 })}
+                        className="ng-input"
+                        style={{ width: '100%', fontSize: 11, padding: '8px 10px' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Formula note */}
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-dimmer)', marginTop: 10, textAlign: 'center' }}>
+                    TDEE calculated using Mifflin-St Jeor formula
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
