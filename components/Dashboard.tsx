@@ -423,6 +423,8 @@ function useDailyCalories() {
   const [gymKcal,   setGymKcal]   = useState(0);
   const [stepKcal,  setStepKcal]  = useState(0);
   const [fastHours, setFastHours] = useState(0);
+  const [intakeKcal, setIntakeKcal] = useState(0);
+  const [mealsEaten, setMealsEaten] = useState<string[]>([]);
 
   useEffect(() => {
     const today = getTodayStr();
@@ -459,12 +461,43 @@ function useDailyCalories() {
       const fs = localStorage.getItem('grid_fast_start');
       if (fs) setFastHours(Math.min((Date.now() - Number(fs)) / 3600000, 24));
     } catch {}
+
+    // Today's food intake from meal checks + meal plan
+    try {
+      const checksRaw = localStorage.getItem('grid_meal_checks');
+      const planRaw = localStorage.getItem('grid_meal_plan');
+      if (checksRaw && planRaw) {
+        const allChecks = JSON.parse(checksRaw);
+        const todayChecks = allChecks[today] || {};
+        const plan = JSON.parse(planRaw);
+        const dow = new Date().getDay();
+        const dayMap: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6 };
+        const todayIdx = dayMap[dow];
+        const todayMeals = plan.days?.[todayIdx];
+
+        if (todayMeals) {
+          let intake = 0;
+          const eaten: string[] = [];
+          for (const type of ['breakfast', 'lunch', 'dinner', 'snack']) {
+            if (todayChecks[type]) {
+              const meals = todayMeals[type] || [];
+              for (const m of meals) {
+                intake += m.kcal || 0;
+              }
+              eaten.push(type);
+            }
+          }
+          setIntakeKcal(intake);
+          setMealsEaten(eaten);
+        }
+      }
+    } catch {}
   }, []);
 
   // BMR burn during fast: ~58 kcal/hr (1396 kcal/day ÷ 24h for 57 kg woman, 22yo)
   const fastKcal = Math.round(fastHours * 58);
   const total = stepKcal + gymKcal + fastKcal;
-  return { stepKcal, gymKcal, fastKcal, fastHours, total };
+  return { stepKcal, gymKcal, fastKcal, fastHours, total, intakeKcal, mealsEaten };
 }
 
 export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit, dailyPriorities, onSetPriorities, theme, onToggleTheme, achievements, missions, onUpdateCodename, onResetData, onCompleteMission }: Props) {
@@ -529,13 +562,13 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
     Storage.setBodyStats?.(newStats);
   };
 
-  // Calculate TDEE using Mifflin-St Jeor formula
-  const calculateTDEE = () => {
+  // Calculate BMR and TDEE using Mifflin-St Jeor formula
+  const calculateEnergy = () => {
     const heightCm = (bodyStats.heightFt * 12 + bodyStats.heightIn) * 2.54;
     const weightKg = bodyStats.weight * 0.453592;
 
     // Mifflin-St Jeor: BMR = 10*weight(kg) + 6.25*height(cm) - 5*age + s (s = +5 male, -161 female)
-    const bmr = 10 * weightKg + 6.25 * heightCm - 5 * bodyStats.age + (bodyStats.sex === 'male' ? 5 : -161);
+    const bmr = Math.round(10 * weightKg + 6.25 * heightCm - 5 * bodyStats.age + (bodyStats.sex === 'male' ? 5 : -161));
 
     // Activity multipliers
     const activityMultipliers = {
@@ -546,8 +579,13 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
       veryActive: 1.9,
     };
 
-    return Math.round(bmr * activityMultipliers[bodyStats.activityLevel]);
+    const tdee = Math.round(bmr * activityMultipliers[bodyStats.activityLevel]);
+    const activityBonus = tdee - bmr;
+
+    return { bmr, tdee, activityBonus };
   };
+
+  const calculateTDEE = () => calculateEnergy().tdee;
 
   // Calculate weeks to goal
   const calculateWeeksToGoal = (dailyDeficit: number) => {
@@ -602,6 +640,204 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
           <div style={{ height: '100%', width: `${lvl.progress}%`, background: 'linear-gradient(90deg, var(--ng-green), var(--ng-cyan))', transition: 'width 0.5s ease' }} />
         </div>
       </div>
+
+      {/* ── Energy Balance Visual ─────────────────────────── */}
+      {(() => {
+        const { bmr, tdee, activityBonus } = calculateEnergy();
+        const intake = cals.intakeKcal;
+        const deficit = tdee - intake;
+        const deficitPct = Math.min(100, (deficit / tdee) * 100);
+        const burnedSoFar = Math.round(bmr * (getNowHour() / 24)) + cals.gymKcal + cals.stepKcal;
+        const lbsPerWeek = (deficit * 7) / 3500;
+        const isAggressive = deficit > 1000;
+        const isHealthy = deficit >= 300 && deficit <= 750;
+
+        return (
+          <div className="px-4 pt-3">
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(0,212,255,0.08), rgba(0,255,65,0.05))',
+              border: '1px solid rgba(0,212,255,0.2)',
+              borderRadius: 14,
+              padding: 16,
+            }}>
+              {/* Header */}
+              <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: 16 }}>⚡</span>
+                  <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>
+                    ENERGY BALANCE
+                  </div>
+                </div>
+                <div className="font-mono" style={{
+                  fontSize: 9,
+                  padding: '3px 8px',
+                  borderRadius: 10,
+                  background: deficit > 0 ? 'rgba(0,255,65,0.15)' : 'rgba(255,71,87,0.15)',
+                  color: deficit > 0 ? 'var(--ng-green)' : 'var(--ng-red)',
+                }}>
+                  {deficit > 0 ? `−${deficit}` : `+${Math.abs(deficit)}`} CAL {deficit > 0 ? 'DEFICIT' : 'SURPLUS'}
+                </div>
+              </div>
+
+              {/* Main burn visualization */}
+              <div style={{ marginBottom: 14 }}>
+                <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 6 }}>
+                  DAILY BURN BREAKDOWN
+                </div>
+
+                {/* Stacked bar */}
+                <div style={{
+                  height: 32,
+                  background: 'var(--ng-bg)',
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                  display: 'flex',
+                  position: 'relative',
+                }}>
+                  {/* BMR - breathing/existing */}
+                  <div style={{
+                    width: `${(bmr / tdee) * 100}%`,
+                    background: 'linear-gradient(90deg, #6366F1, #8B5CF6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                  }}>
+                    <span className="font-mono" style={{ fontSize: 9, color: '#fff', fontWeight: 600 }}>
+                      🫀 {bmr}
+                    </span>
+                  </div>
+
+                  {/* Activity bonus */}
+                  <div style={{
+                    width: `${(activityBonus / tdee) * 100}%`,
+                    background: 'linear-gradient(90deg, var(--ng-cyan), var(--ng-green))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <span className="font-mono" style={{ fontSize: 9, color: '#000', fontWeight: 600 }}>
+                      🏃 +{activityBonus}
+                    </span>
+                  </div>
+
+                  {/* Intake marker line */}
+                  {intake > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      left: `${Math.min(100, (intake / tdee) * 100)}%`,
+                      top: 0,
+                      bottom: 0,
+                      width: 3,
+                      background: 'var(--ng-amber)',
+                      boxShadow: '0 0 8px var(--ng-amber)',
+                    }}>
+                      <div style={{
+                        position: 'absolute',
+                        top: -18,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        <span className="font-mono" style={{ fontSize: 8, color: 'var(--ng-amber)' }}>
+                          🍽️ {intake}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Legend */}
+                <div className="flex justify-between" style={{ marginTop: 8, gap: 8 }}>
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ width: 8, height: 8, background: 'linear-gradient(90deg, #6366F1, #8B5CF6)', borderRadius: 2 }} />
+                    BMR (just breathing)
+                  </div>
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ width: 8, height: 8, background: 'linear-gradient(90deg, var(--ng-cyan), var(--ng-green))', borderRadius: 2 }} />
+                    Activity
+                  </div>
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ width: 8, height: 8, background: 'var(--ng-amber)', borderRadius: 2 }} />
+                    Intake
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats row */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 8,
+                marginBottom: 12,
+              }}>
+                <div style={{ textAlign: 'center', padding: '8px 4px', background: 'rgba(99,102,241,0.1)', borderRadius: 8 }}>
+                  <div className="font-orbitron" style={{ fontSize: 14, color: '#8B5CF6' }}>{bmr}</div>
+                  <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>BMR/DAY</div>
+                </div>
+                <div style={{ textAlign: 'center', padding: '8px 4px', background: 'rgba(0,212,255,0.1)', borderRadius: 8 }}>
+                  <div className="font-orbitron" style={{ fontSize: 14, color: 'var(--ng-cyan)' }}>{tdee}</div>
+                  <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>TDEE</div>
+                </div>
+                <div style={{ textAlign: 'center', padding: '8px 4px', background: intake > 0 ? 'rgba(255,184,0,0.1)' : 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+                  <div className="font-orbitron" style={{ fontSize: 14, color: intake > 0 ? 'var(--ng-amber)' : 'var(--ng-muted)' }}>
+                    {intake > 0 ? intake : '—'}
+                  </div>
+                  <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>EATEN</div>
+                </div>
+              </div>
+
+              {/* Progress insight */}
+              {intake > 0 ? (
+                <div style={{
+                  padding: '10px 12px',
+                  background: isAggressive ? 'rgba(255,184,0,0.1)' : isHealthy ? 'rgba(0,255,65,0.1)' : 'rgba(0,212,255,0.1)',
+                  border: `1px solid ${isAggressive ? 'rgba(255,184,0,0.3)' : isHealthy ? 'rgba(0,255,65,0.3)' : 'rgba(0,212,255,0.3)'}`,
+                  borderRadius: 8,
+                }}>
+                  <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-text)', lineHeight: 1.6 }}>
+                    {deficit > 0 ? (
+                      <>
+                        <span style={{ color: 'var(--ng-green)' }}>↓ {lbsPerWeek.toFixed(1)} lbs/week pace</span>
+                        {isAggressive && (
+                          <span style={{ color: 'var(--ng-amber)' }}> · ⚠️ Aggressive (standard is 1 lb/wk)</span>
+                        )}
+                        {isHealthy && (
+                          <span style={{ color: 'var(--ng-green)' }}> · ✓ Healthy deficit range</span>
+                        )}
+                      </>
+                    ) : (
+                      <span style={{ color: 'var(--ng-red)' }}>
+                        ↑ Surplus — eating above maintenance
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  padding: '10px 12px',
+                  background: 'rgba(0,0,0,0.2)',
+                  borderRadius: 8,
+                  textAlign: 'center',
+                }}>
+                  <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>
+                    {cals.fastHours > 0 ? (
+                      <>⏱️ Fasting {Math.floor(cals.fastHours)}h — burning {Math.round(cals.fastHours * (bmr/24))} cal so far</>
+                    ) : (
+                      <>Check off meals in MEALS tab to track intake</>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Quick explainer */}
+              <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-dimmer)', marginTop: 10, textAlign: 'center' }}>
+                BMR = calories burned just existing · TDEE = BMR + movement · Deficit = weight loss
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Expandable Profile Section ─────────────────────── */}
       <div className="px-4 pt-3">
