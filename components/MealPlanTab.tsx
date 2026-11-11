@@ -856,14 +856,18 @@ export default function MealPlanTab() {
         const todayIdx = dayMap[dow];
         const todayMeals = plan.days[todayIdx];
         const todayName = DAY_NAMES[todayIdx];
+        const todayDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
         const mealSlots = [
           { key: 'breakfast', label: '🌅 BREAKFAST', time: '9:00 AM', items: todayMeals?.breakfast || [] },
           { key: 'lunch', label: '☀️ LUNCH', time: '3:00 PM', items: todayMeals?.lunch || [] },
           { key: 'dinner', label: '🌙 DINNER', time: '10:00 PM', items: todayMeals?.dinner || [] },
+          { key: 'snack', label: '🥜 SNACK', time: 'Anytime', items: todayMeals?.snack || [] },
         ];
 
-        const completedCount = mealSlots.filter(s => mealChecks[s.key]).length;
+        const mainMeals = mealSlots.slice(0, 3);
+        const completedCount = mainMeals.filter(s => mealChecks[s.key]).length;
+        const totalKcalToday = mealSlots.reduce((sum, slot) => sum + slot.items.reduce((s, m) => s + m.kcal, 0), 0);
 
         return (
           <div style={{
@@ -876,8 +880,13 @@ export default function MealPlanTab() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 18 }}>✅</span>
-                <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>
-                  TODAY&apos;S MEALS • {todayName}
+                <div>
+                  <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>
+                    TODAY&apos;S MEALS • {todayName}
+                  </div>
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>
+                    {todayDate} • {totalKcalToday} kcal planned
+                  </div>
                 </div>
               </div>
               <div className="font-mono" style={{
