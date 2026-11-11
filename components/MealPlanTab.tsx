@@ -157,6 +157,9 @@ export default function MealPlanTab() {
   const [newMealKcal, setNewMealKcal] = useState('');
   const [addToMealType, setAddToMealType] = useState<typeof MEAL_TYPES[number] | null>(null);
   const [mealChecks, setMealChecks] = useState<Record<string, boolean>>({});
+  const [addingToSlot, setAddingToSlot] = useState<{ day: number; type: typeof MEAL_TYPES[number] } | null>(null);
+  const [customMealName, setCustomMealName] = useState('');
+  const [customMealKcal, setCustomMealKcal] = useState('');
 
   // Meal log state
   const [viewMode, setViewMode] = useState<'plan' | 'log'>('plan');
@@ -343,15 +346,44 @@ export default function MealPlanTab() {
 
   // Add meal
   const addMeal = (day: number, type: typeof MEAL_TYPES[number]) => {
+    // Open the meal picker instead of directly adding
+    setAddingToSlot({ day, type });
+    setCustomMealName('');
+    setCustomMealKcal('');
+  };
+
+  // Add a custom meal to a slot
+  const addCustomMealToSlot = () => {
+    if (!addingToSlot || !customMealName.trim()) return;
+    const { day, type } = addingToSlot;
     const newPlan = { ...plan, days: [...plan.days] };
     const dayObj = { ...newPlan.days[day] };
     dayObj[type] = [...dayObj[type], {
       id: `${type[0]}${day}-${Date.now()}`,
-      name: 'New item',
-      kcal: 100
+      name: customMealName.trim(),
+      kcal: parseInt(customMealKcal) || 100
     }];
     newPlan.days[day] = dayObj;
     savePlan(newPlan);
+    setAddingToSlot(null);
+    setCustomMealName('');
+    setCustomMealKcal('');
+  };
+
+  // Add a saved meal to the currently open slot
+  const addSavedMealToSlot = (meal: { id: string; name: string; kcal: number }) => {
+    if (!addingToSlot) return;
+    const { day, type } = addingToSlot;
+    const newPlan = { ...plan, days: [...plan.days] };
+    const dayObj = { ...newPlan.days[day] };
+    dayObj[type] = [...dayObj[type], {
+      id: `${type[0]}${day}-${Date.now()}`,
+      name: meal.name,
+      kcal: meal.kcal
+    }];
+    newPlan.days[day] = dayObj;
+    savePlan(newPlan);
+    setAddingToSlot(null);
   };
 
   // Toggle shopping item
@@ -1259,6 +1291,123 @@ export default function MealPlanTab() {
           );
         })}
       </div>
+
+      {/* Meal Picker Modal */}
+      {addingToSlot && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setAddingToSlot(null)}
+        >
+          <div
+            style={{
+              background: 'var(--ng-bg)',
+              border: '1px solid var(--ng-border)',
+              borderRadius: 16,
+              padding: 20,
+              width: '100%',
+              maxWidth: 400,
+              maxHeight: '80vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div className="font-orbitron" style={{ fontSize: 11, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>
+                ADD TO {MEAL_LABELS[addingToSlot.type].toUpperCase()} • {DAY_NAMES[addingToSlot.day]}
+              </div>
+              <button
+                onClick={() => setAddingToSlot(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--ng-muted)', fontSize: 18, cursor: 'pointer' }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Saved meals section */}
+            {(plan.savedMeals || []).length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-green)', letterSpacing: '1px', marginBottom: 10 }}>
+                  ⭐ MY SAVED MEALS
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {(plan.savedMeals || []).map((meal) => (
+                    <button
+                      key={meal.id}
+                      onClick={() => addSavedMealToSlot(meal)}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '12px 14px',
+                        background: 'var(--ng-surface)',
+                        border: '1px solid var(--ng-border)',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span className="font-mono" style={{ fontSize: 12, color: 'var(--ng-text)' }}>{meal.name}</span>
+                      <span className="font-mono" style={{ fontSize: 11, color: 'var(--ng-amber)' }}>{meal.kcal} kcal</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Custom meal input */}
+            <div>
+              <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px', marginBottom: 10 }}>
+                ✏️ ADD CUSTOM
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <input
+                  value={customMealName}
+                  onChange={(e) => setCustomMealName(e.target.value)}
+                  placeholder="Meal name..."
+                  className="ng-input"
+                  style={{ flex: 2, fontSize: 12, padding: '10px 12px' }}
+                  autoFocus
+                />
+                <input
+                  value={customMealKcal}
+                  onChange={(e) => setCustomMealKcal(e.target.value.replace(/\D/g, ''))}
+                  placeholder="kcal"
+                  className="ng-input"
+                  style={{ flex: 1, fontSize: 12, padding: '10px 12px' }}
+                  type="number"
+                />
+              </div>
+              <button
+                onClick={addCustomMealToSlot}
+                disabled={!customMealName.trim()}
+                className="font-orbitron"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: 10,
+                  letterSpacing: '1px',
+                  background: customMealName.trim() ? 'var(--ng-cyan)' : 'var(--ng-surface)',
+                  color: customMealName.trim() ? '#000' : 'var(--ng-muted)',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: customMealName.trim() ? 'pointer' : 'not-allowed',
+                }}
+              >
+                ADD CUSTOM MEAL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
