@@ -807,40 +807,43 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
                       />
                     </div>
 
-                    {/* Sex */}
+                    {/* Sex (fixed) */}
                     <div>
                       <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>SEX</div>
-                      <select
-                        value={bodyStats.sex}
-                        onChange={(e) => saveBodyStats({ ...bodyStats, sex: e.target.value as 'female' | 'male' })}
-                        className="ng-input"
-                        style={{ width: '100%', fontSize: 11, padding: '8px 10px' }}
+                      <div
+                        className="font-mono"
+                        style={{
+                          width: '100%',
+                          fontSize: 11,
+                          padding: '8px 10px',
+                          background: 'var(--ng-bg)',
+                          border: '1px solid var(--ng-border)',
+                          borderRadius: 6,
+                          color: 'var(--ng-text)',
+                          opacity: 0.7,
+                        }}
                       >
-                        <option value="female">Female</option>
-                        <option value="male">Male</option>
-                      </select>
+                        {bodyStats.sex === 'female' ? 'Female' : 'Male'}
+                      </div>
                     </div>
 
-                    {/* Height */}
+                    {/* Height (fixed) */}
                     <div>
                       <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>HEIGHT</div>
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          value={bodyStats.heightFt}
-                          onChange={(e) => saveBodyStats({ ...bodyStats, heightFt: parseInt(e.target.value) || 0 })}
-                          className="ng-input"
-                          style={{ width: '50%', fontSize: 11, padding: '8px 10px' }}
-                          placeholder="ft"
-                        />
-                        <input
-                          type="number"
-                          value={bodyStats.heightIn}
-                          onChange={(e) => saveBodyStats({ ...bodyStats, heightIn: parseInt(e.target.value) || 0 })}
-                          className="ng-input"
-                          style={{ width: '50%', fontSize: 11, padding: '8px 10px' }}
-                          placeholder="in"
-                        />
+                      <div
+                        className="font-mono"
+                        style={{
+                          width: '100%',
+                          fontSize: 11,
+                          padding: '8px 10px',
+                          background: 'var(--ng-bg)',
+                          border: '1px solid var(--ng-border)',
+                          borderRadius: 6,
+                          color: 'var(--ng-text)',
+                          opacity: 0.7,
+                        }}
+                      >
+                        {bodyStats.heightFt}&apos;{bodyStats.heightIn}&quot;
                       </div>
                     </div>
 
