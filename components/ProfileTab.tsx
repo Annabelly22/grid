@@ -359,6 +359,130 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
           </div>
         </div>
 
+        {/* Calorie Science Card */}
+        {(() => {
+          const { bmr, tdee } = calculateEnergy();
+          const activityCals = tdee - bmr;
+          const deficit = tdee - dailyCalTarget;
+          const lbsPerWeek = (deficit * 7) / 3500;
+          const isAggressive = deficit > 1000;
+          const bmrPct = Math.round((bmr / tdee) * 100);
+
+          return (
+            <div className="card mb-4" style={{ borderColor: 'rgba(138,43,226,0.2)', background: 'linear-gradient(135deg, rgba(138,43,226,0.05), rgba(0,212,255,0.03))' }}>
+              <div className="flex items-center gap-2 mb-4">
+                <span style={{ fontSize: 16 }}>🔥</span>
+                <div className="font-orbitron" style={{ fontSize: 10, color: '#8B5CF6', letterSpacing: '2px' }}>CALORIE SCIENCE</div>
+              </div>
+
+              {/* Visual burn breakdown */}
+              <div style={{ marginBottom: 16 }}>
+                <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 8 }}>YOUR DAILY CALORIE BURN</div>
+
+                {/* Stacked bar visualization */}
+                <div style={{ height: 40, background: 'var(--ng-bg)', borderRadius: 10, overflow: 'hidden', display: 'flex', marginBottom: 8 }}>
+                  <div style={{
+                    width: `${bmrPct}%`,
+                    background: 'linear-gradient(90deg, #6366F1, #8B5CF6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRight: '2px solid var(--ng-bg)',
+                  }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div className="font-orbitron" style={{ fontSize: 12, color: '#fff' }}>{bmr}</div>
+                      <div className="font-mono" style={{ fontSize: 7, color: 'rgba(255,255,255,0.7)' }}>BMR</div>
+                    </div>
+                  </div>
+                  <div style={{
+                    width: `${100 - bmrPct}%`,
+                    background: 'linear-gradient(90deg, var(--ng-cyan), var(--ng-green))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div className="font-orbitron" style={{ fontSize: 12, color: '#000' }}>+{activityCals}</div>
+                      <div className="font-mono" style={{ fontSize: 7, color: 'rgba(0,0,0,0.7)' }}>ACTIVITY</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Explanation boxes */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                  <div style={{ padding: 10, background: 'rgba(99,102,241,0.1)', borderRadius: 8, borderLeft: '3px solid #8B5CF6' }}>
+                    <div className="font-orbitron" style={{ fontSize: 16, color: '#8B5CF6' }}>{bmr}</div>
+                    <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', lineHeight: 1.4 }}>
+                      BMR — burned just breathing, sleeping, heart beating ({bmrPct}% of total)
+                    </div>
+                  </div>
+                  <div style={{ padding: 10, background: 'rgba(0,212,255,0.1)', borderRadius: 8, borderLeft: '3px solid var(--ng-cyan)' }}>
+                    <div className="font-orbitron" style={{ fontSize: 16, color: 'var(--ng-cyan)' }}>+{activityCals}</div>
+                    <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', lineHeight: 1.4 }}>
+                      Activity — walking, gym, daily movement ({100 - bmrPct}% of total)
+                    </div>
+                  </div>
+                </div>
+
+                {/* TDEE Total */}
+                <div style={{ padding: 12, background: 'var(--ng-surface)', borderRadius: 10, textAlign: 'center', marginBottom: 12 }}>
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>TOTAL DAILY ENERGY EXPENDITURE (TDEE)</div>
+                  <div className="font-orbitron" style={{ fontSize: 28, color: 'var(--ng-amber)' }}>{tdee}</div>
+                  <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>calories/day to maintain weight</div>
+                </div>
+
+                {/* Deficit analysis */}
+                <div style={{
+                  padding: 12,
+                  background: isAggressive ? 'rgba(255,184,0,0.1)' : 'rgba(0,255,65,0.1)',
+                  border: `1px solid ${isAggressive ? 'rgba(255,184,0,0.3)' : 'rgba(0,255,65,0.3)'}`,
+                  borderRadius: 10,
+                }}>
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>YOUR TARGET</div>
+                      <div className="font-orbitron" style={{ fontSize: 20, color: 'var(--ng-green)' }}>{dailyCalTarget}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>DEFICIT</div>
+                      <div className="font-orbitron" style={{ fontSize: 20, color: isAggressive ? 'var(--ng-amber)' : 'var(--ng-green)' }}>−{deficit}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>LOSS RATE</div>
+                      <div className="font-orbitron" style={{ fontSize: 20, color: 'var(--ng-cyan)' }}>{lbsPerWeek.toFixed(1)}</div>
+                      <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>lbs/week</div>
+                    </div>
+                  </div>
+
+                  {isAggressive && (
+                    <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-amber)', lineHeight: 1.5, marginTop: 8, padding: 8, background: 'rgba(255,184,0,0.1)', borderRadius: 6 }}>
+                      ⚠️ <strong>Aggressive deficit</strong> — Standard recommendation is 500 cal/day (1 lb/week). You're at {lbsPerWeek.toFixed(1)} lbs/week which works short-term but can tank energy and muscle long-term.
+                    </div>
+                  )}
+
+                  {!isAggressive && deficit >= 500 && (
+                    <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-green)', lineHeight: 1.5, marginTop: 8 }}>
+                      ✓ Healthy deficit range — sustainable pace for fat loss while preserving muscle.
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick reference */}
+                <div style={{ marginTop: 12, padding: 10, background: 'var(--ng-bg)', borderRadius: 8 }}>
+                  <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px', marginBottom: 6 }}>QUICK REFERENCE</div>
+                  <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-text)', lineHeight: 1.8 }}>
+                    • Eat at <strong>{tdee}</strong> = maintain weight<br/>
+                    • Eat below <strong>{tdee}</strong> = lose weight (deficit)<br/>
+                    • Eat above <strong>{tdee}</strong> = gain weight (surplus)<br/>
+                    • <strong>500 cal deficit</strong> = ~1 lb/week (safe)<br/>
+                    • <strong>1000 cal deficit</strong> = ~2 lbs/week (aggressive)
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Weight Journey Timeline */}
         {(() => {
           const { bmr, tdee } = calculateEnergy();
