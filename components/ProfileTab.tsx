@@ -359,6 +359,65 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
           </div>
         </div>
 
+        {/* My Stats Card */}
+        <div className="card mb-4" style={{ borderColor: 'rgba(0,212,255,0.2)' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <span style={{ fontSize: 14 }}>📊</span>
+            <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>MY STATS</div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            {/* Age */}
+            <div style={{ padding: 12, background: 'var(--ng-surface)', borderRadius: 10, textAlign: 'center' }}>
+              <div className="font-orbitron" style={{ fontSize: 22, color: 'var(--ng-text)' }}>{bodyStats.age}</div>
+              <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>AGE</div>
+            </div>
+
+            {/* Height */}
+            <div style={{ padding: 12, background: 'var(--ng-surface)', borderRadius: 10, textAlign: 'center' }}>
+              <div className="font-orbitron" style={{ fontSize: 22, color: 'var(--ng-text)' }}>
+                {bodyStats.heightFt}&apos;{bodyStats.heightIn}&quot;
+              </div>
+              <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>HEIGHT</div>
+            </div>
+
+            {/* Sex */}
+            <div style={{ padding: 12, background: 'var(--ng-surface)', borderRadius: 10, textAlign: 'center' }}>
+              <div className="font-orbitron" style={{ fontSize: 22, color: 'var(--ng-text)' }}>
+                {bodyStats.sex === 'female' ? '♀' : '♂'}
+              </div>
+              <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>
+                {bodyStats.sex === 'female' ? 'FEMALE' : 'MALE'}
+              </div>
+            </div>
+          </div>
+
+          {/* Activity Level - Editable */}
+          <div style={{ marginTop: 12, padding: 12, background: 'var(--ng-bg)', borderRadius: 10 }}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>ACTIVITY LEVEL</div>
+              <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-cyan)' }}>affects TDEE</div>
+            </div>
+            <select
+              value={bodyStats.activityLevel}
+              onChange={(e) => saveBodyStats({ ...bodyStats, activityLevel: e.target.value as typeof bodyStats.activityLevel })}
+              className="ng-input"
+              style={{ width: '100%', fontSize: 12, padding: '10px 12px', background: 'var(--ng-surface)' }}
+            >
+              <option value="sedentary">Sedentary — desk job, little exercise</option>
+              <option value="light">Light — 1-2 workouts/week</option>
+              <option value="moderate">Moderate — 3-5 workouts/week</option>
+              <option value="active">Active — 6-7 workouts/week</option>
+              <option value="veryActive">Very Active — 2x/day or physical job</option>
+            </select>
+
+            {/* Activity multiplier explanation */}
+            <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-dimmer)', marginTop: 8, textAlign: 'center' }}>
+              BMR × {bodyStats.activityLevel === 'sedentary' ? '1.2' : bodyStats.activityLevel === 'light' ? '1.375' : bodyStats.activityLevel === 'moderate' ? '1.55' : bodyStats.activityLevel === 'active' ? '1.725' : '1.9'} = TDEE
+            </div>
+          </div>
+        </div>
+
         {/* Calorie Science Card */}
         {(() => {
           const { bmr, tdee } = calculateEnergy();
