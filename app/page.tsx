@@ -18,6 +18,7 @@ const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: 'coach',     icon: '⚡', label: 'ALPHAWILL' },
   { id: 'meals',     icon: '🍽️', label: 'MEALS' },
   { id: 'body',      icon: '❋', label: 'BODY' },
+  { id: 'profile',   icon: '▣', label: 'PROFILE' },
 ];
 
 function App() {

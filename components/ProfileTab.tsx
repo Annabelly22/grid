@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { getHomeTimezone, setHomeTimezone, getSupportedTimezones, getNowTimeParts } from '../lib/time';
+import { getHomeTimezone, setHomeTimezone, getSupportedTimezones, getNowTimeParts, getTodayStr } from '../lib/time';
 import { UserProfile, Habit, Achievement, Mission, getLevel, CATEGORY_COLORS, CATEGORY_ICONS } from '../lib/gameStore';
 import { requestNotificationPermission, getNotificationStatus, scheduleGridNotifications } from '../lib/notifications';
+import { Storage } from '../lib/storage';
 
 const DIFFICULTY_CONFIG = {
   EASY:    { color: 'var(--ng-green)',  bg: 'rgba(0,255,65,0.08)'   },
@@ -193,6 +194,63 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
   const [confirmReset, setConfirmReset] = useState(false);
   const [showCompletedMissions, setShowCompletedMissions] = useState(false);
 
+  // Body stats for weight timeline
+  const [bodyStats, setBodyStats] = useState({
+    age: 23,
+    heightFt: 5,
+    heightIn: 11,
+    weight: 192,
+    goalWeight: 165,
+    sex: 'female' as 'female' | 'male',
+    activityLevel: 'active' as 'sedentary' | 'light' | 'moderate' | 'active' | 'veryActive',
+  });
+  const [dailyCalTarget, setDailyCalTarget] = useState(1100);
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [startWeight, setStartWeight] = useState<number | null>(null);
+
+  // Load body stats and journey data
+  useEffect(() => {
+    const saved = Storage.getBodyStats?.();
+    if (saved) {
+      setBodyStats(prev => ({ ...prev, ...saved }));
+    }
+    // Load journey start data
+    try {
+      const journeyRaw = localStorage.getItem('grid_weight_journey');
+      if (journeyRaw) {
+        const journey = JSON.parse(journeyRaw);
+        setStartDate(journey.startDate);
+        setStartWeight(journey.startWeight);
+        if (journey.dailyCalTarget) setDailyCalTarget(journey.dailyCalTarget);
+      }
+    } catch {}
+  }, []);
+
+  // Save body stats
+  const saveBodyStats = (newStats: typeof bodyStats) => {
+    setBodyStats(newStats);
+    Storage.setBodyStats?.(newStats);
+  };
+
+  // Start/restart weight journey
+  const startJourney = () => {
+    const today = getTodayStr();
+    const journey = { startDate: today, startWeight: bodyStats.weight, dailyCalTarget };
+    localStorage.setItem('grid_weight_journey', JSON.stringify(journey));
+    setStartDate(today);
+    setStartWeight(bodyStats.weight);
+  };
+
+  // Calculate BMR and TDEE
+  const calculateEnergy = () => {
+    const heightCm = (bodyStats.heightFt * 12 + bodyStats.heightIn) * 2.54;
+    const weightKg = bodyStats.weight * 0.453592;
+    const bmr = Math.round(10 * weightKg + 6.25 * heightCm - 5 * bodyStats.age + (bodyStats.sex === 'male' ? 5 : -161));
+    const activityMultipliers = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, veryActive: 1.9 };
+    const tdee = Math.round(bmr * activityMultipliers[bodyStats.activityLevel]);
+    return { bmr, tdee };
+  };
+
   // ── Home Clock ────────────────────────────────────────────────────────────
   const allTimezones = getSupportedTimezones();
   const [savedTz,    setSavedTz]    = useState(() => getHomeTimezone());
@@ -300,6 +358,237 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
             ))}
           </div>
         </div>
+
+        {/* Weight Journey Timeline */}
+        {(() => {
+          const { bmr, tdee } = calculateEnergy();
+          const dailyDeficit = tdee - dailyCalTarget;
+          const lbsPerWeek = (dailyDeficit * 7) / 3500;
+          const lbsToLose = bodyStats.weight - bodyStats.goalWeight;
+          const weeksToGoal = lbsToLose > 0 && lbsPerWeek > 0 ? Math.ceil(lbsToLose / lbsPerWeek) : 0;
+          const daysToGoal = weeksToGoal * 7;
+
+          // Calculate where you should be based on start date
+          const today = new Date();
+          const daysElapsed = startDate ? Math.floor((today.getTime() - new Date(startDate).getTime()) / 86400000) : 0;
+          const expectedLossToDate = startWeight && daysElapsed > 0 ? (dailyDeficit * daysElapsed) / 3500 : 0;
+          const expectedCurrentWeight = startWeight ? startWeight - expectedLossToDate : bodyStats.weight;
+          const actualVsExpected = bodyStats.weight - expectedCurrentWeight;
+
+          // Goal date
+          const goalDate = new Date(today.getTime() + daysToGoal * 86400000);
+
+          // Timeline milestones
+          const milestones = [];
+          if (startDate && startWeight) {
+            const start = new Date(startDate);
+            for (let week = 4; week <= weeksToGoal; week += 4) {
+              const date = new Date(start.getTime() + week * 7 * 86400000);
+              const expectedWeight = Math.round((startWeight - (lbsPerWeek * week)) * 10) / 10;
+              if (expectedWeight > bodyStats.goalWeight) {
+                milestones.push({ week, date, weight: expectedWeight });
+              }
+            }
+            milestones.push({ week: weeksToGoal, date: goalDate, weight: bodyStats.goalWeight });
+          }
+
+          return (
+            <div className="card mb-4" style={{ borderColor: 'rgba(0,212,255,0.2)', background: 'linear-gradient(135deg, rgba(0,212,255,0.05), rgba(0,255,65,0.03))' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: 16 }}>📉</span>
+                  <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>WEIGHT JOURNEY</div>
+                </div>
+                {startDate && (
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>
+                    Day {daysElapsed} of ~{daysToGoal}
+                  </div>
+                )}
+              </div>
+
+              {/* Current vs Goal */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 12, marginBottom: 16, alignItems: 'center' }}>
+                <div style={{ textAlign: 'center', padding: 12, background: 'var(--ng-surface)', borderRadius: 10 }}>
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>CURRENT</div>
+                  <div className="font-orbitron" style={{ fontSize: 20, color: 'var(--ng-text)' }}>{bodyStats.weight}</div>
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>lbs</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div className="font-orbitron" style={{ fontSize: 18, color: 'var(--ng-green)' }}>→</div>
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-amber)' }}>-{lbsToLose} lbs</div>
+                </div>
+                <div style={{ textAlign: 'center', padding: 12, background: 'rgba(0,255,65,0.1)', border: '1px solid rgba(0,255,65,0.2)', borderRadius: 10 }}>
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-green)' }}>GOAL</div>
+                  <div className="font-orbitron" style={{ fontSize: 20, color: 'var(--ng-green)' }}>{bodyStats.goalWeight}</div>
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>lbs</div>
+                </div>
+              </div>
+
+              {/* Calorie Target Setting */}
+              <div style={{ padding: 12, background: 'var(--ng-bg)', borderRadius: 10, marginBottom: 16 }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>DAILY CALORIE TARGET</div>
+                  <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-cyan)' }}>TDEE: {tdee}</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={800}
+                    max={tdee}
+                    step={50}
+                    value={dailyCalTarget}
+                    onChange={(e) => setDailyCalTarget(Number(e.target.value))}
+                    style={{ flex: 1 }}
+                  />
+                  <div className="font-orbitron" style={{ fontSize: 14, color: 'var(--ng-amber)', minWidth: 60, textAlign: 'right' }}>
+                    {dailyCalTarget}
+                  </div>
+                </div>
+                <div className="flex justify-between mt-2">
+                  <div className="font-mono" style={{ fontSize: 8, color: dailyDeficit > 1000 ? 'var(--ng-amber)' : 'var(--ng-green)' }}>
+                    {dailyDeficit > 0 ? `−${dailyDeficit} deficit` : 'At maintenance'}
+                  </div>
+                  <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>
+                    ≈ {lbsPerWeek.toFixed(1)} lbs/week
+                  </div>
+                </div>
+              </div>
+
+              {/* Expected vs Actual (if journey started) */}
+              {startDate && startWeight && daysElapsed > 0 && (
+                <div style={{ padding: 12, background: actualVsExpected > 2 ? 'rgba(255,71,87,0.1)' : actualVsExpected < -2 ? 'rgba(0,255,65,0.1)' : 'rgba(0,212,255,0.1)', border: `1px solid ${actualVsExpected > 2 ? 'rgba(255,71,87,0.3)' : actualVsExpected < -2 ? 'rgba(0,255,65,0.3)' : 'rgba(0,212,255,0.3)'}`, borderRadius: 10, marginBottom: 16 }}>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>EXPECTED TODAY</div>
+                      <div className="font-orbitron" style={{ fontSize: 16, color: 'var(--ng-cyan)' }}>{expectedCurrentWeight.toFixed(1)} lbs</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>VS ACTUAL</div>
+                      <div className="font-orbitron" style={{ fontSize: 14, color: actualVsExpected > 2 ? 'var(--ng-red)' : actualVsExpected < -2 ? 'var(--ng-green)' : 'var(--ng-cyan)' }}>
+                        {actualVsExpected > 0 ? '+' : ''}{actualVsExpected.toFixed(1)} lbs
+                      </div>
+                    </div>
+                  </div>
+                  <div className="font-mono mt-2" style={{ fontSize: 9, color: 'var(--ng-text)' }}>
+                    {actualVsExpected > 2 ? '⚠️ Behind schedule — tighten up or increase activity' : actualVsExpected < -2 ? '🎯 Ahead of schedule — great work!' : '✓ On track'}
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline */}
+              {startDate && milestones.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div className="font-orbitron mb-3" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>PROJECTED TIMELINE</div>
+                  <div style={{ position: 'relative', paddingLeft: 20 }}>
+                    {/* Timeline line */}
+                    <div style={{ position: 'absolute', left: 6, top: 0, bottom: 0, width: 2, background: 'var(--ng-border)' }} />
+
+                    {/* Start point */}
+                    <div className="flex items-center gap-3 mb-3" style={{ position: 'relative' }}>
+                      <div style={{ position: 'absolute', left: -14, width: 10, height: 10, borderRadius: '50%', background: 'var(--ng-muted)', border: '2px solid var(--ng-bg)' }} />
+                      <div>
+                        <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>
+                          {new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — START
+                        </div>
+                        <div className="font-orbitron" style={{ fontSize: 11, color: 'var(--ng-text)' }}>{startWeight} lbs</div>
+                      </div>
+                    </div>
+
+                    {/* Today marker */}
+                    {daysElapsed > 0 && (
+                      <div className="flex items-center gap-3 mb-3" style={{ position: 'relative' }}>
+                        <div style={{ position: 'absolute', left: -14, width: 10, height: 10, borderRadius: '50%', background: 'var(--ng-cyan)', border: '2px solid var(--ng-bg)', boxShadow: '0 0 8px var(--ng-cyan)' }} />
+                        <div>
+                          <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-cyan)' }}>TODAY — Week {Math.floor(daysElapsed / 7)}</div>
+                          <div className="font-orbitron" style={{ fontSize: 11, color: 'var(--ng-text)' }}>{bodyStats.weight} lbs <span style={{ fontSize: 9, color: 'var(--ng-muted)' }}>(expect {expectedCurrentWeight.toFixed(0)})</span></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Future milestones */}
+                    {milestones.filter(m => m.date > today).slice(0, 4).map((m, i) => (
+                      <div key={i} className="flex items-center gap-3 mb-3" style={{ position: 'relative', opacity: 0.6 }}>
+                        <div style={{ position: 'absolute', left: -14, width: 10, height: 10, borderRadius: '50%', background: 'var(--ng-surface)', border: '2px solid var(--ng-border)' }} />
+                        <div>
+                          <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>
+                            {m.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — Week {m.week}
+                          </div>
+                          <div className="font-orbitron" style={{ fontSize: 11, color: 'var(--ng-text)' }}>{m.weight} lbs</div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Goal */}
+                    <div className="flex items-center gap-3" style={{ position: 'relative' }}>
+                      <div style={{ position: 'absolute', left: -14, width: 10, height: 10, borderRadius: '50%', background: 'var(--ng-green)', border: '2px solid var(--ng-bg)' }} />
+                      <div>
+                        <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-green)' }}>
+                          {goalDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} — GOAL
+                        </div>
+                        <div className="font-orbitron" style={{ fontSize: 11, color: 'var(--ng-green)' }}>{bodyStats.goalWeight} lbs 🎯</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Update weight / Start journey button */}
+              <div className="flex gap-2">
+                {!startDate ? (
+                  <button
+                    onClick={startJourney}
+                    className="font-orbitron flex-1"
+                    style={{
+                      padding: '12px',
+                      fontSize: 10,
+                      letterSpacing: '1px',
+                      background: 'var(--ng-cyan)',
+                      color: '#000',
+                      border: 'none',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🚀 START JOURNEY
+                  </button>
+                ) : (
+                  <>
+                    <div style={{ flex: 1, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        value={bodyStats.weight}
+                        onChange={(e) => saveBodyStats({ ...bodyStats, weight: parseInt(e.target.value) || 0 })}
+                        className="ng-input"
+                        style={{ width: 80, fontSize: 12, padding: '8px 10px', textAlign: 'center' }}
+                      />
+                      <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>lbs current</span>
+                    </div>
+                    <button
+                      onClick={startJourney}
+                      className="font-mono"
+                      style={{
+                        padding: '8px 12px',
+                        fontSize: 9,
+                        background: 'transparent',
+                        color: 'var(--ng-muted)',
+                        border: '1px solid var(--ng-border)',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      RESTART
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Info note */}
+              <div className="font-mono mt-3" style={{ fontSize: 7, color: 'var(--ng-dimmer)', textAlign: 'center' }}>
+                Based on {dailyCalTarget} cal/day intake · {tdee} TDEE · {dailyDeficit} cal deficit
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Category breakdown */}
         {catStats.length > 0 && (
