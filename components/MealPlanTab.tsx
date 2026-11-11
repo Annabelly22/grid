@@ -166,6 +166,8 @@ export default function MealPlanTab() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [logNotes, setLogNotes] = useState('');
+  const [showLogPrompt, setShowLogPrompt] = useState(false);
+  const [logPromptNote, setLogPromptNote] = useState('');
 
   // Load from storage on mount
   useEffect(() => {
@@ -194,24 +196,34 @@ export default function MealPlanTab() {
     Storage.setMealLog?.(newLog);
   }, []);
 
-  // Log today's meals from plan
-  const logTodayMeals = useCallback((isCheatDay: boolean = false, notes: string = '') => {
+  // Log today's meals from plan (only checked meals)
+  const logTodayMeals = useCallback((isCheatDay: boolean = false, notes: string = '', checkedMeals?: Record<string, boolean>) => {
     const today = getTodayStr();
     const dow = new Date().getDay();
     const dayMap: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6 };
     const todayIdx = dayMap[dow];
     const todayMeals = plan.days[todayIdx];
 
+    // If checkedMeals provided, only include checked ones
+    const meals = {
+      breakfast: (checkedMeals?.breakfast !== false && (!checkedMeals || checkedMeals.breakfast))
+        ? todayMeals.breakfast.map(m => ({ name: m.name, kcal: m.kcal })) : [],
+      lunch: (checkedMeals?.lunch !== false && (!checkedMeals || checkedMeals.lunch))
+        ? todayMeals.lunch.map(m => ({ name: m.name, kcal: m.kcal })) : [],
+      dinner: (checkedMeals?.dinner !== false && (!checkedMeals || checkedMeals.dinner))
+        ? todayMeals.dinner.map(m => ({ name: m.name, kcal: m.kcal })) : [],
+      snack: todayMeals.snack.map(m => ({ name: m.name, kcal: m.kcal })), // Always include snacks
+    };
+
+    const totalKcal = meals.breakfast.reduce((s, m) => s + m.kcal, 0) +
+                      meals.lunch.reduce((s, m) => s + m.kcal, 0) +
+                      meals.dinner.reduce((s, m) => s + m.kcal, 0) +
+                      meals.snack.reduce((s, m) => s + m.kcal, 0);
+
     const entry: MealLogEntry = {
       date: today,
-      meals: {
-        breakfast: todayMeals.breakfast.map(m => ({ name: m.name, kcal: m.kcal })),
-        lunch: todayMeals.lunch.map(m => ({ name: m.name, kcal: m.kcal })),
-        dinner: todayMeals.dinner.map(m => ({ name: m.name, kcal: m.kcal })),
-        snack: todayMeals.snack.map(m => ({ name: m.name, kcal: m.kcal })),
-      },
-      totalKcal: MEAL_TYPES.reduce((sum, type) =>
-        sum + todayMeals[type].reduce((s, m) => s + m.kcal, 0), 0),
+      meals,
+      totalKcal,
       isCheatDay,
       notes: notes || undefined,
     };
@@ -935,6 +947,113 @@ export default function MealPlanTab() {
                 borderRadius: 6,
               }}>
                 🎉 All meals completed! Great job staying on plan.
+              </div>
+            )}
+
+            {/* Log Meal Button */}
+            {!mealLog[today] ? (
+              <>
+                {!showLogPrompt ? (
+                  <button
+                    onClick={() => setShowLogPrompt(true)}
+                    className="font-orbitron"
+                    style={{
+                      width: '100%',
+                      marginTop: 12,
+                      padding: '12px',
+                      fontSize: 10,
+                      letterSpacing: '1px',
+                      background: 'transparent',
+                      color: 'var(--ng-green)',
+                      border: '1px solid var(--ng-green)',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    📝 LOG MEAL
+                  </button>
+                ) : (
+                  <div style={{ marginTop: 12, background: 'var(--ng-bg)', borderRadius: 8, padding: 12 }}>
+                    <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', marginBottom: 8 }}>
+                      Logging: {Object.entries(mealChecks).filter(([, v]) => v).map(([k]) => k).join(', ') || 'All meals'} + snacks
+                    </div>
+                    <input
+                      value={logPromptNote}
+                      onChange={(e) => setLogPromptNote(e.target.value)}
+                      placeholder="Add a note (optional)..."
+                      className="ng-input"
+                      style={{ width: '100%', fontSize: 11, padding: '8px 10px', marginBottom: 8 }}
+                      autoFocus
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={() => {
+                          logTodayMeals(false, logPromptNote, mealChecks);
+                          setShowLogPrompt(false);
+                          setLogPromptNote('');
+                        }}
+                        className="font-orbitron"
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          fontSize: 9,
+                          background: 'var(--ng-green)',
+                          color: '#000',
+                          border: 'none',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        SAVE LOG
+                      </button>
+                      <button
+                        onClick={() => {
+                          logTodayMeals(true, logPromptNote, mealChecks);
+                          setShowLogPrompt(false);
+                          setLogPromptNote('');
+                        }}
+                        className="font-orbitron"
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: 9,
+                          background: 'transparent',
+                          color: 'var(--ng-amber)',
+                          border: '1px solid var(--ng-amber)',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        🍔 CHEAT
+                      </button>
+                      <button
+                        onClick={() => { setShowLogPrompt(false); setLogPromptNote(''); }}
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: 9,
+                          background: 'transparent',
+                          color: 'var(--ng-muted)',
+                          border: '1px solid var(--ng-border)',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="font-mono" style={{
+                textAlign: 'center',
+                fontSize: 10,
+                color: 'var(--ng-cyan)',
+                marginTop: 12,
+                padding: 8,
+                background: 'rgba(0,212,255,0.1)',
+                borderRadius: 6,
+              }}>
+                ✓ Logged: {mealLog[today].totalKcal} kcal {mealLog[today].isCheatDay && '🍔'}
               </div>
             )}
           </div>
