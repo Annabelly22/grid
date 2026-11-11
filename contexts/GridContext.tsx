@@ -12,7 +12,7 @@ import { Storage } from '../lib/storage';
 import { getCyclePhase, CYCLE_PHASES, CyclePhase } from '../lib/supplementData';
 import { scheduleGridNotifications } from '../lib/notifications';
 
-export type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile';
+export type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile' | 'meals';
 
 interface AchievementToast { achievement: Achievement; id: number; }
 interface XPPopup { amount: number; id: number; }
