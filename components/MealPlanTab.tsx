@@ -176,6 +176,12 @@ export default function MealPlanTab() {
   const [habits, setHabits] = useState<{ id: string; name: string; icon: string }[]>([]);
   const [habitTimes, setHabitTimes] = useState<Record<string, Record<string, string>>>({});
 
+  // Edit log entry state
+  const [editingLogDate, setEditingLogDate] = useState<string | null>(null);
+  const [editLogKcal, setEditLogKcal] = useState('');
+  const [editLogCheat, setEditLogCheat] = useState(false);
+  const [editLogNotes, setEditLogNotes] = useState('');
+
   // Load from storage on mount
   useEffect(() => {
     const saved = Storage.getMealPlan?.() as MealPlan | null;
@@ -284,6 +290,41 @@ export default function MealPlanTab() {
     Storage.setMealChecks?.(allChecks);
     setMealChecks(todayChecks);
   }, []);
+
+  // Start editing a log entry
+  const startEditLog = (date: string) => {
+    const entry = mealLog[date];
+    if (!entry) return;
+    setEditingLogDate(date);
+    setEditLogKcal(String(entry.totalKcal ?? 0));
+    setEditLogCheat(entry.isCheatDay ?? false);
+    setEditLogNotes(entry.notes ?? '');
+  };
+
+  // Save edited log entry
+  const saveEditLog = () => {
+    if (!editingLogDate) return;
+    const entry = mealLog[editingLogDate];
+    if (!entry) return;
+
+    const updatedEntry: MealLogEntry = {
+      ...entry,
+      totalKcal: parseInt(editLogKcal) || 0,
+      isCheatDay: editLogCheat,
+      notes: editLogNotes || undefined,
+    };
+
+    saveMealLog({ ...mealLog, [editingLogDate]: updatedEntry });
+    setEditingLogDate(null);
+  };
+
+  // Delete a log entry
+  const deleteLogEntry = (date: string) => {
+    if (!confirm('Delete this log entry?')) return;
+    const newLog = { ...mealLog };
+    delete newLog[date];
+    saveMealLog(newLog);
+  };
 
   // Calculate totals for a day
   const getDayTotal = (dayIdx: number) => {
@@ -798,6 +839,7 @@ export default function MealPlanTab() {
                   const dayHabitTimes = habitTimes[date] || {};
                   const completedHabitIds = Object.keys(dayHabitTimes);
                   const completedHabits = habits.filter(h => completedHabitIds.includes(h.id));
+                  const isEditing = editingLogDate === date;
 
                   return (
                     <div
@@ -805,52 +847,169 @@ export default function MealPlanTab() {
                       style={{
                         padding: '10px 12px',
                         marginBottom: 6,
-                        background: 'var(--ng-surface)',
-                        border: '1px solid var(--ng-border)',
+                        background: isEditing ? 'var(--ng-bg)' : 'var(--ng-surface)',
+                        border: `1px solid ${isEditing ? 'var(--ng-cyan)' : 'var(--ng-border)'}`,
                         borderRadius: 8,
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {isEditing ? (
+                        /* Edit Mode */
                         <div>
-                          <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-text)' }}>
-                            {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                            {entry?.isCheatDay && ' 🍔'}
+                          <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-cyan)', marginBottom: 10 }}>
+                            ✏️ Editing {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                           </div>
-                          {entry?.notes && (
-                            <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{entry.notes}</div>
-                          )}
-                        </div>
-                        <div className="font-orbitron" style={{
-                          fontSize: 12,
-                          color: entry?.isCheatDay ? 'var(--ng-amber)' : (entry?.totalKcal ?? 0) <= 1150 ? 'var(--ng-green)' : (entry?.totalKcal ?? 0) <= 1400 ? 'var(--ng-cyan)' : 'var(--ng-red)',
-                        }}>
-                          {entry?.totalKcal ?? 0} kcal
-                        </div>
-                      </div>
-                      {/* Completed habits for this day */}
-                      {completedHabits.length > 0 && (
-                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--ng-border)' }}>
-                          <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>
-                            HABITS COMPLETED ({completedHabits.length})
-                          </div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                            {completedHabits.map(habit => (
-                              <div
-                                key={habit.id}
-                                title={habit.name}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {/* Calories */}
+                            <div>
+                              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', marginBottom: 4 }}>TOTAL CALORIES</div>
+                              <input
+                                type="number"
+                                value={editLogKcal}
+                                onChange={e => setEditLogKcal(e.target.value)}
+                                className="ng-input"
+                                style={{ width: '100%', fontSize: 14, padding: '8px 10px' }}
+                              />
+                            </div>
+                            {/* Cheat day toggle */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <button
+                                onClick={() => setEditLogCheat(!editLogCheat)}
                                 style={{
-                                  padding: '3px 6px',
-                                  background: 'rgba(0,255,65,0.1)',
-                                  border: '1px solid rgba(0,255,65,0.2)',
-                                  borderRadius: 4,
-                                  fontSize: 10,
+                                  padding: '6px 12px',
+                                  fontSize: 11,
+                                  background: editLogCheat ? 'rgba(255,184,0,0.15)' : 'transparent',
+                                  border: `1px solid ${editLogCheat ? 'var(--ng-amber)' : 'var(--ng-border)'}`,
+                                  color: editLogCheat ? 'var(--ng-amber)' : 'var(--ng-muted)',
+                                  borderRadius: 6,
+                                  cursor: 'pointer',
                                 }}
                               >
-                                {habit.icon}
-                              </div>
-                            ))}
+                                {editLogCheat ? '🍔 CHEAT DAY' : '🥗 NORMAL DAY'}
+                              </button>
+                            </div>
+                            {/* Notes */}
+                            <div>
+                              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', marginBottom: 4 }}>NOTES</div>
+                              <input
+                                type="text"
+                                value={editLogNotes}
+                                onChange={e => setEditLogNotes(e.target.value)}
+                                placeholder="Optional notes..."
+                                className="ng-input"
+                                style={{ width: '100%', fontSize: 11, padding: '8px 10px' }}
+                              />
+                            </div>
+                            {/* Actions */}
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
+                                onClick={saveEditLog}
+                                className="font-orbitron"
+                                style={{
+                                  flex: 1,
+                                  padding: '10px',
+                                  fontSize: 10,
+                                  background: 'var(--ng-green)',
+                                  color: '#000',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                SAVE
+                              </button>
+                              <button
+                                onClick={() => setEditingLogDate(null)}
+                                style={{
+                                  padding: '10px 14px',
+                                  fontSize: 10,
+                                  background: 'transparent',
+                                  color: 'var(--ng-muted)',
+                                  border: '1px solid var(--ng-border)',
+                                  borderRadius: 6,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                CANCEL
+                              </button>
+                              <button
+                                onClick={() => { deleteLogEntry(date); setEditingLogDate(null); }}
+                                style={{
+                                  padding: '10px 14px',
+                                  fontSize: 10,
+                                  background: 'transparent',
+                                  color: 'var(--ng-red)',
+                                  border: '1px solid var(--ng-red)',
+                                  borderRadius: 6,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                DELETE
+                              </button>
+                            </div>
                           </div>
                         </div>
+                      ) : (
+                        /* View Mode */
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ flex: 1 }}>
+                              <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-text)' }}>
+                                {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                {entry?.isCheatDay && ' 🍔'}
+                              </div>
+                              {entry?.notes && (
+                                <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{entry.notes}</div>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div className="font-orbitron" style={{
+                                fontSize: 12,
+                                color: entry?.isCheatDay ? 'var(--ng-amber)' : (entry?.totalKcal ?? 0) <= 1150 ? 'var(--ng-green)' : (entry?.totalKcal ?? 0) <= 1400 ? 'var(--ng-cyan)' : 'var(--ng-red)',
+                              }}>
+                                {entry?.totalKcal ?? 0} kcal
+                              </div>
+                              <button
+                                onClick={() => startEditLog(date)}
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: 10,
+                                  background: 'transparent',
+                                  color: 'var(--ng-muted)',
+                                  border: '1px solid var(--ng-border)',
+                                  borderRadius: 4,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                ✏️
+                              </button>
+                            </div>
+                          </div>
+                          {/* Completed habits for this day */}
+                          {completedHabits.length > 0 && (
+                            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--ng-border)' }}>
+                              <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>
+                                HABITS COMPLETED ({completedHabits.length})
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {completedHabits.map(habit => (
+                                  <div
+                                    key={habit.id}
+                                    title={habit.name}
+                                    style={{
+                                      padding: '3px 6px',
+                                      background: 'rgba(0,255,65,0.1)',
+                                      border: '1px solid rgba(0,255,65,0.2)',
+                                      borderRadius: 4,
+                                      fontSize: 10,
+                                    }}
+                                  >
+                                    {habit.icon}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   );
