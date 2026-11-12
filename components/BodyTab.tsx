@@ -436,6 +436,7 @@ export default function BodyTab() {
   const [cycleStart,  setCycleStart]  = useState<string | null>(null);
   const [cycleInput,  setCycleInput]  = useState('');
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel>('medium');
+  const [pendingEnergyLevel, setPendingEnergyLevel] = useState<EnergyLevel | null>(null);
   const [expandedId,  setExpandedId]  = useState<string | null>(null);
   const [stackView,   setStackView]   = useState<'smart' | 'all' | 'timing'>('smart');
   const [suppView,    setSuppView]    = useState<'list' | 'grid'>('list');
@@ -570,22 +571,31 @@ export default function BodyTab() {
     handleSetCycleStart(cycleInput);
     setCycleStart(cycleInput);
   };
-  const saveEnergy = (e: EnergyLevel) => {
-    setEnergyLevel(e);
-    Storage.setEnergyLevel(e);
-    const today = getTodayStr();
-    const el = Storage.getEnergyLog();
-    el[today] = e;
-    Storage.setEnergyLog(el);
-    syncNow();
+  // Set pending energy level (doesn't save until confirmed)
+  const selectEnergy = (e: EnergyLevel) => {
+    setPendingEnergyLevel(e);
   };
 
-  const smartSupps = phase ? getSupplementsForContext(phase, energyLevel) : SUPPLEMENTS;
+  // Confirm and save energy level
+  const confirmEnergy = () => {
+    if (!pendingEnergyLevel) return;
+    setEnergyLevel(pendingEnergyLevel);
+    Storage.setEnergyLevel(pendingEnergyLevel);
+    const today = getTodayStr();
+    const el = Storage.getEnergyLog();
+    el[today] = pendingEnergyLevel;
+    Storage.setEnergyLog(el);
+    syncNow();
+    setPendingEnergyLevel(null);
+  };
+
+  const effectiveEnergyLevel = pendingEnergyLevel ?? energyLevel;
+  const smartSupps = phase ? getSupplementsForContext(phase, effectiveEnergyLevel) : SUPPLEMENTS;
   const categories = ['all', ...Array.from(new Set(SUPPLEMENTS.map(s => s.category)))];
   const filteredAll = catFilter === 'all' ? SUPPLEMENTS : SUPPLEMENTS.filter(s => s.category === catFilter);
   const teaCategories: (TeaCategory | 'all')[] = ['all', 'morning', 'focus', 'fasting', 'evening', 'luteal', 'menstrual'];
   const filteredTeas = TEAS.filter(t => teaFilter === 'all' || t.categories.includes(teaFilter as TeaCategory));
-  const movements = getMovementsForContext(phase, energyLevel);
+  const movements = getMovementsForContext(phase, effectiveEnergyLevel);
 
   const SUB_TABS = [
     { id: 'cali'  as SubTab, label: 'CALISTHENICS', icon: '⊛',  color: 'var(--ng-purple)', desc: 'Bodyweight skill progression system' },
@@ -638,14 +648,46 @@ export default function BodyTab() {
               <div className="flex gap-1">
                 {(['low', 'medium', 'high'] as EnergyLevel[]).map(e => {
                   const ec = e === 'high' ? 'var(--ng-green)' : e === 'medium' ? 'var(--ng-amber)' : 'var(--ng-red)';
+                  const currentLevel = pendingEnergyLevel ?? energyLevel;
+                  const isSelected = currentLevel === e;
+                  const isPending = pendingEnergyLevel !== null && pendingEnergyLevel !== energyLevel;
                   return (
-                    <button key={e} onClick={() => saveEnergy(e)}
-                      style={{ fontSize: 12, padding: '5px 10px', border: `1px solid ${energyLevel === e ? ec : 'var(--ng-border)'}`, color: energyLevel === e ? ec : 'var(--ng-muted)', background: energyLevel === e ? `${ec}15` : 'transparent', borderRadius: 20, cursor: 'pointer' }}>
+                    <button key={e} onClick={() => selectEnergy(e)}
+                      style={{
+                        fontSize: 12,
+                        padding: '5px 10px',
+                        border: `1px solid ${isSelected ? ec : 'var(--ng-border)'}`,
+                        color: isSelected ? ec : 'var(--ng-muted)',
+                        background: isSelected ? `${ec}15` : 'transparent',
+                        borderRadius: 20,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}>
                       {e.toUpperCase()}
                     </button>
                   );
                 })}
               </div>
+              {/* Save button when energy changed */}
+              {pendingEnergyLevel !== null && pendingEnergyLevel !== energyLevel && (
+                <button
+                  onClick={confirmEnergy}
+                  className="font-orbitron"
+                  style={{
+                    marginTop: 6,
+                    padding: '5px 12px',
+                    fontSize: 9,
+                    letterSpacing: '1px',
+                    background: 'var(--ng-green)',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  SAVE
+                </button>
+              )}
             </div>
             <button onClick={() => setMenuOpen(true)}
               style={{ fontSize: 22, color: 'var(--ng-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px', lineHeight: 1, display: 'flex', alignItems: 'center' }}>

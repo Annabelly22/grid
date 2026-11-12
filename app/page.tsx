@@ -25,6 +25,7 @@ function App() {
   const {
     tab, setTab, profile, habits, missions, achievements, tradeJournal, dailyPriorities,
     theme, toasts, xpPopups, mounted, onboarded, onboardName,
+    isSyncing, pendingDelete, undoDelete,
     setOnboardName, handleOnboard, handleCompleteHabit, handleUncompleteHabit,
     handleAddHabit, handleDeleteHabit, handleEditHabit, handleCompleteMission,
     handleFocusMinutes, handleToggleTheme, handleUpdateCodename, handleResetData,
@@ -117,7 +118,69 @@ function App() {
               </div>
             </div>
           ))}
+          {/* Undo delete toast */}
+          {pendingDelete && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: '12px 16px',
+              background: 'rgba(255,71,87,0.15)',
+              border: '1px solid rgba(255,71,87,0.4)',
+              borderRadius: 12,
+              backdropFilter: 'blur(8px)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 16 }}>{pendingDelete.habit.icon}</span>
+                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-text)' }}>
+                  &quot;{pendingDelete.habit.name}&quot; deleted
+                </div>
+              </div>
+              <button
+                onClick={undoDelete}
+                className="font-orbitron"
+                style={{
+                  padding: '6px 14px',
+                  fontSize: 10,
+                  letterSpacing: '1px',
+                  background: 'var(--ng-red)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                UNDO
+              </button>
+            </div>
+          )}
         </div>
+        {/* Sync indicator */}
+        {isSyncing && (
+          <div style={{
+            position: 'fixed',
+            top: 8,
+            right: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '4px 10px',
+            background: 'rgba(0,212,255,0.15)',
+            border: '1px solid rgba(0,212,255,0.3)',
+            borderRadius: 20,
+            zIndex: 60,
+          }}>
+            <div style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: 'var(--ng-cyan)',
+              animation: 'pulse 1s infinite',
+            }} />
+            <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-cyan)' }}>SYNCING</span>
+          </div>
+        )}
 
         {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} onNavigate={t => setTab(t as Tab)} onCompleteHabit={handleCompleteHabit} dailyPriorities={dailyPriorities} onSetPriorities={handleSetPriorities} theme={theme} onToggleTheme={handleToggleTheme} achievements={achievements} missions={missions} onUpdateCodename={handleUpdateCodename} onResetData={handleResetData} onCompleteMission={handleCompleteMission} />}
         {tab === 'habits'    && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onUncompleteHabit={handleUncompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} onEditHabit={handleEditHabit} onToggleFavorite={handleToggleFavorite} onReorderHabits={handleReorderHabits} />}

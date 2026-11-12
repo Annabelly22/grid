@@ -172,6 +172,10 @@ export default function MealPlanTab() {
   const [showLogPrompt, setShowLogPrompt] = useState(false);
   const [logPromptNote, setLogPromptNote] = useState('');
 
+  // Habits data for log view
+  const [habits, setHabits] = useState<{ id: string; name: string; icon: string }[]>([]);
+  const [habitTimes, setHabitTimes] = useState<Record<string, Record<string, string>>>({});
+
   // Load from storage on mount
   useEffect(() => {
     const saved = Storage.getMealPlan?.() as MealPlan | null;
@@ -185,6 +189,11 @@ export default function MealPlanTab() {
     // Load meal log
     const savedLog = Storage.getMealLog?.() as Record<string, MealLogEntry> | null;
     if (savedLog) setMealLog(savedLog);
+    // Load habits data for log view
+    const savedHabits = Storage.getHabits?.([]) as { id: string; name: string; icon: string }[];
+    if (savedHabits) setHabits(savedHabits);
+    const savedHabitTimes = Storage.getHabitTimes?.() || {};
+    setHabitTimes(savedHabitTimes);
   }, []);
 
   // Save to storage on change
@@ -670,6 +679,14 @@ export default function MealPlanTab() {
                   const entry = mealLog[dateStr];
                   const isToday = dateStr === today;
 
+                  // Get habits completed for this day
+                  const dayHabitTimes = habitTimes[dateStr] || {};
+                  const habitsCount = Object.keys(dayHabitTimes).length;
+                  const completedHabitNames = habits
+                    .filter(h => dayHabitTimes[h.id])
+                    .map(h => h.name)
+                    .join(', ');
+
                   let bgColor = 'transparent';
                   let borderColor = 'var(--ng-border)';
                   if (entry) {
@@ -688,6 +705,16 @@ export default function MealPlanTab() {
                     }
                   }
 
+                  // Build tooltip
+                  const tooltipParts = [];
+                  if (entry) {
+                    tooltipParts.push(`${entry?.totalKcal ?? 0} kcal${entry?.isCheatDay ? ' (cheat)' : ''}`);
+                    if (entry?.notes) tooltipParts.push(entry.notes);
+                  }
+                  if (habitsCount > 0) {
+                    tooltipParts.push(`Habits: ${completedHabitNames}`);
+                  }
+
                   cells.push(
                     <div
                       key={day}
@@ -700,15 +727,29 @@ export default function MealPlanTab() {
                         background: bgColor,
                         border: `1px solid ${isToday ? 'var(--ng-cyan)' : borderColor}`,
                         borderRadius: 6,
-                        cursor: entry ? 'pointer' : 'default',
+                        cursor: (entry || habitsCount > 0) ? 'pointer' : 'default',
+                        position: 'relative',
                       }}
-                      title={entry ? `${entry?.totalKcal ?? 0} kcal${entry?.isCheatDay ? ' (cheat)' : ''}${entry?.notes ? ': ' + entry.notes : ''}` : ''}
+                      title={tooltipParts.join(' • ')}
                     >
                       <div className="font-mono" style={{ fontSize: 10, color: isToday ? 'var(--ng-cyan)' : 'var(--ng-text)' }}>{day}</div>
                       {entry && (
                         <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>
                           {entry?.isCheatDay ? '🍔' : entry?.totalKcal ?? 0}
                         </div>
+                      )}
+                      {/* Habits indicator dot */}
+                      {habitsCount > 0 && (
+                        <div style={{
+                          position: 'absolute',
+                          top: 2,
+                          right: 2,
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: 'var(--ng-green)',
+                          fontSize: 5,
+                        }} />
                       )}
                     </div>
                   );
@@ -737,6 +778,10 @@ export default function MealPlanTab() {
               <div style={{ width: 12, height: 12, background: 'rgba(255,184,0,0.2)', border: '1px solid var(--ng-amber)', borderRadius: 3 }} />
               Cheat
             </div>
+            <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ width: 6, height: 6, background: 'var(--ng-green)', borderRadius: '50%' }} />
+              Habits
+            </div>
           </div>
 
           {/* Recent Logs */}
@@ -744,41 +789,72 @@ export default function MealPlanTab() {
             <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px', marginBottom: 10 }}>
               📅 RECENT ENTRIES
             </div>
-            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+            <div style={{ maxHeight: 300, overflowY: 'auto' }}>
               {Object.entries(mealLog)
                 .sort(([a], [b]) => b.localeCompare(a))
                 .slice(0, 10)
-                .map(([date, entry]) => (
-                  <div
-                    key={date}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '10px 12px',
-                      marginBottom: 4,
-                      background: 'var(--ng-surface)',
-                      border: '1px solid var(--ng-border)',
-                      borderRadius: 8,
-                    }}
-                  >
-                    <div>
-                      <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-text)' }}>
-                        {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                        {entry?.isCheatDay && ' 🍔'}
+                .map(([date, entry]) => {
+                  // Get completed habits for this date
+                  const dayHabitTimes = habitTimes[date] || {};
+                  const completedHabitIds = Object.keys(dayHabitTimes);
+                  const completedHabits = habits.filter(h => completedHabitIds.includes(h.id));
+
+                  return (
+                    <div
+                      key={date}
+                      style={{
+                        padding: '10px 12px',
+                        marginBottom: 6,
+                        background: 'var(--ng-surface)',
+                        border: '1px solid var(--ng-border)',
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-text)' }}>
+                            {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                            {entry?.isCheatDay && ' 🍔'}
+                          </div>
+                          {entry?.notes && (
+                            <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{entry.notes}</div>
+                          )}
+                        </div>
+                        <div className="font-orbitron" style={{
+                          fontSize: 12,
+                          color: entry?.isCheatDay ? 'var(--ng-amber)' : (entry?.totalKcal ?? 0) <= 1150 ? 'var(--ng-green)' : (entry?.totalKcal ?? 0) <= 1400 ? 'var(--ng-cyan)' : 'var(--ng-red)',
+                        }}>
+                          {entry?.totalKcal ?? 0} kcal
+                        </div>
                       </div>
-                      {entry?.notes && (
-                        <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{entry.notes}</div>
+                      {/* Completed habits for this day */}
+                      {completedHabits.length > 0 && (
+                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--ng-border)' }}>
+                          <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>
+                            HABITS COMPLETED ({completedHabits.length})
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {completedHabits.map(habit => (
+                              <div
+                                key={habit.id}
+                                title={habit.name}
+                                style={{
+                                  padding: '3px 6px',
+                                  background: 'rgba(0,255,65,0.1)',
+                                  border: '1px solid rgba(0,255,65,0.2)',
+                                  borderRadius: 4,
+                                  fontSize: 10,
+                                }}
+                              >
+                                {habit.icon}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <div className="font-orbitron" style={{
-                      fontSize: 12,
-                      color: entry?.isCheatDay ? 'var(--ng-amber)' : (entry?.totalKcal ?? 0) <= 1150 ? 'var(--ng-green)' : (entry?.totalKcal ?? 0) <= 1400 ? 'var(--ng-cyan)' : 'var(--ng-red)',
-                    }}>
-                      {entry?.totalKcal ?? 0} kcal
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               {Object.keys(mealLog).length === 0 && (
                 <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', textAlign: 'center', padding: 20 }}>
                   No entries yet. Start logging your meals!
@@ -992,109 +1068,97 @@ export default function MealPlanTab() {
             )}
 
             {/* Log Meal Button */}
-            {!mealLog[today] ? (
-              <>
-                {!showLogPrompt ? (
+            {!showLogPrompt ? (
+              <button
+                onClick={() => setShowLogPrompt(true)}
+                className="font-orbitron"
+                style={{
+                  width: '100%',
+                  marginTop: 12,
+                  padding: '12px',
+                  fontSize: 10,
+                  letterSpacing: '1px',
+                  background: mealLog[today] ? 'transparent' : 'transparent',
+                  color: mealLog[today] ? 'var(--ng-cyan)' : 'var(--ng-green)',
+                  border: `1px solid ${mealLog[today] ? 'var(--ng-cyan)' : 'var(--ng-green)'}`,
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                {mealLog[today] ? (
+                  <>✓ Logged: {mealLog[today]?.totalKcal ?? 0} kcal {mealLog[today]?.isCheatDay && '🍔'} • TAP TO UPDATE</>
+                ) : (
+                  <>📝 LOG MEAL</>
+                )}
+              </button>
+            ) : (
+              <div style={{ marginTop: 12, background: 'var(--ng-bg)', borderRadius: 8, padding: 12 }}>
+                <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', marginBottom: 8 }}>
+                  {mealLog[today] ? 'Updating: ' : 'Logging: '}{Object.entries(mealChecks).filter(([, v]) => v).map(([k]) => k).join(', ') || 'All meals'} + snacks
+                </div>
+                <input
+                  value={logPromptNote}
+                  onChange={(e) => setLogPromptNote(e.target.value)}
+                  placeholder="Add a note (optional)..."
+                  className="ng-input"
+                  style={{ width: '100%', fontSize: 11, padding: '8px 10px', marginBottom: 8 }}
+                  autoFocus
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
                   <button
-                    onClick={() => setShowLogPrompt(true)}
+                    onClick={() => {
+                      logTodayMeals(false, logPromptNote, mealChecks);
+                      setShowLogPrompt(false);
+                      setLogPromptNote('');
+                    }}
                     className="font-orbitron"
                     style={{
-                      width: '100%',
-                      marginTop: 12,
-                      padding: '12px',
-                      fontSize: 10,
-                      letterSpacing: '1px',
-                      background: 'transparent',
-                      color: 'var(--ng-green)',
-                      border: '1px solid var(--ng-green)',
-                      borderRadius: 8,
+                      flex: 1,
+                      padding: '10px',
+                      fontSize: 9,
+                      background: 'var(--ng-green)',
+                      color: '#000',
+                      border: 'none',
+                      borderRadius: 6,
                       cursor: 'pointer',
                     }}
                   >
-                    📝 LOG MEAL
+                    {mealLog[today] ? 'UPDATE LOG' : 'SAVE LOG'}
                   </button>
-                ) : (
-                  <div style={{ marginTop: 12, background: 'var(--ng-bg)', borderRadius: 8, padding: 12 }}>
-                    <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', marginBottom: 8 }}>
-                      Logging: {Object.entries(mealChecks).filter(([, v]) => v).map(([k]) => k).join(', ') || 'All meals'} + snacks
-                    </div>
-                    <input
-                      value={logPromptNote}
-                      onChange={(e) => setLogPromptNote(e.target.value)}
-                      placeholder="Add a note (optional)..."
-                      className="ng-input"
-                      style={{ width: '100%', fontSize: 11, padding: '8px 10px', marginBottom: 8 }}
-                      autoFocus
-                    />
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
-                        onClick={() => {
-                          logTodayMeals(false, logPromptNote, mealChecks);
-                          setShowLogPrompt(false);
-                          setLogPromptNote('');
-                        }}
-                        className="font-orbitron"
-                        style={{
-                          flex: 1,
-                          padding: '10px',
-                          fontSize: 9,
-                          background: 'var(--ng-green)',
-                          color: '#000',
-                          border: 'none',
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        SAVE LOG
-                      </button>
-                      <button
-                        onClick={() => {
-                          logTodayMeals(true, logPromptNote, mealChecks);
-                          setShowLogPrompt(false);
-                          setLogPromptNote('');
-                        }}
-                        className="font-orbitron"
-                        style={{
-                          padding: '10px 12px',
-                          fontSize: 9,
-                          background: 'transparent',
-                          color: 'var(--ng-amber)',
-                          border: '1px solid var(--ng-amber)',
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        🍔 CHEAT
-                      </button>
-                      <button
-                        onClick={() => { setShowLogPrompt(false); setLogPromptNote(''); }}
-                        style={{
-                          padding: '10px 12px',
-                          fontSize: 9,
-                          background: 'transparent',
-                          color: 'var(--ng-muted)',
-                          border: '1px solid var(--ng-border)',
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="font-mono" style={{
-                textAlign: 'center',
-                fontSize: 10,
-                color: 'var(--ng-cyan)',
-                marginTop: 12,
-                padding: 8,
-                background: 'rgba(0,212,255,0.1)',
-                borderRadius: 6,
-              }}>
-                ✓ Logged: {mealLog[today]?.totalKcal ?? 0} kcal {mealLog[today]?.isCheatDay && '🍔'}
+                  <button
+                    onClick={() => {
+                      logTodayMeals(true, logPromptNote, mealChecks);
+                      setShowLogPrompt(false);
+                      setLogPromptNote('');
+                    }}
+                    className="font-orbitron"
+                    style={{
+                      padding: '10px 12px',
+                      fontSize: 9,
+                      background: 'transparent',
+                      color: 'var(--ng-amber)',
+                      border: '1px solid var(--ng-amber)',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🍔 CHEAT
+                  </button>
+                  <button
+                    onClick={() => { setShowLogPrompt(false); setLogPromptNote(''); }}
+                    style={{
+                      padding: '10px 12px',
+                      fontSize: 9,
+                      background: 'transparent',
+                      color: 'var(--ng-muted)',
+                      border: '1px solid var(--ng-border)',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             )}
           </div>

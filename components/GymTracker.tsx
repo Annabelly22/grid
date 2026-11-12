@@ -52,7 +52,7 @@ export default function GymTracker() {
   const save = (next: Record<string, string[]>) => {
     setLog(next);
     localStorage.setItem(TRACKER_KEY, JSON.stringify(next));
-    syncNow();
+    // Note: syncNow() removed - only sync on explicit SAVE button click
   };
 
   const handleSave = () => {

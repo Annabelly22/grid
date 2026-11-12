@@ -35,6 +35,8 @@ interface GridContextValue {
   onboarded: boolean;
   onboardName: string;
   phaseChange: PhaseChange | null;
+  isSyncing: boolean;
+  pendingDelete: { habit: Habit; timeout: number } | null;
   // Setters
   setTab: (t: Tab) => void;
   setOnboardName: (n: string) => void;
@@ -57,6 +59,7 @@ interface GridContextValue {
   handleDeleteTradeSession: (id: string) => void;
   handleSetPriorities: (items: string[]) => void;
   handleSetCycleStart: (date: string) => void;
+  undoDelete: () => void;
   syncNow: () => void;
   saveNow: () => void;
 }
@@ -104,26 +107,32 @@ export function GridProvider({ children }: { children: ReactNode }) {
   const [onboardName, setOnboardName] = useState('');
   const [theme, setTheme]         = useState<'dark' | 'light'>('dark');
   const [phaseChange, setPhaseChange] = useState<PhaseChange | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{ habit: Habit; timeout: number } | null>(null);
 
   // Debounced cloud sync — fires 3s after the last state change
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const midnightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggerSync = useCallback(() => {
     if (syncTimer.current) clearTimeout(syncTimer.current);
-    syncTimer.current = setTimeout(() => {
+    syncTimer.current = setTimeout(async () => {
       const uid = Storage.getUserId();
       if (!uid) return;
+      setIsSyncing(true);
       const payload = Storage.getAllData();
-      cloudSave(uid, payload);
+      await cloudSave(uid, payload);
+      setIsSyncing(false);
     }, 3000);
   }, []);
 
   // Immediate cloud sync — cancels any pending debounce and saves right now
-  const saveNow = useCallback(() => {
+  const saveNow = useCallback(async () => {
     if (syncTimer.current) clearTimeout(syncTimer.current);
     const uid = Storage.getUserId();
     if (!uid) return;
-    cloudSave(uid, Storage.getAllData());
+    setIsSyncing(true);
+    await cloudSave(uid, Storage.getAllData());
+    setIsSyncing(false);
   }, []);
 
   useEffect(() => {
@@ -336,9 +345,36 @@ export function GridProvider({ children }: { children: ReactNode }) {
   };
 
   const handleDeleteHabit = (id: string) => {
+    const habitToDelete = habits.find(h => h.id === id);
+    if (!habitToDelete) return;
+
+    // Cancel any existing pending delete
+    if (pendingDelete) {
+      clearTimeout(pendingDelete.timeout);
+    }
+
+    // Remove from list immediately (optimistic)
     const u = habits.filter(h => h.id !== id);
-    saveHabits(u); setHabits(u);
-    triggerSync();
+    setHabits(u);
+
+    // Set up pending delete with 5s undo window
+    const timeout = window.setTimeout(() => {
+      // Actually save to storage after timeout
+      saveHabits(u);
+      triggerSync();
+      setPendingDelete(null);
+    }, 5000);
+
+    setPendingDelete({ habit: habitToDelete, timeout });
+  };
+
+  const undoDelete = () => {
+    if (!pendingDelete) return;
+    clearTimeout(pendingDelete.timeout);
+    // Restore the habit
+    const restored = [...habits, pendingDelete.habit];
+    setHabits(restored);
+    setPendingDelete(null);
   };
 
   const handleEditHabit = (id: string, updates: Pick<Habit, 'name' | 'category' | 'icon' | 'xpReward' | 'weeklyTarget' | 'reminderTime'>) => {
@@ -430,7 +466,21 @@ export function GridProvider({ children }: { children: ReactNode }) {
     triggerSync();
   };
 
-  const handleResetData = () => { Storage.clearAll(); window.location.reload(); };
+  const handleResetData = () => {
+    const confirmed = window.confirm(
+      '⚠️ RESET ALL DATA?\n\n' +
+      'This will permanently delete:\n' +
+      '• All habits and streaks\n' +
+      '• All XP and achievements\n' +
+      '• All meal logs and body data\n' +
+      '• All settings\n\n' +
+      'This action cannot be undone.'
+    );
+    if (confirmed) {
+      Storage.clearAll();
+      window.location.reload();
+    }
+  };
 
   const clearPhaseChange = () => setPhaseChange(null);
 
@@ -438,12 +488,14 @@ export function GridProvider({ children }: { children: ReactNode }) {
     <GridContext.Provider value={{
       profile, habits, missions, achievements, tradeJournal, dailyPriorities,
       tab, theme, toasts, xpPopups, mounted, onboarded, onboardName, phaseChange,
+      isSyncing, pendingDelete,
       setTab, setOnboardName, clearPhaseChange,
       handleOnboard, handleCompleteHabit, handleUncompleteHabit,
       handleAddHabit, handleDeleteHabit, handleEditHabit, handleCompleteMission,
       handleFocusMinutes, handleToggleTheme, handleUpdateCodename, handleResetData,
       handleToggleFavorite, handleReorderHabits,
       handleLogTrade, handleDeleteTradeSession, handleSetPriorities, handleSetCycleStart,
+      undoDelete,
       syncNow: triggerSync,
       saveNow,
     }}>

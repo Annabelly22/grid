@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getHomeTimezone, setHomeTimezone, getSupportedTimezones, getNowTimeParts, getTodayStr } from '../lib/time';
 import { UserProfile, Habit, Achievement, Mission, getLevel, CATEGORY_COLORS, CATEGORY_ICONS } from '../lib/gameStore';
 import { requestNotificationPermission, getNotificationStatus, scheduleGridNotifications } from '../lib/notifications';
@@ -207,6 +207,16 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
   const [dailyCalTarget, setDailyCalTarget] = useState(1100);
   const [startDate, setStartDate] = useState<string | null>(null);
   const [startWeight, setStartWeight] = useState<number | null>(null);
+  const [pendingActivityLevel, setPendingActivityLevel] = useState<typeof bodyStats.activityLevel | null>(null);
+
+  // Memoize mission progress calculations to avoid recalculating on every render
+  const missionProgressMap = useMemo(() => {
+    const map = new Map<string, MissionProgress | null>();
+    missions.forEach(m => {
+      map.set(m.id, getMissionProgress(m, profile, habits));
+    });
+    return map;
+  }, [missions, profile, habits]);
 
   // Load body stats and journey data
   useEffect(() => {
@@ -399,10 +409,16 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
               <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-cyan)' }}>affects TDEE</div>
             </div>
             <select
-              value={bodyStats.activityLevel}
-              onChange={(e) => saveBodyStats({ ...bodyStats, activityLevel: e.target.value as typeof bodyStats.activityLevel })}
+              value={pendingActivityLevel ?? bodyStats.activityLevel}
+              onChange={(e) => setPendingActivityLevel(e.target.value as typeof bodyStats.activityLevel)}
               className="ng-input"
-              style={{ width: '100%', fontSize: 12, padding: '10px 12px', background: 'var(--ng-surface)' }}
+              style={{
+                width: '100%',
+                fontSize: 12,
+                padding: '10px 12px',
+                background: 'var(--ng-surface)',
+                borderColor: pendingActivityLevel && pendingActivityLevel !== bodyStats.activityLevel ? 'var(--ng-amber)' : undefined,
+              }}
             >
               <option value="sedentary">Sedentary — desk job, little exercise</option>
               <option value="light">Light — 1-2 workouts/week</option>
@@ -411,9 +427,40 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
               <option value="veryActive">Very Active — 2x/day or physical job</option>
             </select>
 
+            {/* Save button when activity level changed */}
+            {pendingActivityLevel && pendingActivityLevel !== bodyStats.activityLevel && (
+              <button
+                onClick={() => {
+                  const newStats = { ...bodyStats, activityLevel: pendingActivityLevel };
+                  saveBodyStats(newStats);
+                  setPendingActivityLevel(null);
+                  // Update weight journey with new TDEE
+                  if (startDate && startWeight) {
+                    const journey = { startDate, startWeight, dailyCalTarget };
+                    localStorage.setItem('grid_weight_journey', JSON.stringify(journey));
+                  }
+                }}
+                className="font-orbitron"
+                style={{
+                  width: '100%',
+                  marginTop: 10,
+                  padding: '10px',
+                  fontSize: 10,
+                  letterSpacing: '1px',
+                  background: 'var(--ng-green)',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                SAVE & UPDATE WEIGHT JOURNEY
+              </button>
+            )}
+
             {/* Activity multiplier explanation */}
             <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-dimmer)', marginTop: 8, textAlign: 'center' }}>
-              BMR × {bodyStats.activityLevel === 'sedentary' ? '1.2' : bodyStats.activityLevel === 'light' ? '1.375' : bodyStats.activityLevel === 'moderate' ? '1.55' : bodyStats.activityLevel === 'active' ? '1.725' : '1.9'} = TDEE
+              BMR × {(pendingActivityLevel ?? bodyStats.activityLevel) === 'sedentary' ? '1.2' : (pendingActivityLevel ?? bodyStats.activityLevel) === 'light' ? '1.375' : (pendingActivityLevel ?? bodyStats.activityLevel) === 'moderate' ? '1.55' : (pendingActivityLevel ?? bodyStats.activityLevel) === 'active' ? '1.725' : '1.9'} = TDEE
             </div>
           </div>
         </div>
@@ -803,7 +850,7 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
                 <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-purple)', letterSpacing: '2px' }}>◆ MISSIONS</div>
                 <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>{completed.length}/{missions.length} · {xpAvailable.toLocaleString()} XP left</div>
               </div>
-              {pending.map(m => <MissionCard key={m.id} mission={m} progress={getMissionProgress(m, profile, habits)} onComplete={onCompleteMission} />)}
+              {pending.map(m => <MissionCard key={m.id} mission={m} progress={missionProgressMap.get(m.id) ?? null} onComplete={onCompleteMission} />)}
               {pending.length === 0 && <div className="font-orbitron text-center py-3" style={{ fontSize: 9, color: 'var(--ng-purple)', letterSpacing: '2px' }}>ALL MISSIONS COMPLETE</div>}
               {completed.length > 0 && (
                 <>
