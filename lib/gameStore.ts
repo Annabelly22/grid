@@ -47,6 +47,7 @@ export interface TradeSession {
   pair?: string;             // e.g. 'XAUUSD', 'GBPJPY'
   session?: TradingSession;  // trading session
   direction?: TradeDirection; // BUY or SELL
+  images?: string[];         // URLs of trade screenshots
 }
 
 export type HabitCategory = 'body' | 'mind' | 'trade' | 'build' | 'spirit' | 'recovery';

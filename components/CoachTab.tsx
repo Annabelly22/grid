@@ -86,6 +86,11 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
   const [journalSession, setJournalSession] = useState<TradingSession>('LONDON');
   const [journalDirection, setJournalDirection] = useState<TradeDirection>('BUY');
   const [showLogForm, setShowLogForm] = useState(false);
+  // Image upload
+  const [journalImages, setJournalImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [expandedTrade, setExpandedTrade] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate stats from trade journal
   const stats = useMemo(() => {
@@ -235,6 +240,55 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
     setLoading(false);
   }
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    const userId = Storage.getUserId();
+
+    for (const file of Array.from(files)) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('userId', userId);
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (data.url) {
+          setJournalImages(prev => [...prev, data.url]);
+        } else {
+          console.error('Upload failed:', data.error);
+        }
+      } catch (err) {
+        console.error('Upload error:', err);
+      }
+    }
+
+    setUploading(false);
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveImage = async (url: string) => {
+    try {
+      await fetch('/api/upload', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+    } catch (err) {
+      console.error('Delete error:', err);
+    }
+    setJournalImages(prev => prev.filter(u => u !== url));
+  };
+
   const handleLogSession = () => {
     if (journalRules === null) return;
     const pnlValue = journalPnl.trim() ? parseFloat(journalPnl) : undefined;
@@ -248,6 +302,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
       pair: journalPair,
       session: journalSession,
       direction: journalDirection,
+      images: journalImages.length > 0 ? journalImages : undefined,
     });
     // Reset form
     setJournalDate(today);
@@ -259,6 +314,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
     setJournalPair('XAUUSD');
     setJournalSession('LONDON');
     setJournalDirection('BUY');
+    setJournalImages([]);
     setShowLogForm(false);
   };
 
@@ -598,6 +654,49 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                 <textarea className="ng-textarea" rows={2} style={{ width: '100%', resize: 'none' }} placeholder="Brief note..." value={journalNote} onChange={e => setJournalNote(e.target.value.slice(0, 280))} />
               </div>
 
+              {/* Row 6: Screenshots */}
+              <div className="mb-3">
+                <div className="font-orbitron mb-2" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>SCREENSHOTS</div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  style={{ display: 'none' }}
+                />
+                <div className="flex gap-2 flex-wrap">
+                  {journalImages.map((url, i) => (
+                    <div key={i} style={{ position: 'relative', width: 60, height: 60 }}>
+                      <img src={url} alt={`Screenshot ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ng-border)' }} />
+                      <button
+                        onClick={() => handleRemoveImage(url)}
+                        style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: 'var(--ng-red)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >✕</button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    style={{
+                      width: 60, height: 60, border: '1.5px dashed var(--ng-border)', borderRadius: 6,
+                      background: 'transparent', cursor: uploading ? 'wait' : 'pointer',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+                      color: 'var(--ng-muted)',
+                    }}
+                  >
+                    {uploading ? (
+                      <div className="loader-dots" style={{ transform: 'scale(0.5)' }}><span /><span /><span /></div>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 18 }}>📷</span>
+                        <span className="font-mono" style={{ fontSize: 7 }}>ADD</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
               <button onClick={handleLogSession} disabled={journalRules === null} className="btn-green-solid w-full" style={{ opacity: journalRules === null ? 0.5 : 1 }}>
                 SUBMIT TRADE
               </button>
@@ -617,6 +716,9 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                         {session.pair && <span className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-text)' }}>{session.pair}</span>}
                         {session.session && <span className="font-mono" style={{ fontSize: 8, color: session.session === 'LONDON' ? 'var(--ng-green)' : 'var(--ng-muted)', padding: '2px 6px', background: 'var(--ng-surface2)', borderRadius: 4 }}>{session.session}</span>}
                         {session.direction && <span className="font-orbitron" style={{ fontSize: 8, color: session.direction === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)' }}>{session.direction}</span>}
+                        {session.images && session.images.length > 0 && (
+                          <span className="font-mono" style={{ fontSize: 8, color: 'var(--ng-purple)', padding: '2px 6px', background: 'rgba(191,0,255,0.1)', borderRadius: 4 }}>📷 {session.images.length}</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         {session.pnl !== undefined && (
@@ -635,6 +737,31 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                       <span className="font-mono" style={{ fontSize: 8, color: 'var(--ng-cyan)', textTransform: 'uppercase' }}>{session.emotionalState}</span>
                     </div>
                     {session.note && <div className="font-mono mt-1" style={{ fontSize: 9, color: 'var(--ng-dimmer)', lineHeight: 1.4 }}>{session.note}</div>}
+                    {/* Trade Screenshots */}
+                    {session.images && session.images.length > 0 && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => setExpandedTrade(expandedTrade === session.id ? null : session.id)}
+                          className="font-mono"
+                          style={{ fontSize: 9, color: 'var(--ng-purple)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                        >
+                          {expandedTrade === session.id ? '▼ Hide screenshots' : '▶ View screenshots'}
+                        </button>
+                        {expandedTrade === session.id && (
+                          <div className="flex gap-2 mt-2 flex-wrap">
+                            {session.images.map((url, i) => (
+                              <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                <img
+                                  src={url}
+                                  alt={`Trade screenshot ${i + 1}`}
+                                  style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ng-border)', cursor: 'pointer' }}
+                                />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
