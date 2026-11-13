@@ -429,7 +429,11 @@ function WeeklyReview() {
   );
 }
 
-export default function BodyTab() {
+interface BodyTabProps {
+  onNavigateToHabits?: () => void;
+}
+
+export default function BodyTab({ onNavigateToHabits }: BodyTabProps) {
   const { phaseChange, clearPhaseChange, handleSetCycleStart, syncNow } = useGridContext();
   const [subTab,      setSubTab]      = useState<SubTab>('home');
   const [menuOpen,    setMenuOpen]    = useState(false);
@@ -758,6 +762,20 @@ export default function BodyTab() {
                 <span className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-green)', letterSpacing: '2px' }}>DAILY PRACTICE</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 22 }}>
+                {/* Habits button - navigates to main Habits tab */}
+                {onNavigateToHabits && (
+                  <button onClick={onNavigateToHabits}
+                    style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 16px', width: '100%', background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderLeft: '4px solid var(--ng-cyan)', borderRadius: 14, cursor: 'pointer', position: 'relative', transition: 'background 0.15s', textAlign: 'left' }}>
+                    <div style={{ width: 46, height: 46, borderRadius: 12, flexShrink: 0, background: 'rgba(100,210,255,0.1)', border: '1px solid rgba(100,210,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
+                      ◈
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="font-orbitron font-bold" style={{ fontSize: 13, color: 'var(--ng-cyan)', letterSpacing: '1px', marginBottom: 3 }}>HABITS</div>
+                      <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)', lineHeight: 1.4 }}>Daily habit tracking & streaks</div>
+                    </div>
+                    <span style={{ color: 'var(--ng-dimmer)', fontSize: 18, flexShrink: 0, lineHeight: 1 }}>›</span>
+                  </button>
+                )}
                 {dailyTabs.map(t => renderDailyTile(t))}
               </div>
 
