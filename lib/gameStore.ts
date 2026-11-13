@@ -33,6 +33,7 @@ export interface Habit {
 
 export type TradingSession = 'LONDON' | 'ASIAN' | 'NEWYORK';
 export type TradeDirection = 'BUY' | 'SELL';
+export type TradeTimeline = 'SCALP' | 'INTRADAY' | 'SWING' | 'WEEKLY' | '2WEEKS' | 'MONTHLY';
 
 export interface TradeSession {
   id: string;
@@ -48,6 +49,39 @@ export interface TradeSession {
   session?: TradingSession;  // trading session
   direction?: TradeDirection; // BUY or SELL
   images?: string[];         // URLs of trade screenshots
+  timeline?: TradeTimeline;  // expected time to TP
+  setupId?: string;          // links to weekly setup if executed from plan
+}
+
+// Weekly trading planner types
+export interface WeeklySetup {
+  id: string;
+  pair: string;
+  direction: TradeDirection;
+  bias: string;              // reasoning for the setup
+  entryZone?: string;        // e.g. "1.0850 - 1.0870"
+  tp?: string;
+  sl?: string;
+  timeline: TradeTimeline;
+  status: 'PENDING' | 'ACTIVE' | 'EXECUTED' | 'CANCELLED' | 'MISSED';
+  createdAt: string;
+  executedTradeId?: string;  // links to trade if executed
+}
+
+export interface WeeklyNews {
+  id: string;
+  date: string;              // YYYY-MM-DD
+  time: string;              // HH:MM
+  event: string;
+  impact: 'HIGH' | 'MEDIUM' | 'LOW';
+  pairs: string[];           // affected pairs
+}
+
+export interface WeeklyPlan {
+  weekStart: string;         // Monday date YYYY-MM-DD
+  goal: number;              // monetary goal for the week
+  setups: WeeklySetup[];
+  news: WeeklyNews[];
 }
 
 export type HabitCategory = 'body' | 'mind' | 'trade' | 'build' | 'spirit' | 'recovery';

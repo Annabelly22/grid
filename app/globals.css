@@ -278,6 +278,12 @@ html, body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(84, 84, 88, 0.4); border-radius: 2px; }
 
+/* Custom scrollbar for rules section */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: rgba(84, 84, 88, 0.15); border-radius: 2px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--ng-amber); border-radius: 2px; }
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: var(--ng-amber) rgba(84, 84, 88, 0.15); }
+
 /* ── Desktop layout ─────────────────────────────────────────── */
 .desktop-sidebar { display: none; }
 .main-content { width: 100%; max-width: 480px; margin: 0 auto; position: relative; }

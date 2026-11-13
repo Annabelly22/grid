@@ -38,6 +38,7 @@ const K = {
   habitsView:      'grid_habits_view',
   notifPerm:       'grid_notif_perm_asked',
   tradeJournal:    'grid_trade_journal',
+  weeklyPlan:      'grid_weekly_plan',
   alphawillChat:   'grid_alphawill_chat',
   focusLog:        'grid_focus_log',
   dailyPriorities: 'grid_daily_priorities',
@@ -187,6 +188,10 @@ export const Storage = {
   // Trade journal
   getTradeJournal: () => get<import('./gameStore').TradeSession[]>(K.tradeJournal, []),
   setTradeJournal: (s: import('./gameStore').TradeSession[]) => set(K.tradeJournal, s),
+
+  // Weekly trading plan
+  getWeeklyPlan: () => get<import('./gameStore').WeeklyPlan | null>(K.weeklyPlan, null),
+  setWeeklyPlan: (p: import('./gameStore').WeeklyPlan) => set(K.weeklyPlan, p),
 
   // Godwill chat history
   getGodwillChat: () => get<{ role: 'user' | 'assistant'; content: string }[]>(K.alphawillChat, []),

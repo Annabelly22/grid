@@ -1,7 +1,7 @@
 'use client';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import DOMPurify from 'dompurify';
-import { UserProfile, TradeSession, TradingSession, TradeDirection } from '../lib/gameStore';
+import { UserProfile, TradeSession, TradingSession, TradeDirection, TradeTimeline, WeeklyPlan, WeeklySetup, WeeklyNews } from '../lib/gameStore';
 import { Storage } from '../lib/storage';
 import { getTodayStr } from '../lib/time';
 
@@ -48,16 +48,35 @@ const COMMON_PAIRS = ['XAUUSD', 'GBPJPY', 'GBPAUD', 'AUDJPY', 'EURUSD', 'GBPUSD'
 // Trading rules based on Notion journal analysis (75 trades analyzed)
 // LONDON: 87.5% WR (+$2,715) | NY: 30.8% WR (-$313) | ASIAN: 42.9% WR (-$193)
 const TRADING_RULES = [
-  { rule: 'LONDON session ONLY (87.5% WR vs 30% NY)', icon: '🎯', critical: true },
+  { rule: 'Define your edge — backtest, forward test, prove expectancy', icon: '🎯', critical: true },
+  { rule: 'Size small — 1-2% max, survival first', icon: '⚖️', critical: true },
+  { rule: 'Execute mechanically — remove decisions from the moment', icon: '🤖', critical: true },
+  { rule: 'Journal everything — self-awareness = improvement speed', icon: '📓', critical: true },
+  { rule: 'LONDON session ONLY (87.5% WR vs 30% NY)', icon: '🕐', critical: true },
   { rule: 'XAUUSD, GBPJPY, GBPAUD, AUDJPY only (100% WR)', icon: '💰', critical: true },
-  { rule: 'Use Daily/4H for structure — no lower TFs', icon: '📊', critical: true },
+  { rule: 'Use Daily/4H for structure — no lower TFs', icon: '📊', critical: false },
   { rule: 'No overleveraging — forced early exits kill wins', icon: '⚠️', critical: true },
   { rule: 'Max 3 positions open at once', icon: '🔢', critical: false },
   { rule: 'Check news before every trade', icon: '📰', critical: false },
   { rule: 'Avoid NZDUSD, XPDUSD, DXY (negative P&L)', icon: '🚫', critical: false },
-  { rule: 'No trading when uncertain or traveling', icon: '🧘', critical: true },
+  { rule: 'No trading when uncertain or traveling', icon: '🧘', critical: false },
   { rule: 'Cut losses fast — they affect winning trades', icon: '✂️', critical: false },
 ];
+
+const TRADE_TIMELINES: { value: TradeTimeline; label: string; color: string }[] = [
+  { value: 'SCALP', label: 'SCALP', color: 'var(--ng-red)' },
+  { value: 'INTRADAY', label: 'INTRADAY', color: 'var(--ng-amber)' },
+  { value: 'SWING', label: 'SWING', color: 'var(--ng-cyan)' },
+  { value: 'WEEKLY', label: '1 WEEK', color: 'var(--ng-green)' },
+  { value: '2WEEKS', label: '2 WEEKS', color: 'var(--ng-purple)' },
+  { value: 'MONTHLY', label: 'MONTHLY', color: 'var(--ng-blue)' },
+];
+
+const NEWS_IMPACT_COLORS = {
+  HIGH: 'var(--ng-red)',
+  MEDIUM: 'var(--ng-amber)',
+  LOW: 'var(--ng-muted)',
+};
 
 const INITIAL_MSG = (codename: string, xp: number, streak: number): Message => ({
   role: 'assistant',
@@ -130,6 +149,27 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Trade timeline
+  const [journalTimeline, setJournalTimeline] = useState<TradeTimeline>('INTRADAY');
+
+  // Weekly planning state
+  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
+  const [showSetupForm, setShowSetupForm] = useState(false);
+  const [showNewsForm, setShowNewsForm] = useState(false);
+  const [setupPair, setSetupPair] = useState('XAUUSD');
+  const [setupDirection, setSetupDirection] = useState<TradeDirection>('BUY');
+  const [setupBias, setSetupBias] = useState('');
+  const [setupEntryZone, setSetupEntryZone] = useState('');
+  const [setupTP, setSetupTP] = useState('');
+  const [setupSL, setSetupSL] = useState('');
+  const [setupTimeline, setSetupTimeline] = useState<TradeTimeline>('SWING');
+  const [newsDate, setNewsDate] = useState('');
+  const [newsTime, setNewsTime] = useState('');
+  const [newsEvent, setNewsEvent] = useState('');
+  const [newsImpact, setNewsImpact] = useState<'HIGH' | 'MEDIUM' | 'LOW'>('HIGH');
+  const [newsPairs, setNewsPairs] = useState<string[]>([]);
+  const [weeklyGoal, setWeeklyGoal] = useState('');
+
   // Calculate stats from trade journal
   const stats = useMemo(() => {
     const now = new Date();
@@ -186,6 +226,14 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
     const rulesFollowedWeek = weekTrades.filter(t => t.rulesFollowed).length;
     const rulesComplianceWeek = weekTrades.length > 0 ? Math.round((rulesFollowedWeek / weekTrades.length) * 100) : 100;
 
+    // Profit factor (gross profit / gross loss)
+    const weekGrossProfit = weekTrades.filter(t => (t.pnl || 0) > 0).reduce((sum, t) => sum + (t.pnl || 0), 0);
+    const weekGrossLoss = Math.abs(weekTrades.filter(t => (t.pnl || 0) < 0).reduce((sum, t) => sum + (t.pnl || 0), 0));
+    const monthGrossProfit = monthTrades.filter(t => (t.pnl || 0) > 0).reduce((sum, t) => sum + (t.pnl || 0), 0);
+    const monthGrossLoss = Math.abs(monthTrades.filter(t => (t.pnl || 0) < 0).reduce((sum, t) => sum + (t.pnl || 0), 0));
+    const weekProfitFactor = weekGrossLoss > 0 ? weekGrossProfit / weekGrossLoss : weekGrossProfit > 0 ? Infinity : 0;
+    const monthProfitFactor = monthGrossLoss > 0 ? monthGrossProfit / monthGrossLoss : monthGrossProfit > 0 ? Infinity : 0;
+
     return {
       weekPnl,
       monthPnl,
@@ -198,6 +246,8 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
       bestPairs,
       sessionPnl,
       rulesComplianceWeek,
+      weekProfitFactor,
+      monthProfitFactor,
     };
   }, [tradeJournal]);
 
@@ -243,8 +293,12 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
     const monthlyPnl = monthTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
     const monthlyWins = monthTrades.filter(t => (t.pnl || 0) > 0).length;
     const monthlyLosses = monthTrades.filter(t => (t.pnl || 0) < 0).length;
+    const monthlyGrossProfit = monthTrades.filter(t => (t.pnl || 0) > 0).reduce((sum, t) => sum + (t.pnl || 0), 0);
+    const monthlyGrossLoss = Math.abs(monthTrades.filter(t => (t.pnl || 0) < 0).reduce((sum, t) => sum + (t.pnl || 0), 0));
+    const monthlyProfitFactor = monthlyGrossLoss > 0 ? monthlyGrossProfit / monthlyGrossLoss : monthlyGrossProfit > 0 ? Infinity : 0;
+    const monthlyWinRate = monthTrades.length > 0 ? Math.round((monthlyWins / monthTrades.length) * 100) : 0;
 
-    return { weeks, monthlyPnl, monthlyWins, monthlyLosses, totalTrades: monthTrades.length };
+    return { weeks, monthlyPnl, monthlyWins, monthlyLosses, totalTrades: monthTrades.length, monthlyProfitFactor, monthlyWinRate };
   }, [tradeJournal, selectedMonth]);
 
   // Start editing a trade
@@ -288,6 +342,105 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
       setMessages(stored.map((m, i) => ({ ...m, id: i })));
     }
   }, []);
+
+  // Load weekly plan on mount
+  useEffect(() => {
+    const plan = Storage.getWeeklyPlan();
+    if (plan) {
+      setWeeklyPlan(plan);
+      setWeeklyGoal(plan.goal?.toString() || '');
+    }
+  }, []);
+
+  // Get current week start (Monday)
+  const getWeekStart = () => {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(now.setDate(diff)).toISOString().slice(0, 10);
+  };
+
+  // Save weekly plan
+  const saveWeeklyPlan = (plan: WeeklyPlan) => {
+    setWeeklyPlan(plan);
+    Storage.setWeeklyPlan(plan);
+  };
+
+  // Add a setup
+  const handleAddSetup = () => {
+    if (!setupBias.trim()) return;
+    const newSetup: WeeklySetup = {
+      id: `setup_${Date.now()}`,
+      pair: setupPair,
+      direction: setupDirection,
+      bias: setupBias.trim(),
+      entryZone: setupEntryZone.trim() || undefined,
+      tp: setupTP.trim() || undefined,
+      sl: setupSL.trim() || undefined,
+      timeline: setupTimeline,
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+    };
+    const currentPlan = weeklyPlan || { weekStart: getWeekStart(), goal: parseFloat(weeklyGoal) || 0, setups: [], news: [] };
+    const updatedPlan = { ...currentPlan, setups: [...currentPlan.setups, newSetup] };
+    saveWeeklyPlan(updatedPlan);
+    // Reset form
+    setSetupBias('');
+    setSetupEntryZone('');
+    setSetupTP('');
+    setSetupSL('');
+    setShowSetupForm(false);
+  };
+
+  // Update setup status
+  const handleUpdateSetupStatus = (setupId: string, status: WeeklySetup['status']) => {
+    if (!weeklyPlan) return;
+    const updatedSetups = weeklyPlan.setups.map(s => s.id === setupId ? { ...s, status } : s);
+    saveWeeklyPlan({ ...weeklyPlan, setups: updatedSetups });
+  };
+
+  // Delete setup
+  const handleDeleteSetup = (setupId: string) => {
+    if (!weeklyPlan) return;
+    const updatedSetups = weeklyPlan.setups.filter(s => s.id !== setupId);
+    saveWeeklyPlan({ ...weeklyPlan, setups: updatedSetups });
+  };
+
+  // Add news event
+  const handleAddNews = () => {
+    if (!newsEvent.trim() || !newsDate) return;
+    const newNews: WeeklyNews = {
+      id: `news_${Date.now()}`,
+      date: newsDate,
+      time: newsTime || '00:00',
+      event: newsEvent.trim(),
+      impact: newsImpact,
+      pairs: newsPairs.length > 0 ? newsPairs : ['USD'],
+    };
+    const currentPlan = weeklyPlan || { weekStart: getWeekStart(), goal: parseFloat(weeklyGoal) || 0, setups: [], news: [] };
+    const updatedPlan = { ...currentPlan, news: [...currentPlan.news, newNews].sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)) };
+    saveWeeklyPlan(updatedPlan);
+    // Reset form
+    setNewsDate('');
+    setNewsTime('');
+    setNewsEvent('');
+    setNewsPairs([]);
+    setShowNewsForm(false);
+  };
+
+  // Delete news event
+  const handleDeleteNews = (newsId: string) => {
+    if (!weeklyPlan) return;
+    const updatedNews = weeklyPlan.news.filter(n => n.id !== newsId);
+    saveWeeklyPlan({ ...weeklyPlan, news: updatedNews });
+  };
+
+  // Update weekly goal
+  const handleUpdateGoal = () => {
+    const goal = parseFloat(weeklyGoal) || 0;
+    const currentPlan = weeklyPlan || { weekStart: getWeekStart(), goal: 0, setups: [], news: [] };
+    saveWeeklyPlan({ ...currentPlan, goal });
+  };
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -421,6 +574,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
       session: journalSession,
       direction: journalDirection,
       images: journalImages.length > 0 ? journalImages : undefined,
+      timeline: journalTimeline,
     });
     // Reset form
     setJournalDate(today);
@@ -433,6 +587,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
     setJournalSession('LONDON');
     setJournalDirection('BUY');
     setJournalImages([]);
+    setJournalTimeline('INTRADAY');
     setShowLogForm(false);
   };
 
@@ -609,9 +764,16 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
               <div style={{ width: 1, background: 'var(--ng-border)' }} />
               <div className="text-center">
                 <div className="font-orbitron font-bold" style={{ fontSize: 20, color: 'var(--ng-cyan)' }}>
-                  {logViewData.totalTrades > 0 ? Math.round((logViewData.monthlyWins / logViewData.totalTrades) * 100) : 0}%
+                  {logViewData.monthlyWinRate}%
                 </div>
                 <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px' }}>WIN RATE</div>
+              </div>
+              <div style={{ width: 1, background: 'var(--ng-border)' }} />
+              <div className="text-center">
+                <div className="font-orbitron font-bold" style={{ fontSize: 20, color: logViewData.monthlyProfitFactor >= 1.5 ? 'var(--ng-green)' : logViewData.monthlyProfitFactor >= 1 ? 'var(--ng-amber)' : 'var(--ng-red)' }}>
+                  {logViewData.monthlyProfitFactor === Infinity ? '∞' : logViewData.monthlyProfitFactor.toFixed(2)}
+                </div>
+                <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px' }}>PF</div>
               </div>
             </div>
 
@@ -787,6 +949,17 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                                       {trade.session}
                                     </span>
                                   )}
+                                  {trade.timeline && (
+                                    <span className="font-mono" style={{
+                                      fontSize: 8,
+                                      color: TRADE_TIMELINES.find(t => t.value === trade.timeline)?.color || 'var(--ng-muted)',
+                                      padding: '3px 8px',
+                                      background: 'var(--ng-surface2)',
+                                      borderRadius: 4,
+                                    }}>
+                                      {trade.timeline}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-3">
                                   <span className="font-orbitron font-bold" style={{ fontSize: 16, color: (trade.pnl || 0) >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
@@ -902,105 +1075,533 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
         </>
       )}
 
-      {/* ── Journal tab — Trading Dashboard ──────────────────── */}
+      {/* ── Journal tab — Weekly Planning Hub ──────────────────── */}
       {activeTab === 'journal' && (
         <div className="flex-1 overflow-y-auto px-4 py-4">
 
-          {/* P&L Stats Cards */}
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="card" style={{ padding: '12px 10px', textAlign: 'center', borderColor: stats.weekPnl >= 0 ? 'rgba(0,255,65,0.3)' : 'rgba(255,71,87,0.3)' }}>
-              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px', marginBottom: 4 }}>THIS WEEK</div>
-              <div className="font-orbitron font-bold" style={{ fontSize: 16, color: stats.weekPnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
-                {stats.weekPnl >= 0 ? '+' : ''}{stats.weekPnl.toFixed(2)}
+          {/* Weekly Goal Banner - Hero Section */}
+          <div className="card mb-4" style={{
+            background: weeklyPlan?.goal && stats.weekPnl >= weeklyPlan.goal
+              ? 'linear-gradient(135deg, rgba(0,255,65,0.2) 0%, rgba(0,212,255,0.15) 100%)'
+              : 'linear-gradient(135deg, rgba(0,212,255,0.12) 0%, rgba(191,0,255,0.08) 100%)',
+            borderColor: weeklyPlan?.goal && stats.weekPnl >= weeklyPlan.goal ? 'var(--ng-green)' : 'rgba(0,212,255,0.4)',
+            padding: '20px 16px',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            {/* Goal hit celebration effect */}
+            {weeklyPlan?.goal && stats.weekPnl >= weeklyPlan.goal && (
+              <div style={{ position: 'absolute', top: 8, right: 12, fontSize: 28, animation: 'pulse 2s infinite' }}>🎯</div>
+            )}
+
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-cyan)', letterSpacing: '2px', marginBottom: 2 }}>THIS WEEK'S TARGET</div>
+                <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)' }}>
+                  {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </div>
               </div>
-              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)' }}>{stats.weekTrades} trades</div>
+              {weeklyPlan?.goal && stats.weekPnl >= weeklyPlan.goal && (
+                <div className="font-orbitron" style={{
+                  fontSize: 11,
+                  color: '#000',
+                  padding: '6px 14px',
+                  background: 'linear-gradient(90deg, var(--ng-green), var(--ng-cyan))',
+                  borderRadius: 20,
+                  fontWeight: 900,
+                  letterSpacing: '1px',
+                  boxShadow: '0 0 20px rgba(0,255,65,0.4)',
+                }}>
+                  ✓ GOAL CRUSHED
+                </div>
+              )}
             </div>
-            <div className="card" style={{ padding: '12px 10px', textAlign: 'center', borderColor: stats.monthPnl >= 0 ? 'rgba(0,255,65,0.3)' : 'rgba(255,71,87,0.3)' }}>
-              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px', marginBottom: 4 }}>THIS MONTH</div>
-              <div className="font-orbitron font-bold" style={{ fontSize: 16, color: stats.monthPnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
-                {stats.monthPnl >= 0 ? '+' : ''}{stats.monthPnl.toFixed(2)}
+
+            <div className="flex items-end gap-4 mb-4">
+              <div style={{ flex: 1 }}>
+                <div className="flex items-center gap-2">
+                  <span className="font-orbitron" style={{ fontSize: 14, color: 'var(--ng-muted)' }}>$</span>
+                  <input
+                    type="number"
+                    className="ng-input"
+                    style={{
+                      flex: 1,
+                      padding: '12px 14px',
+                      fontSize: 24,
+                      fontWeight: 900,
+                      background: 'rgba(0,0,0,0.4)',
+                      border: '2px solid rgba(0,212,255,0.3)',
+                      letterSpacing: '1px',
+                    }}
+                    placeholder="0"
+                    value={weeklyGoal}
+                    onChange={e => setWeeklyGoal(e.target.value)}
+                    onBlur={handleUpdateGoal}
+                  />
+                </div>
+                <div className="font-mono mt-1" style={{ fontSize: 9, color: 'var(--ng-dimmer)', paddingLeft: 24 }}>weekly target</div>
               </div>
-              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)' }}>{stats.monthTrades} trades</div>
+              <div className="text-center" style={{ minWidth: 100 }}>
+                <div className="font-orbitron font-bold" style={{
+                  fontSize: 32,
+                  color: stats.weekPnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)',
+                  textShadow: stats.weekPnl >= 0 ? '0 0 20px rgba(0,255,65,0.3)' : '0 0 20px rgba(255,71,87,0.3)',
+                  lineHeight: 1,
+                }}>
+                  {stats.weekPnl >= 0 ? '+' : ''}{stats.weekPnl.toFixed(0)}
+                </div>
+                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', marginTop: 4 }}>current P&L</div>
+              </div>
             </div>
-            <div className="card" style={{ padding: '12px 10px', textAlign: 'center', borderColor: 'rgba(0,212,255,0.3)' }}>
-              <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px', marginBottom: 4 }}>WIN RATE</div>
-              <div className="font-orbitron font-bold" style={{ fontSize: 16, color: 'var(--ng-cyan)' }}>{stats.weekWinRate}%</div>
-              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)' }}>{stats.weekWins}W / {stats.weekLosses}L</div>
+
+            {/* Progress bar */}
+            {weeklyPlan?.goal && weeklyPlan.goal > 0 && (
+              <div>
+                <div style={{ height: 8, background: 'rgba(0,0,0,0.3)', borderRadius: 4, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${Math.min(100, Math.max(0, (stats.weekPnl / weeklyPlan.goal) * 100))}%`,
+                    background: stats.weekPnl >= weeklyPlan.goal
+                      ? 'linear-gradient(90deg, var(--ng-green), var(--ng-cyan))'
+                      : stats.weekPnl >= 0
+                        ? 'linear-gradient(90deg, var(--ng-cyan), var(--ng-purple))'
+                        : 'var(--ng-red)',
+                    borderRadius: 4,
+                    transition: 'width 0.5s ease',
+                    boxShadow: stats.weekPnl >= weeklyPlan.goal ? '0 0 10px rgba(0,255,65,0.5)' : 'none',
+                  }} />
+                </div>
+                <div className="flex justify-between mt-2">
+                  <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+                    {stats.weekPnl < 0 ? 'In the red' : `${Math.round((stats.weekPnl / weeklyPlan.goal) * 100)}% there`}
+                  </span>
+                  <span className="font-mono" style={{ fontSize: 10, color: stats.weekPnl >= weeklyPlan.goal ? 'var(--ng-green)' : 'var(--ng-cyan)' }}>
+                    {stats.weekPnl >= weeklyPlan.goal ? 'Exceeded!' : `$${(weeklyPlan.goal - stats.weekPnl).toFixed(0)} to go`}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {!weeklyPlan?.goal && (
+              <div className="font-mono text-center" style={{ fontSize: 11, color: 'var(--ng-amber)', padding: '8px', background: 'rgba(255,159,10,0.1)', borderRadius: 6 }}>
+                ⚠️ Set a weekly goal to track your progress
+              </div>
+            )}
+          </div>
+
+          {/* Quick Action: Log Trade Button - Always Visible */}
+          {!showLogForm && (
+            <button
+              onClick={() => setShowLogForm(true)}
+              className="w-full mb-4"
+              style={{
+                padding: '16px',
+                background: 'linear-gradient(135deg, var(--ng-green) 0%, #00B847 100%)',
+                border: 'none',
+                borderRadius: 12,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                boxShadow: '0 4px 20px rgba(0,255,65,0.3)',
+              }}
+            >
+              <span style={{ fontSize: 20 }}>+</span>
+              <span className="font-orbitron" style={{ fontSize: 13, color: '#000', fontWeight: 900, letterSpacing: '2px' }}>LOG NEW TRADE</span>
+            </button>
+          )}
+
+          {/* Quick Stats Row - 2x2 Grid for better readability */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="card" style={{ padding: '14px 12px', background: 'linear-gradient(135deg, var(--ng-surface) 0%, rgba(0,212,255,0.05) 100%)' }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px', marginBottom: 4 }}>TRADES</div>
+                  <div className="font-orbitron font-bold" style={{ fontSize: 28, color: 'var(--ng-text)', lineHeight: 1 }}>{stats.weekTrades}</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-green)' }}>{stats.weekWins}W</div>
+                  <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-red)' }}>{stats.weekLosses}L</div>
+                </div>
+              </div>
+            </div>
+            <div className="card" style={{ padding: '14px 12px', background: 'linear-gradient(135deg, var(--ng-surface) 0%, rgba(0,212,255,0.08) 100%)' }}>
+              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px', marginBottom: 4 }}>WIN RATE</div>
+              <div className="flex items-end gap-2">
+                <div className="font-orbitron font-bold" style={{ fontSize: 28, color: stats.weekWinRate >= 60 ? 'var(--ng-green)' : stats.weekWinRate >= 50 ? 'var(--ng-cyan)' : 'var(--ng-red)', lineHeight: 1 }}>{stats.weekWinRate}%</div>
+                {stats.weekWinRate >= 60 && <span style={{ fontSize: 14, marginBottom: 2 }}>🔥</span>}
+              </div>
+            </div>
+            <div className="card" style={{ padding: '14px 12px', background: `linear-gradient(135deg, var(--ng-surface) 0%, ${stats.weekProfitFactor >= 1.5 ? 'rgba(0,255,65,0.08)' : stats.weekProfitFactor >= 1 ? 'rgba(255,159,10,0.08)' : 'rgba(255,71,87,0.08)'} 100%)` }}>
+              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px', marginBottom: 4 }}>PROFIT FACTOR</div>
+              <div className="flex items-end gap-2">
+                <div className="font-orbitron font-bold" style={{ fontSize: 28, color: stats.weekProfitFactor >= 1.5 ? 'var(--ng-green)' : stats.weekProfitFactor >= 1 ? 'var(--ng-amber)' : 'var(--ng-red)', lineHeight: 1 }}>
+                  {stats.weekProfitFactor === Infinity ? '∞' : stats.weekProfitFactor.toFixed(2)}
+                </div>
+                <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)', marginBottom: 4 }}>
+                  {stats.weekProfitFactor >= 2 ? 'Excellent' : stats.weekProfitFactor >= 1.5 ? 'Good' : stats.weekProfitFactor >= 1 ? 'Break even' : 'Losing edge'}
+                </span>
+              </div>
+            </div>
+            <div className="card" style={{ padding: '14px 12px', background: `linear-gradient(135deg, var(--ng-surface) 0%, ${stats.rulesComplianceWeek >= 80 ? 'rgba(0,255,65,0.08)' : 'rgba(255,71,87,0.08)'} 100%)` }}>
+              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px', marginBottom: 4 }}>RULES FOLLOWED</div>
+              <div className="flex items-end gap-2">
+                <div className="font-orbitron font-bold" style={{ fontSize: 28, color: stats.rulesComplianceWeek >= 80 ? 'var(--ng-green)' : 'var(--ng-red)', lineHeight: 1 }}>{stats.rulesComplianceWeek}%</div>
+                {stats.rulesComplianceWeek >= 90 && <span style={{ fontSize: 14, marginBottom: 2 }}>⭐</span>}
+                {stats.rulesComplianceWeek < 80 && <span style={{ fontSize: 14, marginBottom: 2 }}>⚠️</span>}
+              </div>
             </div>
           </div>
 
-          {/* Trading Rules */}
+          {/* Trading Rules - With Daily Focus */}
           <div className="card mb-4" style={{ borderColor: 'rgba(255,184,0,0.3)' }}>
             <div className="flex items-center justify-between mb-3">
-              <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-amber)', letterSpacing: '2px' }}>TRADING RULES</div>
-              <div className="font-mono" style={{ fontSize: 10, color: stats.rulesComplianceWeek >= 80 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
-                {stats.rulesComplianceWeek}% compliance
-              </div>
+              <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-amber)', letterSpacing: '2px' }}>TRADING RULES</div>
+              <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-dimmer)' }}>{TRADING_RULES.length} rules</div>
             </div>
-            <div className="flex flex-col gap-2">
-              {TRADING_RULES.map((item, i) => (
-                <div key={i} className="flex items-center gap-2" style={{ padding: '6px 8px', background: item.critical ? 'rgba(255,184,0,0.08)' : 'transparent', borderRadius: 6 }}>
-                  <span style={{ fontSize: 12 }}>{item.icon}</span>
-                  <span className="font-mono" style={{ fontSize: 10, color: item.critical ? 'var(--ng-amber)' : 'var(--ng-muted)' }}>{item.rule}</span>
+
+            {/* Daily Focus Rule - Rotates based on day */}
+            {(() => {
+              const todayRuleIndex = new Date().getDate() % TRADING_RULES.length;
+              const todayRule = TRADING_RULES[todayRuleIndex];
+              return (
+                <div style={{
+                  padding: '12px 14px',
+                  background: 'linear-gradient(135deg, rgba(255,184,0,0.15) 0%, rgba(255,159,10,0.08) 100%)',
+                  border: '1px solid rgba(255,184,0,0.4)',
+                  borderRadius: 8,
+                  marginBottom: 12,
+                }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span style={{ fontSize: 10 }}>🎯</span>
+                    <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-amber)', letterSpacing: '1px' }}>TODAY'S FOCUS</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span style={{ fontSize: 20 }}>{todayRule.icon}</span>
+                    <span className="font-mono" style={{ fontSize: 11, color: 'var(--ng-text)', lineHeight: 1.4, fontWeight: 500 }}>{todayRule.rule}</span>
+                  </div>
                 </div>
-              ))}
+              );
+            })()}
+
+            {/* Scrollable rules list */}
+            <div style={{ maxHeight: 110, overflowY: 'auto' }} className="custom-scrollbar">
+              <div className="flex flex-col gap-1">
+                {TRADING_RULES.map((item, i) => {
+                  const isTodayRule = new Date().getDate() % TRADING_RULES.length === i;
+                  return (
+                    <div key={i} className="flex items-center gap-2" style={{
+                      padding: '8px 10px',
+                      background: isTodayRule ? 'rgba(255,184,0,0.12)' : item.critical ? 'rgba(255,184,0,0.05)' : 'transparent',
+                      borderRadius: 6,
+                      borderLeft: isTodayRule ? '3px solid var(--ng-amber)' : item.critical ? '3px solid rgba(255,184,0,0.3)' : '3px solid transparent',
+                      opacity: isTodayRule ? 1 : 0.8,
+                    }}>
+                      <span style={{ fontSize: 13, minWidth: 20 }}>{item.icon}</span>
+                      <span className="font-mono" style={{
+                        fontSize: 10,
+                        color: isTodayRule ? 'var(--ng-amber)' : item.critical ? 'var(--ng-text)' : 'var(--ng-muted)',
+                        lineHeight: 1.4,
+                        fontWeight: isTodayRule ? 600 : 400,
+                      }}>{item.rule}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          {/* Best Pairs */}
-          {stats.bestPairs.length > 0 && (
-            <div className="card mb-4" style={{ borderColor: 'rgba(0,255,65,0.3)' }}>
-              <div className="font-orbitron mb-3" style={{ fontSize: 9, color: 'var(--ng-green)', letterSpacing: '2px' }}>TOP PERFORMING PAIRS</div>
-              <div className="flex flex-col gap-2">
-                {stats.bestPairs.map((p, i) => (
-                  <div key={p.pair} className="flex items-center justify-between" style={{ padding: '8px 10px', background: i === 0 ? 'rgba(0,255,65,0.08)' : 'transparent', borderRadius: 6 }}>
-                    <div className="flex items-center gap-2">
-                      <span className="font-orbitron" style={{ fontSize: 10, color: i === 0 ? 'var(--ng-green)' : 'var(--ng-muted)', width: 16 }}>#{i + 1}</span>
-                      <span className="font-orbitron font-bold" style={{ fontSize: 12, color: 'var(--ng-text)' }}>{p.pair}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-cyan)' }}>{p.winRate}% WR</span>
-                      <span className="font-orbitron font-bold" style={{ fontSize: 12, color: p.pnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
-                        {p.pnl >= 0 ? '+' : ''}{p.pnl.toFixed(2)}
+          {/* Weekly Setups */}
+          <div className="card mb-4" style={{ borderColor: 'rgba(0,255,65,0.3)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-green)', letterSpacing: '2px' }}>WEEKLY SETUPS</div>
+                {weeklyPlan?.setups && weeklyPlan.setups.length > 0 && (
+                  <div className="flex gap-1">
+                    {weeklyPlan.setups.filter(s => s.status === 'PENDING').length > 0 && (
+                      <span className="font-mono" style={{ fontSize: 8, padding: '2px 6px', background: 'var(--ng-surface2)', color: 'var(--ng-muted)', borderRadius: 10 }}>
+                        {weeklyPlan.setups.filter(s => s.status === 'PENDING').length} pending
                       </span>
+                    )}
+                    {weeklyPlan.setups.filter(s => s.status === 'ACTIVE').length > 0 && (
+                      <span className="font-mono" style={{ fontSize: 8, padding: '2px 6px', background: 'rgba(0,212,255,0.2)', color: 'var(--ng-cyan)', borderRadius: 10 }}>
+                        {weeklyPlan.setups.filter(s => s.status === 'ACTIVE').length} active
+                      </span>
+                    )}
+                    {weeklyPlan.setups.filter(s => s.status === 'EXECUTED').length > 0 && (
+                      <span className="font-mono" style={{ fontSize: 8, padding: '2px 6px', background: 'rgba(0,255,65,0.2)', color: 'var(--ng-green)', borderRadius: 10 }}>
+                        {weeklyPlan.setups.filter(s => s.status === 'EXECUTED').length} ✓
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setShowSetupForm(!showSetupForm)}
+                className="font-orbitron"
+                style={{ fontSize: 9, padding: '6px 12px', background: showSetupForm ? 'rgba(255,71,87,0.15)' : 'rgba(0,255,65,0.15)', border: `1px solid ${showSetupForm ? 'var(--ng-red)' : 'var(--ng-green)'}`, color: showSetupForm ? 'var(--ng-red)' : 'var(--ng-green)', borderRadius: 6, cursor: 'pointer' }}
+              >
+                {showSetupForm ? '✕ CLOSE' : '+ ADD SETUP'}
+              </button>
+            </div>
+
+            {showSetupForm && (
+              <div style={{ padding: '12px', background: 'rgba(0,255,65,0.05)', borderRadius: 8, marginBottom: 12, border: '1px solid rgba(0,255,65,0.2)' }}>
+                <div className="flex gap-2 mb-3">
+                  <div style={{ flex: 1 }}>
+                    <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>PAIR</div>
+                    <select className="ng-input" value={setupPair} onChange={e => setSetupPair(e.target.value)} style={{ width: '100%', padding: '8px' }}>
+                      {COMMON_PAIRS.filter(p => p !== 'OTHER').map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>DIRECTION</div>
+                    <div className="flex gap-1">
+                      {TRADE_DIRECTIONS.map(d => (
+                        <button key={d} onClick={() => setSetupDirection(d)} className="font-orbitron flex-1"
+                          style={{ padding: '8px', fontSize: 9, border: `1px solid ${setupDirection === d ? (d === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)') : 'var(--ng-border)'}`, color: setupDirection === d ? (d === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)') : 'var(--ng-muted)', background: setupDirection === d ? (d === 'BUY' ? 'rgba(0,255,65,0.15)' : 'rgba(255,71,87,0.15)') : 'transparent', borderRadius: 6, cursor: 'pointer' }}>
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>BIAS / REASONING</div>
+                  <textarea className="ng-textarea" rows={2} placeholder="Why this setup? What's the structure telling you?" value={setupBias} onChange={e => setSetupBias(e.target.value)} style={{ width: '100%', resize: 'none' }} />
+                </div>
+                <div className="flex gap-2 mb-3">
+                  <div style={{ flex: 1 }}>
+                    <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>ENTRY ZONE</div>
+                    <input className="ng-input" placeholder="e.g. 2650-2655" value={setupEntryZone} onChange={e => setSetupEntryZone(e.target.value)} style={{ width: '100%', padding: '8px' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>TP</div>
+                    <input className="ng-input" placeholder="e.g. 2680" value={setupTP} onChange={e => setSetupTP(e.target.value)} style={{ width: '100%', padding: '8px' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>SL</div>
+                    <input className="ng-input" placeholder="e.g. 2640" value={setupSL} onChange={e => setSetupSL(e.target.value)} style={{ width: '100%', padding: '8px' }} />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>TIMELINE</div>
+                  <div className="flex gap-1 flex-wrap">
+                    {TRADE_TIMELINES.map(t => (
+                      <button key={t.value} onClick={() => setSetupTimeline(t.value)} className="font-orbitron"
+                        style={{ padding: '6px 10px', fontSize: 8, border: `1px solid ${setupTimeline === t.value ? t.color : 'var(--ng-border)'}`, color: setupTimeline === t.value ? t.color : 'var(--ng-muted)', background: setupTimeline === t.value ? `${t.color}15` : 'transparent', borderRadius: 4, cursor: 'pointer' }}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={handleAddSetup} disabled={!setupBias.trim()} className="btn-green-solid w-full" style={{ padding: '10px', opacity: setupBias.trim() ? 1 : 0.5 }}>
+                  ADD SETUP
+                </button>
+              </div>
+            )}
+
+            {/* Setup list */}
+            {weeklyPlan?.setups && weeklyPlan.setups.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {weeklyPlan.setups.map(setup => (
+                  <div key={setup.id} style={{
+                    padding: '10px 12px',
+                    background: setup.status === 'EXECUTED' ? 'rgba(0,255,65,0.08)' : setup.status === 'CANCELLED' ? 'rgba(255,71,87,0.05)' : 'var(--ng-surface)',
+                    border: `1px solid ${setup.status === 'EXECUTED' ? 'var(--ng-green)' : setup.status === 'ACTIVE' ? 'var(--ng-cyan)' : 'var(--ng-border)'}`,
+                    borderLeft: `3px solid ${setup.direction === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)'}`,
+                    borderRadius: 8,
+                    opacity: setup.status === 'CANCELLED' || setup.status === 'MISSED' ? 0.6 : 1,
+                  }}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-orbitron font-bold" style={{ fontSize: 12, color: 'var(--ng-text)' }}>{setup.pair}</span>
+                        <span className="font-orbitron" style={{ fontSize: 9, color: setup.direction === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)' }}>{setup.direction}</span>
+                        <span className="font-mono" style={{ fontSize: 8, padding: '2px 6px', background: 'var(--ng-surface2)', borderRadius: 4, color: TRADE_TIMELINES.find(t => t.value === setup.timeline)?.color || 'var(--ng-muted)' }}>{setup.timeline}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {setup.status === 'PENDING' && (
+                          <>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'ACTIVE')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,212,255,0.15)', border: '1px solid var(--ng-cyan)', color: 'var(--ng-cyan)', borderRadius: 4, cursor: 'pointer' }}>ACTIVE</button>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'CANCELLED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(255,71,87,0.15)', border: '1px solid var(--ng-red)', color: 'var(--ng-red)', borderRadius: 4, cursor: 'pointer' }}>✕</button>
+                          </>
+                        )}
+                        {setup.status === 'ACTIVE' && (
+                          <>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'EXECUTED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,255,65,0.15)', border: '1px solid var(--ng-green)', color: 'var(--ng-green)', borderRadius: 4, cursor: 'pointer' }}>✓ EXECUTED</button>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'MISSED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(255,159,10,0.15)', border: '1px solid var(--ng-amber)', color: 'var(--ng-amber)', borderRadius: 4, cursor: 'pointer' }}>MISSED</button>
+                          </>
+                        )}
+                        {(setup.status === 'EXECUTED' || setup.status === 'CANCELLED' || setup.status === 'MISSED') && (
+                          <button onClick={() => handleDeleteSetup(setup.id)} style={{ padding: '4px 8px', fontSize: 8, background: 'transparent', border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', borderRadius: 4, cursor: 'pointer' }}>🗑</button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', lineHeight: 1.4 }}>{setup.bias}</div>
+                    {(setup.entryZone || setup.tp || setup.sl) && (
+                      <div className="flex gap-3 mt-2">
+                        {setup.entryZone && <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-cyan)' }}>Entry: {setup.entryZone}</span>}
+                        {setup.tp && <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-green)' }}>TP: {setup.tp}</span>}
+                        {setup.sl && <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-red)' }}>SL: {setup.sl}</span>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6" style={{ background: 'rgba(0,255,65,0.03)', borderRadius: 8, border: '1px dashed rgba(0,255,65,0.2)' }}>
+                <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.6 }}>📋</div>
+                <div className="font-orbitron" style={{ fontSize: 11, color: 'var(--ng-muted)', marginBottom: 4 }}>NO SETUPS PLANNED</div>
+                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-dimmer)', lineHeight: 1.5 }}>
+                  Plan your trades before the week starts.<br />
+                  <span style={{ color: 'var(--ng-green)' }}>Winners prepare. Losers react.</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Weekly News Calendar */}
+          <div className="card mb-4" style={{ borderColor: 'rgba(255,71,87,0.3)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-red)', letterSpacing: '2px' }}>NEWS CALENDAR</div>
+                {weeklyPlan?.news && weeklyPlan.news.length > 0 && (
+                  <div className="flex gap-1">
+                    {weeklyPlan.news.filter(n => n.impact === 'HIGH').length > 0 && (
+                      <span className="font-mono" style={{ fontSize: 8, padding: '2px 6px', background: 'rgba(255,71,87,0.2)', color: 'var(--ng-red)', borderRadius: 10 }}>
+                        {weeklyPlan.news.filter(n => n.impact === 'HIGH').length} HIGH
+                      </span>
+                    )}
+                    {(() => {
+                      const now = new Date();
+                      const upcoming = weeklyPlan.news
+                        .filter(n => new Date(`${n.date}T${n.time}`) > now)
+                        .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))[0];
+                      if (upcoming) {
+                        const eventDate = new Date(`${upcoming.date}T${upcoming.time}`);
+                        const hoursUntil = Math.round((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60));
+                        if (hoursUntil <= 24) {
+                          return (
+                            <span className="font-mono" style={{
+                              fontSize: 8,
+                              padding: '2px 8px',
+                              background: upcoming.impact === 'HIGH' ? 'rgba(255,71,87,0.3)' : 'rgba(255,159,10,0.2)',
+                              color: upcoming.impact === 'HIGH' ? 'var(--ng-red)' : 'var(--ng-amber)',
+                              borderRadius: 10,
+                              animation: upcoming.impact === 'HIGH' && hoursUntil <= 2 ? 'pulse 1s infinite' : 'none',
+                            }}>
+                              ⚡ {hoursUntil <= 0 ? 'NOW' : `${hoursUntil}h`}
+                            </span>
+                          );
+                        }
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setShowNewsForm(!showNewsForm)}
+                className="font-orbitron"
+                style={{ fontSize: 9, padding: '6px 12px', background: showNewsForm ? 'rgba(255,71,87,0.15)' : 'rgba(255,71,87,0.1)', border: `1px solid var(--ng-red)`, color: 'var(--ng-red)', borderRadius: 6, cursor: 'pointer' }}
+              >
+                {showNewsForm ? '✕ CLOSE' : '+ ADD EVENT'}
+              </button>
+            </div>
+
+            {showNewsForm && (
+              <div style={{ padding: '12px', background: 'rgba(255,71,87,0.05)', borderRadius: 8, marginBottom: 12, border: '1px solid rgba(255,71,87,0.2)' }}>
+                <div className="flex gap-2 mb-3">
+                  <div style={{ flex: 1 }}>
+                    <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>DATE</div>
+                    <input type="date" className="ng-input" value={newsDate} onChange={e => setNewsDate(e.target.value)} style={{ width: '100%', padding: '8px' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>TIME (UTC)</div>
+                    <input type="time" className="ng-input" value={newsTime} onChange={e => setNewsTime(e.target.value)} style={{ width: '100%', padding: '8px' }} />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>EVENT</div>
+                  <input className="ng-input" placeholder="e.g. FOMC Meeting, NFP, CPI" value={newsEvent} onChange={e => setNewsEvent(e.target.value)} style={{ width: '100%', padding: '8px' }} />
+                </div>
+                <div className="flex gap-2 mb-3">
+                  <div style={{ flex: 1 }}>
+                    <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>IMPACT</div>
+                    <div className="flex gap-1">
+                      {(['HIGH', 'MEDIUM', 'LOW'] as const).map(imp => (
+                        <button key={imp} onClick={() => setNewsImpact(imp)} className="font-orbitron flex-1"
+                          style={{ padding: '6px', fontSize: 8, border: `1px solid ${newsImpact === imp ? NEWS_IMPACT_COLORS[imp] : 'var(--ng-border)'}`, color: newsImpact === imp ? NEWS_IMPACT_COLORS[imp] : 'var(--ng-muted)', background: newsImpact === imp ? `${NEWS_IMPACT_COLORS[imp]}15` : 'transparent', borderRadius: 4, cursor: 'pointer' }}>
+                          {imp}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>AFFECTED PAIRS</div>
+                  <div className="flex gap-1 flex-wrap">
+                    {['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'XAU'].map(curr => (
+                      <button key={curr} onClick={() => setNewsPairs(p => p.includes(curr) ? p.filter(x => x !== curr) : [...p, curr])} className="font-orbitron"
+                        style={{ padding: '5px 10px', fontSize: 8, border: `1px solid ${newsPairs.includes(curr) ? 'var(--ng-cyan)' : 'var(--ng-border)'}`, color: newsPairs.includes(curr) ? 'var(--ng-cyan)' : 'var(--ng-muted)', background: newsPairs.includes(curr) ? 'rgba(0,212,255,0.15)' : 'transparent', borderRadius: 4, cursor: 'pointer' }}>
+                        {curr}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={handleAddNews} disabled={!newsEvent.trim() || !newsDate} className="w-full" style={{ padding: '10px', background: 'var(--ng-red)', border: 'none', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 700, opacity: newsEvent.trim() && newsDate ? 1 : 0.5 }}>
+                  ADD NEWS EVENT
+                </button>
+              </div>
+            )}
+
+            {/* News list */}
+            {weeklyPlan?.news && weeklyPlan.news.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {weeklyPlan.news.map(news => (
+                  <div key={news.id} style={{
+                    padding: '10px 12px',
+                    background: 'var(--ng-surface)',
+                    border: `1px solid ${NEWS_IMPACT_COLORS[news.impact]}30`,
+                    borderLeft: `3px solid ${NEWS_IMPACT_COLORS[news.impact]}`,
+                    borderRadius: 8,
+                  }}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>{news.date}</span>
+                        <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-cyan)' }}>{news.time}</span>
+                        <span className="font-orbitron" style={{ fontSize: 8, padding: '2px 6px', background: `${NEWS_IMPACT_COLORS[news.impact]}20`, color: NEWS_IMPACT_COLORS[news.impact], borderRadius: 4 }}>{news.impact}</span>
+                      </div>
+                      <button onClick={() => handleDeleteNews(news.id)} style={{ padding: '2px 6px', fontSize: 8, background: 'transparent', border: 'none', color: 'var(--ng-muted)', cursor: 'pointer' }}>🗑</button>
+                    </div>
+                    <div className="font-orbitron font-bold mt-1" style={{ fontSize: 11, color: 'var(--ng-text)' }}>{news.event}</div>
+                    <div className="flex gap-1 mt-2">
+                      {news.pairs.map(p => (
+                        <span key={p} className="font-mono" style={{ fontSize: 8, padding: '2px 6px', background: 'var(--ng-surface2)', borderRadius: 4, color: 'var(--ng-muted)' }}>{p}</span>
+                      ))}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Session Performance */}
-          <div className="card mb-4" style={{ borderColor: 'rgba(0,212,255,0.3)' }}>
-            <div className="font-orbitron mb-3" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>SESSION PERFORMANCE</div>
-            <div className="flex gap-2">
-              {TRADING_SESSIONS.map(s => {
-                const data = stats.sessionPnl[s];
-                const winRate = data.total > 0 ? Math.round((data.wins / data.total) * 100) : 0;
-                const isLondon = s === 'LONDON';
-                return (
-                  <div key={s} className="flex-1" style={{ padding: '10px', background: isLondon ? 'rgba(0,255,65,0.08)' : 'var(--ng-surface)', border: `1px solid ${isLondon ? 'var(--ng-green)' : 'var(--ng-border)'}`, borderRadius: 8, textAlign: 'center' }}>
-                    <div className="font-orbitron" style={{ fontSize: 9, color: isLondon ? 'var(--ng-green)' : 'var(--ng-muted)', letterSpacing: '1px', marginBottom: 4 }}>{s}</div>
-                    <div className="font-orbitron font-bold" style={{ fontSize: 13, color: data.pnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
-                      {data.pnl >= 0 ? '+' : ''}{data.pnl.toFixed(0)}
-                    </div>
-                    <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-dimmer)' }}>{winRate}% · {data.total} trades</div>
-                  </div>
-                );
-              })}
-            </div>
+            ) : (
+              <div className="text-center py-6" style={{ background: 'rgba(255,71,87,0.03)', borderRadius: 8, border: '1px dashed rgba(255,71,87,0.2)' }}>
+                <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.6 }}>📰</div>
+                <div className="font-orbitron" style={{ fontSize: 11, color: 'var(--ng-muted)', marginBottom: 4 }}>NO NEWS LOGGED</div>
+                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-dimmer)', lineHeight: 1.5 }}>
+                  Add high-impact events for the week.<br />
+                  <span style={{ color: 'var(--ng-red)' }}>Trade around news, not through it.</span>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Log Trade Button / Form */}
-          {!showLogForm ? (
-            <button onClick={() => setShowLogForm(true)} className="btn-green-solid w-full mb-4" style={{ padding: '14px' }}>
-              + LOG NEW TRADE
-            </button>
-          ) : (
-            <div className="card mb-4" style={{ borderColor: 'rgba(255,159,10,0.3)' }}>
+          {/* Log Trade Form */}
+          {showLogForm && (
+            <div className="card mb-4" style={{ borderColor: 'rgba(255,159,10,0.4)', background: 'linear-gradient(135deg, var(--ng-surface) 0%, rgba(255,159,10,0.05) 100%)' }}>
               <div className="flex items-center justify-between mb-3">
-                <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-amber)', letterSpacing: '2px' }}>LOG TRADE</div>
-                <button onClick={() => setShowLogForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ng-muted)', fontSize: 14, padding: '2px' }}>✕</button>
+                <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-amber)', letterSpacing: '2px' }}>LOG TRADE</div>
+                <button onClick={() => setShowLogForm(false)} style={{ background: 'rgba(255,71,87,0.15)', border: '1px solid var(--ng-red)', borderRadius: 6, cursor: 'pointer', color: 'var(--ng-red)', fontSize: 9, padding: '4px 10px' }}>✕ CANCEL</button>
               </div>
 
               {/* Row 1: Date & P&L side by side */}
@@ -1169,6 +1770,27 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                 </div>
               </div>
 
+              {/* Row 5.5: Trade Timeline */}
+              <div className="mb-4">
+                <div className="font-orbitron mb-2" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>EXPECTED TIMELINE TO TP</div>
+                <div className="flex gap-1 flex-wrap">
+                  {TRADE_TIMELINES.map(t => (
+                    <button key={t.value} onClick={() => setJournalTimeline(t.value)} className="font-orbitron"
+                      style={{
+                        padding: '7px 14px',
+                        fontSize: 9,
+                        border: `1px solid ${journalTimeline === t.value ? t.color : 'var(--ng-border)'}`,
+                        color: journalTimeline === t.value ? t.color : 'var(--ng-muted)',
+                        background: journalTimeline === t.value ? `${t.color}15` : 'transparent',
+                        borderRadius: 20,
+                        cursor: 'pointer',
+                      }}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Row 6: Note */}
               <div className="mb-4">
                 <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>
@@ -1247,6 +1869,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                         {session.pair && <span className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-text)' }}>{session.pair}</span>}
                         {session.session && <span className="font-mono" style={{ fontSize: 8, color: session.session === 'LONDON' ? 'var(--ng-green)' : 'var(--ng-muted)', padding: '2px 6px', background: 'var(--ng-surface2)', borderRadius: 4 }}>{session.session}</span>}
                         {session.direction && <span className="font-orbitron" style={{ fontSize: 8, color: session.direction === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)' }}>{session.direction}</span>}
+                        {session.timeline && <span className="font-mono" style={{ fontSize: 7, color: TRADE_TIMELINES.find(t => t.value === session.timeline)?.color || 'var(--ng-muted)', padding: '2px 6px', background: 'var(--ng-surface2)', borderRadius: 4 }}>{session.timeline}</span>}
                         {session.images && session.images.length > 0 && (
                           <span className="font-mono" style={{ fontSize: 8, color: 'var(--ng-purple)', padding: '2px 6px', background: 'rgba(191,0,255,0.1)', borderRadius: 4 }}>📷 {session.images.length}</span>
                         )}
