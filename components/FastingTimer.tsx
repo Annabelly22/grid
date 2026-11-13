@@ -34,6 +34,18 @@ export default function FastingTimer() {
   const [showHistory, setShowHistory] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Editing states
+  const [editingStart, setEditingStart] = useState(false);
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editStartTime, setEditStartTime] = useState('');
+  const [showEndAdjust, setShowEndAdjust] = useState(false);
+  const [endAdjustTime, setEndAdjustTime] = useState('');
+  const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
+  const [editHistoryStartDate, setEditHistoryStartDate] = useState('');
+  const [editHistoryStartTime, setEditHistoryStartTime] = useState('');
+  const [editHistoryEndDate, setEditHistoryEndDate] = useState('');
+  const [editHistoryEndTime, setEditHistoryEndTime] = useState('');
+
   useEffect(() => {
     const stored = localStorage.getItem(FAST_KEY);
     if (stored) setFastStart(Number(stored));
@@ -55,9 +67,37 @@ export default function FastingTimer() {
     localStorage.setItem(FAST_KEY, String(t));
   };
 
-  const stopFast = () => {
+  // Open edit start time modal
+  const openEditStart = () => {
+    if (!fastStart) return;
+    const d = new Date(fastStart);
+    setEditStartDate(d.toISOString().split('T')[0]);
+    setEditStartTime(d.toTimeString().slice(0, 5));
+    setEditingStart(true);
+  };
+
+  // Save edited start time
+  const saveEditStart = () => {
+    const newStart = new Date(`${editStartDate}T${editStartTime}`).getTime();
+    if (isNaN(newStart) || newStart > Date.now()) {
+      alert('Invalid start time. Must be in the past.');
+      return;
+    }
+    setFastStart(newStart);
+    localStorage.setItem(FAST_KEY, String(newStart));
+    setEditingStart(false);
+  };
+
+  // Open end fast with adjustment
+  const openEndAdjust = () => {
+    const d = new Date();
+    setEndAdjustTime(d.toTimeString().slice(0, 5));
+    setShowEndAdjust(true);
+  };
+
+  const stopFast = (customEndTime?: number) => {
     if (fastStart) {
-      const end = Date.now();
+      const end = customEndTime ?? Date.now();
       const durH = (end - fastStart) / 3_600_000;
       if (durH >= 0.1) {
         const record: FastRecord = {
@@ -74,6 +114,65 @@ export default function FastingTimer() {
     }
     setFastStart(null);
     localStorage.removeItem(FAST_KEY);
+    setShowEndAdjust(false);
+  };
+
+  // Save end fast with custom time
+  const saveEndAdjust = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const endTime = new Date(`${today}T${endAdjustTime}`).getTime();
+    if (isNaN(endTime)) {
+      stopFast();
+      return;
+    }
+    // If time is in the future, use yesterday's date
+    let finalEnd = endTime;
+    if (endTime > Date.now()) {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      finalEnd = new Date(`${yesterday}T${endAdjustTime}`).getTime();
+    }
+    if (fastStart && finalEnd < fastStart) {
+      alert('End time must be after start time.');
+      return;
+    }
+    stopFast(finalEnd);
+  };
+
+  // Edit history entry
+  const openEditHistory = (record: FastRecord) => {
+    const start = new Date(record.startTime);
+    const end = new Date(record.endTime);
+    setEditingHistoryId(record.id);
+    setEditHistoryStartDate(start.toISOString().split('T')[0]);
+    setEditHistoryStartTime(start.toTimeString().slice(0, 5));
+    setEditHistoryEndDate(end.toISOString().split('T')[0]);
+    setEditHistoryEndTime(end.toTimeString().slice(0, 5));
+  };
+
+  const saveEditHistory = () => {
+    if (!editingHistoryId) return;
+    const newStart = new Date(`${editHistoryStartDate}T${editHistoryStartTime}`).getTime();
+    const newEnd = new Date(`${editHistoryEndDate}T${editHistoryEndTime}`).getTime();
+    if (isNaN(newStart) || isNaN(newEnd) || newEnd <= newStart) {
+      alert('Invalid times. End must be after start.');
+      return;
+    }
+    const durH = (newEnd - newStart) / 3_600_000;
+    const updated = history.map(r =>
+      r.id === editingHistoryId
+        ? { ...r, startTime: newStart, endTime: newEnd, durationH: Math.round(durH * 10) / 10, phaseReached: getPhase(durH).label }
+        : r
+    );
+    Storage.setFastHistory(updated);
+    setHistory(updated);
+    setEditingHistoryId(null);
+  };
+
+  const deleteHistoryEntry = (id: string) => {
+    if (!confirm('Delete this fast record?')) return;
+    const updated = history.filter(r => r.id !== id);
+    Storage.setFastHistory(updated);
+    setHistory(updated);
   };
 
   const elapsedMs = fastStart ? now - fastStart : 0;
@@ -173,6 +272,71 @@ export default function FastingTimer() {
           <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-text)', lineHeight: 1.6 }}>
             {phase.description}
           </div>
+          {/* Start time display with edit */}
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${phase.color}33`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+              Started: {new Date(fastStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
+            </div>
+            <button
+              onClick={openEditStart}
+              style={{
+                padding: '4px 8px',
+                fontSize: 9,
+                background: 'transparent',
+                color: 'var(--ng-muted)',
+                border: '1px solid var(--ng-border)',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+            >
+              ✏️ ADJUST
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit start time modal */}
+      {editingStart && (
+        <div style={{
+          padding: '14px',
+          marginBottom: 16,
+          background: 'var(--ng-surface)',
+          border: '1px solid var(--ng-cyan)',
+          borderRadius: 8,
+        }}>
+          <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px', marginBottom: 12 }}>
+            ✏️ ADJUST START TIME
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>DATE</div>
+              <input
+                type="date"
+                value={editStartDate}
+                onChange={e => setEditStartDate(e.target.value)}
+                className="ng-input"
+                style={{ width: '100%', fontSize: 12, padding: '8px' }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>TIME</div>
+              <input
+                type="time"
+                value={editStartTime}
+                onChange={e => setEditStartTime(e.target.value)}
+                className="ng-input"
+                style={{ width: '100%', fontSize: 12, padding: '8px' }}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={saveEditStart} className="font-orbitron" style={{ flex: 1, padding: '10px', fontSize: 10, background: 'var(--ng-green)', color: '#000', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+              SAVE
+            </button>
+            <button onClick={() => setEditingStart(false)} style={{ padding: '10px 14px', fontSize: 10, background: 'transparent', color: 'var(--ng-muted)', border: '1px solid var(--ng-border)', borderRadius: 6, cursor: 'pointer' }}>
+              CANCEL
+            </button>
+          </div>
         </div>
       )}
 
@@ -199,11 +363,44 @@ export default function FastingTimer() {
         <button onClick={startFast} className="btn-green-solid w-full" style={{ letterSpacing: '3px' }}>
           START FAST
         </button>
+      ) : showEndAdjust ? (
+        <div style={{
+          padding: '14px',
+          background: 'var(--ng-surface)',
+          border: '1px solid var(--ng-red)',
+          borderRadius: 8,
+        }}>
+          <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-red)', letterSpacing: '2px', marginBottom: 12 }}>
+            ■ END FAST — ADJUST TIME
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>END TIME (today)</div>
+            <input
+              type="time"
+              value={endAdjustTime}
+              onChange={e => setEndAdjustTime(e.target.value)}
+              className="ng-input"
+              style={{ width: '100%', fontSize: 14, padding: '10px' }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={saveEndAdjust} className="font-orbitron" style={{ flex: 1, padding: '10px', fontSize: 10, background: 'var(--ng-red)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+              END NOW
+            </button>
+            <button onClick={() => setShowEndAdjust(false)} style={{ padding: '10px 14px', fontSize: 10, background: 'transparent', color: 'var(--ng-muted)', border: '1px solid var(--ng-border)', borderRadius: 6, cursor: 'pointer' }}>
+              CANCEL
+            </button>
+          </div>
+        </div>
       ) : (
-        <button onClick={stopFast} className="w-full font-orbitron"
-          style={{ padding: '12px', fontSize: 10, letterSpacing: '3px', color: 'var(--ng-red)', border: '1px solid var(--ng-red)', background: 'transparent', borderRadius: 2, cursor: 'pointer' }}>
-          ■ END FAST
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => stopFast()} className="font-orbitron" style={{ flex: 1, padding: '12px', fontSize: 10, letterSpacing: '2px', color: 'var(--ng-red)', border: '1px solid var(--ng-red)', background: 'transparent', borderRadius: 6, cursor: 'pointer' }}>
+            ■ END NOW
+          </button>
+          <button onClick={openEndAdjust} style={{ padding: '12px 16px', fontSize: 10, background: 'transparent', color: 'var(--ng-muted)', border: '1px solid var(--ng-border)', borderRadius: 6, cursor: 'pointer' }}>
+            ✏️
+          </button>
+        </div>
       )}
 
       {/* Fasting history */}
@@ -219,16 +416,67 @@ export default function FastingTimer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {history.slice(0, 10).map(r => {
                 const startDate = new Date(r.startTime);
+                const endDate = new Date(r.endTime);
                 const dateStr = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                const timeStr = startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                const startTimeStr = startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                const endTimeStr = endDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
                 const phaseColor = PHASES.find(p => p.label === r.phaseReached)?.color || 'var(--ng-muted)';
+                const isEditing = editingHistoryId === r.id;
+
+                if (isEditing) {
+                  return (
+                    <div key={r.id} style={{ padding: '12px', background: 'var(--ng-bg)', border: '1px solid var(--ng-cyan)', borderRadius: 8 }}>
+                      <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px', marginBottom: 10 }}>
+                        ✏️ EDIT FAST RECORD
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                        <div>
+                          <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>START DATE</div>
+                          <input type="date" value={editHistoryStartDate} onChange={e => setEditHistoryStartDate(e.target.value)} className="ng-input" style={{ width: '100%', fontSize: 11, padding: '6px' }} />
+                        </div>
+                        <div>
+                          <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>START TIME</div>
+                          <input type="time" value={editHistoryStartTime} onChange={e => setEditHistoryStartTime(e.target.value)} className="ng-input" style={{ width: '100%', fontSize: 11, padding: '6px' }} />
+                        </div>
+                        <div>
+                          <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>END DATE</div>
+                          <input type="date" value={editHistoryEndDate} onChange={e => setEditHistoryEndDate(e.target.value)} className="ng-input" style={{ width: '100%', fontSize: 11, padding: '6px' }} />
+                        </div>
+                        <div>
+                          <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)', marginBottom: 4 }}>END TIME</div>
+                          <input type="time" value={editHistoryEndTime} onChange={e => setEditHistoryEndTime(e.target.value)} className="ng-input" style={{ width: '100%', fontSize: 11, padding: '6px' }} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={saveEditHistory} className="font-orbitron" style={{ flex: 1, padding: '8px', fontSize: 9, background: 'var(--ng-green)', color: '#000', border: 'none', borderRadius: 6, cursor: 'pointer' }}>SAVE</button>
+                        <button onClick={() => setEditingHistoryId(null)} style={{ padding: '8px 12px', fontSize: 9, background: 'transparent', color: 'var(--ng-muted)', border: '1px solid var(--ng-border)', borderRadius: 6, cursor: 'pointer' }}>CANCEL</button>
+                        <button onClick={() => { deleteHistoryEntry(r.id); setEditingHistoryId(null); }} style={{ padding: '8px 12px', fontSize: 9, background: 'transparent', color: 'var(--ng-red)', border: '1px solid var(--ng-red)', borderRadius: 6, cursor: 'pointer' }}>DELETE</button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderLeft: `3px solid ${phaseColor}`, borderRadius: 8 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-text)' }}>{dateStr} · {timeStr}</div>
+                      <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-text)' }}>{dateStr} · {startTimeStr} → {endTimeStr}</div>
                       <div className="font-orbitron" style={{ fontSize: 8, color: phaseColor, letterSpacing: '1px', marginTop: 2 }}>{r.phaseReached}</div>
                     </div>
                     <div className="font-orbitron font-bold" style={{ fontSize: 14, color: phaseColor }}>{r.durationH}h</div>
+                    <button
+                      onClick={() => openEditHistory(r)}
+                      style={{
+                        padding: '4px 6px',
+                        fontSize: 9,
+                        background: 'transparent',
+                        color: 'var(--ng-muted)',
+                        border: '1px solid var(--ng-border)',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ✏️
+                    </button>
                   </div>
                 );
               })}
