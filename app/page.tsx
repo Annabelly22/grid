@@ -14,8 +14,8 @@ type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile' | 
 
 const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: 'dashboard', icon: '⬡', label: 'HUB' },
-  { id: 'coach',     icon: '⚡', label: 'ALPHAWILL' },
   { id: 'meals',     icon: '🍽️', label: 'MEALS' },
+  { id: 'coach',     icon: '⚡', label: 'ALPHAWILL' },
   { id: 'body',      icon: '❋', label: 'BODY' },
   { id: 'profile',   icon: '▣', label: 'PROFILE' },
 ];
