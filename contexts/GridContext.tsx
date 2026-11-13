@@ -56,6 +56,7 @@ interface GridContextValue {
   handleUpdateCodename: (name: string) => void;
   handleResetData: () => void;
   handleLogTrade: (data: Omit<TradeSession, 'id' | 'createdAt'>) => void;
+  handleUpdateTrade: (id: string, data: Partial<Omit<TradeSession, 'id' | 'createdAt'>>) => void;
   handleDeleteTradeSession: (id: string) => void;
   handleSetPriorities: (items: string[]) => void;
   handleSetCycleStart: (date: string) => void;
@@ -449,6 +450,12 @@ export function GridProvider({ children }: { children: ReactNode }) {
     triggerSync();
   };
 
+  const handleUpdateTrade = (id: string, data: Partial<Omit<TradeSession, 'id' | 'createdAt'>>) => {
+    const updated = tradeJournal.map(t => t.id === id ? { ...t, ...data } : t);
+    saveTradeJournal(updated); setTradeJournal(updated);
+    triggerSync();
+  };
+
   const handleDeleteTradeSession = (id: string) => {
     const updated = tradeJournal.filter(t => t.id !== id);
     saveTradeJournal(updated); setTradeJournal(updated);
@@ -494,7 +501,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
       handleAddHabit, handleDeleteHabit, handleEditHabit, handleCompleteMission,
       handleFocusMinutes, handleToggleTheme, handleUpdateCodename, handleResetData,
       handleToggleFavorite, handleReorderHabits,
-      handleLogTrade, handleDeleteTradeSession, handleSetPriorities, handleSetCycleStart,
+      handleLogTrade, handleUpdateTrade, handleDeleteTradeSession, handleSetPriorities, handleSetCycleStart,
       undoDelete,
       syncNow: triggerSync,
       saveNow,

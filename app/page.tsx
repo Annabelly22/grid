@@ -29,7 +29,7 @@ function App() {
     handleAddHabit, handleDeleteHabit, handleEditHabit, handleCompleteMission,
     handleFocusMinutes, handleToggleTheme, handleUpdateCodename, handleResetData,
     handleToggleFavorite, handleReorderHabits,
-    handleLogTrade, handleDeleteTradeSession, handleSetPriorities,
+    handleLogTrade, handleUpdateTrade, handleDeleteTradeSession, handleSetPriorities,
   } = useGridContext();
 
   if (!mounted || !profile) {
@@ -184,7 +184,7 @@ function App() {
         {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} onNavigate={t => setTab(t as Tab)} onCompleteHabit={handleCompleteHabit} dailyPriorities={dailyPriorities} onSetPriorities={handleSetPriorities} theme={theme} onToggleTheme={handleToggleTheme} achievements={achievements} missions={missions} onUpdateCodename={handleUpdateCodename} onResetData={handleResetData} onCompleteMission={handleCompleteMission} />}
         {tab === 'habits'    && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onUncompleteHabit={handleUncompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} onEditHabit={handleEditHabit} onToggleFavorite={handleToggleFavorite} onReorderHabits={handleReorderHabits} />}
         {tab === 'body'      && <BodyTab onNavigateToHabits={() => setTab('habits')} />}
-        {tab === 'coach'     && <CoachTab profile={profile} onFocusMinutes={handleFocusMinutes} tradeJournal={tradeJournal} onLogTrade={handleLogTrade} onDeleteTradeSession={handleDeleteTradeSession} />}
+        {tab === 'coach'     && <CoachTab profile={profile} onFocusMinutes={handleFocusMinutes} tradeJournal={tradeJournal} onLogTrade={handleLogTrade} onUpdateTrade={handleUpdateTrade} onDeleteTradeSession={handleDeleteTradeSession} />}
         {tab === 'profile'   && <ProfileTab profile={profile} habits={habits} achievements={achievements} missions={missions} theme={theme} onUpdateCodename={handleUpdateCodename} onToggleTheme={handleToggleTheme} onResetData={handleResetData} onCompleteMission={handleCompleteMission} />}
         {tab === 'meals'     && <div className="content-area" style={{ paddingBottom: 80 }}><MealPlanTab /></div>}
 

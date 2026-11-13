@@ -10,6 +10,7 @@ interface Props {
   onFocusMinutes: (minutes: number) => void;
   tradeJournal: TradeSession[];
   onLogTrade: (data: Omit<TradeSession, 'id' | 'createdAt'>) => void;
+  onUpdateTrade: (id: string, data: Partial<Omit<TradeSession, 'id' | 'createdAt'>>) => void;
   onDeleteTradeSession: (id: string) => void;
 }
 
@@ -64,8 +65,8 @@ const INITIAL_MSG = (codename: string, xp: number, streak: number): Message => (
   id: 0,
 });
 
-export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogTrade, onDeleteTradeSession }: Props) {
-  const [activeTab, setActiveTab] = useState<'chat' | 'journal'>('journal');
+export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogTrade, onUpdateTrade, onDeleteTradeSession }: Props) {
+  const [activeTab, setActiveTab] = useState<'journal' | 'log' | 'chat'>('journal');
   const [messages, setMessages] = useState<Message[]>([INITIAL_MSG(profile.codename, profile.xp, profile.longestStreak)]);
   const [input, setInput]           = useState('');
   const [loading, setLoading]       = useState(false);
@@ -78,6 +79,23 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
   const breakDuration = focusDuration === 25 ? 5 : focusDuration === 50 ? 10 : 15;
   const chatEndRef = useRef<HTMLDivElement>(null);
   const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Log view state
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  // Edit trade state
+  const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
+  const [editPnl, setEditPnl] = useState('');
+  const [editPair, setEditPair] = useState('');
+  const [editSession, setEditSession] = useState<TradingSession>('LONDON');
+  const [editDirection, setEditDirection] = useState<TradeDirection>('BUY');
+  const [editQuality, setEditQuality] = useState<1|2|3|4|5>(3);
+  const [editRules, setEditRules] = useState<boolean>(true);
+  const [editEmotion, setEditEmotion] = useState<TradeSession['emotionalState']>('neutral');
+  const [editNote, setEditNote] = useState('');
 
   // Journal form state
   const today = getTodayStr();
@@ -168,6 +186,86 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
       rulesComplianceWeek,
     };
   }, [tradeJournal]);
+
+  // Get trades grouped by week for log view
+  const logViewData = useMemo(() => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const monthTrades = tradeJournal.filter(t => {
+      const d = new Date(t.date);
+      return d.getFullYear() === year && d.getMonth() + 1 === month;
+    });
+
+    // Group by week (Sunday to Saturday)
+    const weeks: { weekStart: string; weekEnd: string; trades: TradeSession[]; totalPnl: number }[] = [];
+    const firstOfMonth = new Date(year, month - 1, 1);
+    const lastOfMonth = new Date(year, month, 0);
+
+    // Find the Sunday on or before the first of the month
+    let currentWeekStart = new Date(firstOfMonth);
+    currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay());
+
+    while (currentWeekStart <= lastOfMonth) {
+      const weekEnd = new Date(currentWeekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      const weekTrades = monthTrades.filter(t => {
+        const d = new Date(t.date);
+        return d >= currentWeekStart && d <= weekEnd;
+      });
+
+      if (weekTrades.length > 0 || (currentWeekStart <= lastOfMonth && weekEnd >= firstOfMonth)) {
+        weeks.push({
+          weekStart: currentWeekStart.toISOString().slice(0, 10),
+          weekEnd: weekEnd.toISOString().slice(0, 10),
+          trades: weekTrades.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+          totalPnl: weekTrades.reduce((sum, t) => sum + (t.pnl || 0), 0),
+        });
+      }
+
+      currentWeekStart = new Date(weekEnd);
+      currentWeekStart.setDate(currentWeekStart.getDate() + 1);
+    }
+
+    const monthlyPnl = monthTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+    const monthlyWins = monthTrades.filter(t => (t.pnl || 0) > 0).length;
+    const monthlyLosses = monthTrades.filter(t => (t.pnl || 0) < 0).length;
+
+    return { weeks, monthlyPnl, monthlyWins, monthlyLosses, totalTrades: monthTrades.length };
+  }, [tradeJournal, selectedMonth]);
+
+  // Start editing a trade
+  const startEditTrade = (trade: TradeSession) => {
+    setEditingTradeId(trade.id);
+    setEditPnl(trade.pnl?.toString() || '');
+    setEditPair(trade.pair || 'XAUUSD');
+    setEditSession(trade.session || 'LONDON');
+    setEditDirection(trade.direction || 'BUY');
+    setEditQuality(trade.quality);
+    setEditRules(trade.rulesFollowed);
+    setEditEmotion(trade.emotionalState);
+    setEditNote(trade.note);
+  };
+
+  // Save edited trade
+  const saveEditTrade = () => {
+    if (!editingTradeId) return;
+    onUpdateTrade(editingTradeId, {
+      pnl: editPnl ? parseFloat(editPnl) : undefined,
+      pair: editPair,
+      session: editSession,
+      direction: editDirection,
+      quality: editQuality,
+      rulesFollowed: editRules,
+      emotionalState: editEmotion,
+      note: editNote,
+    });
+    setEditingTradeId(null);
+  };
+
+  // Cancel editing
+  const cancelEditTrade = () => {
+    setEditingTradeId(null);
+  };
 
   // Load persisted chat on mount
   useEffect(() => {
@@ -401,16 +499,187 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
           </div>
         )}
 
-        {/* Sub-tab toggle */}
+        {/* Sub-tab toggle: JOURNAL -> LOG -> CHAT */}
         <div className="flex gap-1 mt-3">
-          {(['chat', 'journal'] as const).map(t => (
+          {(['journal', 'log', 'chat'] as const).map(t => (
             <button key={t} onClick={() => setActiveTab(t)} className="font-orbitron"
               style={{ padding: '6px 14px', fontSize: 9, letterSpacing: '1px', border: `1px solid ${activeTab === t ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: activeTab === t ? 'var(--ng-amber)' : 'var(--ng-muted)', background: activeTab === t ? 'rgba(255,159,10,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer' }}>
-              {t === 'chat' ? '⚡ CHAT' : '📋 JOURNAL'}
+              {t === 'journal' ? '📋 JOURNAL' : t === 'log' ? '📊 LOG' : '⚡ CHAT'}
             </button>
           ))}
         </div>
       </div>
+
+      {/* ── Log tab — Weekly/Monthly P&L View ────────────────── */}
+      {activeTab === 'log' && (
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {/* Month selector */}
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => {
+                const [y, m] = selectedMonth.split('-').map(Number);
+                const prev = new Date(y, m - 2, 1);
+                setSelectedMonth(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`);
+              }}
+              className="font-orbitron"
+              style={{ padding: '8px 12px', fontSize: 12, background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderRadius: 6, cursor: 'pointer', color: 'var(--ng-muted)' }}
+            >
+              ◀
+            </button>
+            <div className="font-orbitron" style={{ fontSize: 14, color: 'var(--ng-text)', letterSpacing: '2px' }}>
+              {new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}
+            </div>
+            <button
+              onClick={() => {
+                const [y, m] = selectedMonth.split('-').map(Number);
+                const next = new Date(y, m, 1);
+                setSelectedMonth(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`);
+              }}
+              className="font-orbitron"
+              style={{ padding: '8px 12px', fontSize: 12, background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderRadius: 6, cursor: 'pointer', color: 'var(--ng-muted)' }}
+            >
+              ▶
+            </button>
+          </div>
+
+          {/* Monthly summary card */}
+          <div className="card mb-4" style={{ borderColor: logViewData.monthlyPnl >= 0 ? 'rgba(0,255,65,0.3)' : 'rgba(255,71,87,0.3)' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>MONTHLY P&L</div>
+                <div className="font-orbitron font-bold" style={{ fontSize: 28, color: logViewData.monthlyPnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
+                  {logViewData.monthlyPnl >= 0 ? '+' : ''}{logViewData.monthlyPnl.toFixed(2)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)' }}>
+                  {logViewData.totalTrades} trades
+                </div>
+                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-green)' }}>
+                  {logViewData.monthlyWins}W
+                </div>
+                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-red)' }}>
+                  {logViewData.monthlyLosses}L
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Weekly breakdown */}
+          {logViewData.weeks.map((week, weekIdx) => (
+            <div key={weekIdx} className="mb-4">
+              {/* Week header */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px' }}>
+                  WEEK {weekIdx + 1} · {new Date(week.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(week.weekEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </div>
+                <div className="font-orbitron font-bold" style={{ fontSize: 14, color: week.totalPnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
+                  {week.totalPnl >= 0 ? '+' : ''}{week.totalPnl.toFixed(2)}
+                </div>
+              </div>
+
+              {/* Trades in this week */}
+              {week.trades.length > 0 ? (
+                week.trades.map(trade => {
+                  const isEditing = editingTradeId === trade.id;
+
+                  return (
+                    <div key={trade.id} className="mb-2" style={{ background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderLeft: `3px solid ${(trade.pnl || 0) >= 0 ? 'var(--ng-green)' : 'var(--ng-red)'}`, borderRadius: 8 }}>
+                      {isEditing ? (
+                        /* Edit form */
+                        <div className="p-3">
+                          <div className="flex gap-2 mb-2">
+                            <input type="number" className="ng-input flex-1" placeholder="P&L" value={editPnl} onChange={e => setEditPnl(e.target.value)} style={{ padding: '6px 10px' }} />
+                            <select className="ng-input" value={editPair} onChange={e => setEditPair(e.target.value)} style={{ padding: '6px 10px' }}>
+                              {COMMON_PAIRS.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                          </div>
+                          <div className="flex gap-2 mb-2">
+                            <select className="ng-input flex-1" value={editSession} onChange={e => setEditSession(e.target.value as TradingSession)} style={{ padding: '6px 10px' }}>
+                              {TRADING_SESSIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            <select className="ng-input" value={editDirection} onChange={e => setEditDirection(e.target.value as TradeDirection)} style={{ padding: '6px 10px' }}>
+                              {TRADE_DIRECTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
+                          </div>
+                          <div className="flex gap-2 mb-2">
+                            <button onClick={() => setEditRules(!editRules)} className="font-orbitron flex-1"
+                              style={{ padding: '6px', fontSize: 9, border: `1px solid ${editRules ? 'var(--ng-green)' : 'var(--ng-red)'}`, color: editRules ? 'var(--ng-green)' : 'var(--ng-red)', background: editRules ? 'rgba(0,255,65,0.1)' : 'rgba(255,71,87,0.1)', borderRadius: 6, cursor: 'pointer' }}>
+                              {editRules ? '✓ RULES' : '✗ BROKE'}
+                            </button>
+                            <div className="flex gap-1">
+                              {([1,2,3,4,5] as const).map(n => (
+                                <button key={n} onClick={() => setEditQuality(n)} style={{ fontSize: 14, background: 'none', border: 'none', cursor: 'pointer', color: n <= editQuality ? '#FFD700' : 'var(--ng-dimmer)', padding: '2px' }}>★</button>
+                              ))}
+                            </div>
+                          </div>
+                          <textarea className="ng-textarea mb-2" rows={2} style={{ width: '100%', resize: 'none', padding: '8px' }} placeholder="Note..." value={editNote} onChange={e => setEditNote(e.target.value)} />
+                          <div className="flex gap-2">
+                            <button onClick={saveEditTrade} className="btn-green-solid flex-1" style={{ padding: '8px', fontSize: 10 }}>SAVE</button>
+                            <button onClick={cancelEditTrade} className="font-orbitron flex-1" style={{ padding: '8px', fontSize: 10, border: '1px solid var(--ng-border)', background: 'transparent', color: 'var(--ng-muted)', borderRadius: 6, cursor: 'pointer' }}>CANCEL</button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Display view */
+                        <div className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+                                {new Date(trade.date).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}
+                              </span>
+                              {trade.pair && <span className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-text)' }}>{trade.pair}</span>}
+                              {trade.direction && <span className="font-orbitron" style={{ fontSize: 8, color: trade.direction === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)' }}>{trade.direction}</span>}
+                              {trade.session && <span className="font-mono" style={{ fontSize: 7, color: trade.session === 'LONDON' ? 'var(--ng-green)' : 'var(--ng-muted)', padding: '2px 4px', background: 'var(--ng-surface2)', borderRadius: 3 }}>{trade.session.replace('-SESSION', '').replace(' SESSION', '')}</span>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-orbitron font-bold" style={{ fontSize: 14, color: (trade.pnl || 0) >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
+                                {(trade.pnl || 0) >= 0 ? '+' : ''}{(trade.pnl || 0).toFixed(2)}
+                              </span>
+                              <button onClick={() => startEditTrade(trade)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ng-muted)', fontSize: 10, padding: '2px' }}>✎</button>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span style={{ fontSize: 9, color: '#FFD700' }}>{'★'.repeat(trade.quality)}{'☆'.repeat(5 - trade.quality)}</span>
+                            <span className="font-orbitron" style={{ fontSize: 7, color: trade.rulesFollowed ? 'var(--ng-green)' : 'var(--ng-red)' }}>
+                              {trade.rulesFollowed ? '✓' : '✗'}
+                            </span>
+                            <span className="font-mono" style={{ fontSize: 7, color: 'var(--ng-cyan)', textTransform: 'uppercase' }}>{trade.emotionalState}</span>
+                          </div>
+                          {trade.note && <div className="font-mono mt-1" style={{ fontSize: 9, color: 'var(--ng-dimmer)' }}>{trade.note}</div>}
+                          {trade.images && trade.images.length > 0 && (
+                            <div className="flex gap-1 mt-2">
+                              {trade.images.map((url, i) => (
+                                <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                  <img src={url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--ng-border)' }} />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-dimmer)', padding: '12px', textAlign: 'center', background: 'var(--ng-surface)', borderRadius: 6 }}>No trades this week</div>
+              )}
+
+              {/* Week total bar */}
+              {week.trades.length > 0 && (
+                <div style={{ height: 2, background: week.totalPnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)', borderRadius: 1, opacity: 0.5 }} />
+              )}
+            </div>
+          ))}
+
+          {logViewData.weeks.length === 0 && (
+            <div className="text-center py-8">
+              <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
+              <div className="font-orbitron" style={{ fontSize: 11, color: 'var(--ng-muted)', letterSpacing: '2px' }}>NO TRADES THIS MONTH</div>
+              <div className="font-mono mt-2" style={{ fontSize: 10, color: 'var(--ng-dimmer)' }}>Log some trades to see your P&L breakdown</div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Chat tab ─────────────────────────────────────────── */}
       {activeTab === 'chat' && (
