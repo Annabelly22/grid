@@ -43,13 +43,18 @@ const TRADING_SESSIONS: TradingSession[] = ['LONDON', 'ASIAN', 'NEWYORK'];
 const TRADE_DIRECTIONS: TradeDirection[] = ['BUY', 'SELL'];
 const COMMON_PAIRS = ['XAUUSD', 'GBPJPY', 'GBPAUD', 'EURUSD', 'USDJPY', 'GBPUSD'];
 
-// Trading rules based on Notion journal analysis
+// Trading rules based on Notion journal analysis (75 trades analyzed)
+// LONDON: 87.5% WR (+$2,715) | NY: 30.8% WR (-$313) | ASIAN: 42.9% WR (-$193)
 const TRADING_RULES = [
-  { rule: 'Trade LONDON session only', icon: '🎯', critical: true },
-  { rule: 'Focus on XAUUSD, GBPJPY, GBPAUD', icon: '💰', critical: true },
-  { rule: 'Max 5-7 trades per week', icon: '📊', critical: false },
-  { rule: 'Avoid EURUSD, NZDUSD in chop', icon: '⚠️', critical: false },
-  { rule: 'No trading when anxious/fearful', icon: '🧘', critical: true },
+  { rule: 'LONDON session ONLY (87.5% WR vs 30% NY)', icon: '🎯', critical: true },
+  { rule: 'XAUUSD, GBPJPY, GBPAUD, AUDJPY only (100% WR)', icon: '💰', critical: true },
+  { rule: 'Use Daily/4H for structure — no lower TFs', icon: '📊', critical: true },
+  { rule: 'No overleveraging — forced early exits kill wins', icon: '⚠️', critical: true },
+  { rule: 'Max 3 positions open at once', icon: '🔢', critical: false },
+  { rule: 'Check news before every trade', icon: '📰', critical: false },
+  { rule: 'Avoid NZDUSD, XPDUSD, DXY (negative P&L)', icon: '🚫', critical: false },
+  { rule: 'No trading when uncertain or traveling', icon: '🧘', critical: true },
+  { rule: 'Cut losses fast — they affect winning trades', icon: '✂️', critical: false },
 ];
 
 const INITIAL_MSG = (codename: string, xp: number, streak: number): Message => ({
