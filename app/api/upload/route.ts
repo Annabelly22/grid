@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     if (error) {
       console.error('Supabase upload error:', error);
       // If bucket doesn't exist, try to create it
-      if (error.message?.includes('not found') || error.message?.includes('Bucket')) {
+      if (error.message?.includes('not found') || error.message?.includes('Bucket') || error.message?.includes('does not exist')) {
         // Create bucket and retry
         const { error: bucketError } = await supabase.storage.createBucket('trade-screenshots', {
           public: true,
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
         if (bucketError && !bucketError.message?.includes('already exists')) {
           console.error('Bucket creation error:', bucketError);
-          return NextResponse.json({ error: 'Storage setup failed' }, { status: 500 });
+          return NextResponse.json({ error: `Storage setup failed: ${bucketError.message}` }, { status: 500 });
         }
 
         // Retry upload
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
         if (retryError) {
           console.error('Retry upload error:', retryError);
-          return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+          return NextResponse.json({ error: `Upload retry failed: ${retryError.message}` }, { status: 500 });
         }
 
         const { data: urlData } = supabase.storage
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ url: urlData.publicUrl });
       }
 
-      return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+      return NextResponse.json({ error: `Upload failed: ${error.message}` }, { status: 500 });
     }
 
     // Get public URL
@@ -95,7 +95,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: urlData.publicUrl });
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: `Upload failed: ${msg}` }, { status: 500 });
   }
 }
 
