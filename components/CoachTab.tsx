@@ -41,7 +41,8 @@ const QUICK_PROMPTS: Record<'general' | 'trading', string[]> = {
 const EMOTIONAL_STATES: TradeSession['emotionalState'][] = ['calm', 'confident', 'neutral', 'anxious', 'fearful'];
 const TRADING_SESSIONS: TradingSession[] = ['LONDON', 'ASIAN', 'NEWYORK'];
 const TRADE_DIRECTIONS: TradeDirection[] = ['BUY', 'SELL'];
-const COMMON_PAIRS = ['XAUUSD', 'GBPJPY', 'GBPAUD', 'EURUSD', 'USDJPY', 'GBPUSD'];
+// Pairs ordered by win rate from Notion data (top performers first)
+const COMMON_PAIRS = ['XAUUSD', 'GBPJPY', 'GBPAUD', 'AUDJPY', 'EURUSD', 'GBPUSD', 'USDJPY', 'OTHER'];
 
 // Trading rules based on Notion journal analysis (75 trades analyzed)
 // LONDON: 87.5% WR (+$2,715) | NY: 30.8% WR (-$313) | ASIAN: 42.9% WR (-$193)
@@ -571,92 +572,186 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                 <button onClick={() => setShowLogForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ng-muted)', fontSize: 14, padding: '2px' }}>✕</button>
               </div>
 
-              {/* Row 1: Date, Pair, P&L */}
-              <div className="flex gap-2 mb-3">
+              {/* Row 1: Date & P&L side by side */}
+              <div className="flex gap-3 mb-4">
                 <div style={{ flex: 1 }}>
                   <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>DATE</div>
-                  <input type="date" className="ng-input" style={{ width: '100%' }} value={journalDate} onChange={e => setJournalDate(e.target.value)} max={today} />
+                  <input type="date" className="ng-input" style={{ width: '100%', padding: '10px 12px' }} value={journalDate} onChange={e => setJournalDate(e.target.value)} max={today} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>PAIR</div>
-                  <select className="ng-input" style={{ width: '100%' }} value={journalPair} onChange={e => setJournalPair(e.target.value)}>
-                    {COMMON_PAIRS.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-                <div style={{ width: 90 }}>
                   <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>P&L ($)</div>
-                  <input type="number" className="ng-input" style={{ width: '100%' }} placeholder="+/-" value={journalPnl} onChange={e => setJournalPnl(e.target.value)} />
+                  <input type="number" className="ng-input" style={{ width: '100%', padding: '10px 12px' }} placeholder="e.g. +150 or -50" value={journalPnl} onChange={e => setJournalPnl(e.target.value)} />
                 </div>
               </div>
 
-              {/* Row 2: Session, Direction */}
-              <div className="flex gap-2 mb-3">
-                <div style={{ flex: 1 }}>
-                  <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>SESSION</div>
-                  <div className="flex gap-1">
-                    {TRADING_SESSIONS.map(s => (
-                      <button key={s} onClick={() => setJournalSession(s)} className="font-orbitron flex-1"
-                        style={{ padding: '6px 4px', fontSize: 8, border: `1px solid ${journalSession === s ? 'var(--ng-cyan)' : 'var(--ng-border)'}`, color: journalSession === s ? 'var(--ng-cyan)' : 'var(--ng-muted)', background: journalSession === s ? 'rgba(0,212,255,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer' }}>
-                        {s}
+              {/* Row 2: Pair selection as pill buttons */}
+              <div className="mb-4">
+                <div className="font-orbitron mb-2" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>PAIR</div>
+                <div className="flex gap-1 flex-wrap">
+                  {COMMON_PAIRS.map(p => {
+                    const isSelected = journalPair === p;
+                    const isTopPair = ['XAUUSD', 'GBPJPY', 'GBPAUD', 'AUDJPY'].includes(p);
+                    const isOther = p === 'OTHER';
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setJournalPair(p)}
+                        className="font-orbitron"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: 9,
+                          border: `1px solid ${isSelected ? (isTopPair ? 'var(--ng-green)' : 'var(--ng-cyan)') : 'var(--ng-border)'}`,
+                          color: isSelected ? (isTopPair ? 'var(--ng-green)' : isOther ? 'var(--ng-amber)' : 'var(--ng-cyan)') : (isTopPair ? 'var(--ng-green)' : 'var(--ng-muted)'),
+                          background: isSelected ? (isTopPair ? 'rgba(0,255,65,0.12)' : isOther ? 'rgba(255,159,10,0.12)' : 'rgba(0,212,255,0.08)') : 'transparent',
+                          borderRadius: 20,
+                          cursor: 'pointer',
+                          fontWeight: isTopPair ? 600 : 400,
+                        }}
+                      >
+                        {isTopPair && !isSelected && '★ '}{p}
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-                <div style={{ width: 120 }}>
-                  <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>DIRECTION</div>
-                  <div className="flex gap-1">
+                <div className="font-mono mt-1" style={{ fontSize: 8, color: 'var(--ng-dimmer)' }}>★ = 100% win rate pairs</div>
+              </div>
+
+              {/* Row 3: Direction & Session */}
+              <div className="flex gap-3 mb-4">
+                <div style={{ flex: 1 }}>
+                  <div className="font-orbitron mb-2" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>DIRECTION</div>
+                  <div className="flex gap-2">
                     {TRADE_DIRECTIONS.map(d => (
                       <button key={d} onClick={() => setJournalDirection(d)} className="font-orbitron flex-1"
-                        style={{ padding: '6px', fontSize: 9, border: `1px solid ${journalDirection === d ? (d === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)') : 'var(--ng-border)'}`, color: journalDirection === d ? (d === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)') : 'var(--ng-muted)', background: journalDirection === d ? (d === 'BUY' ? 'rgba(0,255,65,0.08)' : 'rgba(255,71,87,0.08)') : 'transparent', borderRadius: 6, cursor: 'pointer' }}>
-                        {d}
+                        style={{
+                          padding: '10px',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          border: `2px solid ${journalDirection === d ? (d === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)') : 'var(--ng-border)'}`,
+                          color: journalDirection === d ? (d === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)') : 'var(--ng-muted)',
+                          background: journalDirection === d ? (d === 'BUY' ? 'rgba(0,255,65,0.15)' : 'rgba(255,71,87,0.15)') : 'transparent',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                        }}>
+                        {d === 'BUY' ? '▲ BUY' : '▼ SELL'}
                       </button>
                     ))}
                   </div>
                 </div>
-              </div>
-
-              {/* Row 3: Quality, Rules */}
-              <div className="flex gap-2 mb-3">
                 <div style={{ flex: 1 }}>
-                  <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>QUALITY</div>
+                  <div className="font-orbitron mb-2" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>SESSION</div>
                   <div className="flex gap-1">
-                    {([1,2,3,4,5] as const).map(n => (
-                      <button key={n} onClick={() => setJournalQuality(n)} style={{ fontSize: 18, background: 'none', border: 'none', cursor: 'pointer', color: n <= journalQuality ? '#FFD700' : 'var(--ng-dimmer)', padding: '2px', lineHeight: 1 }}>★</button>
-                    ))}
+                    {TRADING_SESSIONS.map(s => {
+                      const isLondon = s === 'LONDON';
+                      const isSelected = journalSession === s;
+                      return (
+                        <button key={s} onClick={() => setJournalSession(s)} className="font-orbitron flex-1"
+                          style={{
+                            padding: '10px 4px',
+                            fontSize: 8,
+                            border: `1px solid ${isSelected ? (isLondon ? 'var(--ng-green)' : 'var(--ng-cyan)') : 'var(--ng-border)'}`,
+                            color: isSelected ? (isLondon ? 'var(--ng-green)' : 'var(--ng-cyan)') : (isLondon ? 'var(--ng-green)' : 'var(--ng-muted)'),
+                            background: isSelected ? (isLondon ? 'rgba(0,255,65,0.12)' : 'rgba(0,212,255,0.08)') : 'transparent',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            fontWeight: isLondon ? 600 : 400,
+                          }}>
+                          {s.replace('-SESSION', '').replace(' SESSION', '')}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
+              </div>
+
+              {/* Row 4: Rules & Quality */}
+              <div className="flex gap-3 mb-4">
                 <div style={{ flex: 1 }}>
-                  <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>RULES FOLLOWED</div>
-                  <div className="flex gap-1">
+                  <div className="font-orbitron mb-2" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>RULES FOLLOWED?</div>
+                  <div className="flex gap-2">
                     <button onClick={() => setJournalRules(true)} className="font-orbitron flex-1"
-                      style={{ padding: '6px', fontSize: 9, border: `1px solid ${journalRules === true ? 'var(--ng-green)' : 'var(--ng-border)'}`, color: journalRules === true ? 'var(--ng-green)' : 'var(--ng-muted)', background: journalRules === true ? 'rgba(0,255,65,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer' }}>
+                      style={{
+                        padding: '10px',
+                        fontSize: 10,
+                        border: `2px solid ${journalRules === true ? 'var(--ng-green)' : 'var(--ng-border)'}`,
+                        color: journalRules === true ? 'var(--ng-green)' : 'var(--ng-muted)',
+                        background: journalRules === true ? 'rgba(0,255,65,0.15)' : 'transparent',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                      }}>
                       ✓ YES
                     </button>
                     <button onClick={() => setJournalRules(false)} className="font-orbitron flex-1"
-                      style={{ padding: '6px', fontSize: 9, border: `1px solid ${journalRules === false ? 'var(--ng-red)' : 'var(--ng-border)'}`, color: journalRules === false ? 'var(--ng-red)' : 'var(--ng-muted)', background: journalRules === false ? 'rgba(255,71,87,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer' }}>
+                      style={{
+                        padding: '10px',
+                        fontSize: 10,
+                        border: `2px solid ${journalRules === false ? 'var(--ng-red)' : 'var(--ng-border)'}`,
+                        color: journalRules === false ? 'var(--ng-red)' : 'var(--ng-muted)',
+                        background: journalRules === false ? 'rgba(255,71,87,0.15)' : 'transparent',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                      }}>
                       ✗ NO
                     </button>
                   </div>
                 </div>
-              </div>
-
-              {/* Row 4: Emotional State */}
-              <div className="mb-3">
-                <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>EMOTIONAL STATE</div>
-                <div className="flex gap-1 flex-wrap">
-                  {EMOTIONAL_STATES.map(s => (
-                    <button key={s} onClick={() => setJournalEmotion(s)} className="font-orbitron"
-                      style={{ padding: '5px 10px', fontSize: 8, border: `1px solid ${journalEmotion === s ? 'var(--ng-cyan)' : 'var(--ng-border)'}`, color: journalEmotion === s ? 'var(--ng-cyan)' : 'var(--ng-muted)', background: journalEmotion === s ? 'rgba(0,212,255,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                      {s}
-                    </button>
-                  ))}
+                <div style={{ flex: 1 }}>
+                  <div className="font-orbitron mb-2" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>TRADE QUALITY</div>
+                  <div className="flex gap-1 justify-center" style={{ padding: '6px 0' }}>
+                    {([1,2,3,4,5] as const).map(n => (
+                      <button key={n} onClick={() => setJournalQuality(n)} style={{ fontSize: 22, background: 'none', border: 'none', cursor: 'pointer', color: n <= journalQuality ? '#FFD700' : 'var(--ng-dimmer)', padding: '2px', lineHeight: 1 }}>★</button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Row 5: Note */}
-              <div className="mb-3">
-                <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>NOTE <span style={{ fontWeight: 400 }}>({journalNote.length}/280)</span></div>
-                <textarea className="ng-textarea" rows={2} style={{ width: '100%', resize: 'none' }} placeholder="Brief note..." value={journalNote} onChange={e => setJournalNote(e.target.value.slice(0, 280))} />
+              {/* Row 5: Emotional State */}
+              <div className="mb-4">
+                <div className="font-orbitron mb-2" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>EMOTIONAL STATE</div>
+                <div className="flex gap-1 flex-wrap">
+                  {EMOTIONAL_STATES.map(s => {
+                    const isSelected = journalEmotion === s;
+                    const emotionColors: Record<string, string> = {
+                      calm: 'var(--ng-green)',
+                      confident: 'var(--ng-purple)',
+                      neutral: 'var(--ng-cyan)',
+                      anxious: 'var(--ng-amber)',
+                      fearful: 'var(--ng-red)',
+                    };
+                    const color = emotionColors[s] || 'var(--ng-cyan)';
+                    return (
+                      <button key={s} onClick={() => setJournalEmotion(s)} className="font-orbitron"
+                        style={{
+                          padding: '7px 14px',
+                          fontSize: 9,
+                          border: `1px solid ${isSelected ? color : 'var(--ng-border)'}`,
+                          color: isSelected ? color : 'var(--ng-muted)',
+                          background: isSelected ? `${color}15` : 'transparent',
+                          borderRadius: 20,
+                          cursor: 'pointer',
+                          textTransform: 'uppercase',
+                        }}>
+                        {s}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Row 6: Note */}
+              <div className="mb-4">
+                <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>
+                  NOTE {journalPair === 'OTHER' && <span style={{ color: 'var(--ng-amber)' }}>(specify pair here)</span>}
+                  <span style={{ fontWeight: 400, marginLeft: 8 }}>({journalNote.length}/280)</span>
+                </div>
+                <textarea
+                  className="ng-textarea"
+                  rows={3}
+                  style={{ width: '100%', resize: 'none', padding: '12px' }}
+                  placeholder={journalPair === 'OTHER' ? "Specify pair and add notes about the trade..." : "What happened? What did you learn?"}
+                  value={journalNote}
+                  onChange={e => setJournalNote(e.target.value.slice(0, 280))}
+                />
               </div>
 
               {/* Row 6: Screenshots */}
