@@ -61,7 +61,7 @@ const TRADING_RULES = [
 
 const INITIAL_MSG = (codename: string, xp: number, streak: number): Message => ({
   role: 'assistant',
-  content: `ALPHAWILL ONLINE — ${codename}.\n\n${xp} XP · ${streak}d best streak.\n\nWhat do you need?`,
+  content: `GODWILL ONLINE — ${codename}.\n\n${xp} XP · ${streak}d best streak.\n\nWhat do you need?`,
   id: 0,
 });
 
@@ -283,7 +283,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
 
   // Load persisted chat on mount
   useEffect(() => {
-    const stored = Storage.getAlphaWillChat();
+    const stored = Storage.getGodwillChat();
     if (stored.length > 0) {
       setMessages(stored.map((m, i) => ({ ...m, id: i })));
     }
@@ -329,7 +329,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
     setMessages(prev => {
       const next = [...prev, { role, content, id: Date.now() + Math.random() }];
       // Persist last 50 messages (skip the initial greeting if saving)
-      Storage.setAlphaWillChat(next.slice(-50).map(m => ({ role: m.role, content: m.content })));
+      Storage.setGodwillChat(next.slice(-50).map(m => ({ role: m.role, content: m.content })));
       return next;
     });
   }
@@ -351,7 +351,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
         }),
       });
       const data = await res.json();
-      addMessage('assistant', data.reply || 'ALPHAWILL encountered an error. Try again.');
+      addMessage('assistant', data.reply || 'GODWILL encountered an error. Try again.');
     } catch {
       addMessage('assistant', 'Network error — check your connection and try again.');
     }
@@ -455,7 +455,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-amber)', fontSize: 16, letterSpacing: '3px' }}>ALPHAWILL</h2>
+              <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-amber)', fontSize: 16, letterSpacing: '3px' }}>GODWILL</h2>
               <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-green)', border: '1px solid var(--ng-green)', padding: '2px 7px', letterSpacing: '1px' }}>ONLINE</span>
             </div>
             <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
@@ -850,7 +850,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
             {messages.map(msg => (
               <div key={msg.id} className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}>
                 {msg.role === 'assistant' && (
-                  <div style={{ fontSize: 10, color: 'var(--ng-green)', fontWeight: 700, marginBottom: 6, letterSpacing: 0 }}>⚡ ALPHAWILL</div>
+                  <div style={{ fontSize: 10, color: 'var(--ng-green)', fontWeight: 700, marginBottom: 6, letterSpacing: 0 }}>⚡ GODWILL</div>
                 )}
                 {msg.role === 'assistant'
                   ? <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.content) }} />
@@ -860,7 +860,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
             ))}
             {loading && (
               <div className="chat-bubble-ai">
-                <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-green)', letterSpacing: '2px' }}>⚡ ALPHAWILL</div>
+                <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-green)', letterSpacing: '2px' }}>⚡ GODWILL</div>
                 <div className="loader-dots flex gap-1"><span /><span /><span /></div>
               </div>
             )}
@@ -888,7 +888,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
               <textarea
                 className="ng-textarea"
                 rows={2}
-                placeholder="Ask ALPHAWILL anything..."
+                placeholder="Ask GODWILL anything..."
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}

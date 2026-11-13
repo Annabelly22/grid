@@ -188,9 +188,9 @@ export const Storage = {
   getTradeJournal: () => get<import('./gameStore').TradeSession[]>(K.tradeJournal, []),
   setTradeJournal: (s: import('./gameStore').TradeSession[]) => set(K.tradeJournal, s),
 
-  // AlphaWill chat history
-  getAlphaWillChat: () => get<{ role: 'user' | 'assistant'; content: string }[]>(K.alphawillChat, []),
-  setAlphaWillChat: (msgs: { role: 'user' | 'assistant'; content: string }[]) => set(K.alphawillChat, msgs),
+  // Godwill chat history
+  getGodwillChat: () => get<{ role: 'user' | 'assistant'; content: string }[]>(K.alphawillChat, []),
+  setGodwillChat: (msgs: { role: 'user' | 'assistant'; content: string }[]) => set(K.alphawillChat, msgs),
 
   // Focus log (date → minutes)
   getFocusLog: () => get<Record<string, number>>(K.focusLog, {}),

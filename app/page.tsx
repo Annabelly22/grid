@@ -15,7 +15,7 @@ type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile' | 
 const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: 'dashboard', icon: '⬡', label: 'HUB' },
   { id: 'meals',     icon: '🍽️', label: 'MEALS' },
-  { id: 'coach',     icon: '⚡', label: 'ALPHAWILL' },
+  { id: 'coach',     icon: '⚡', label: 'GODWILL' },
   { id: 'body',      icon: '❋', label: 'BODY' },
   { id: 'profile',   icon: '▣', label: 'PROFILE' },
 ];
@@ -62,7 +62,7 @@ function App() {
                 ◆ Build daily habits. Earn XP.<br />
                 ◈ Complete missions. Level up.<br />
                 ❋ Cycle-synced supplement stack.<br />
-                ⚡ AI coach ALPHAWILL.<br />
+                ⚡ AI coach GODWILL.<br />
                 ▣ Reach LEGEND rank.
               </div>
             </div>
