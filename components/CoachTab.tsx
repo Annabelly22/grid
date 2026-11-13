@@ -114,6 +114,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
   const [journalImages, setJournalImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [expandedTrade, setExpandedTrade] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate stats from trade journal
@@ -512,172 +513,283 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
 
       {/* ── Log tab — Weekly/Monthly P&L View ────────────────── */}
       {activeTab === 'log' && (
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {/* Month selector */}
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => {
-                const [y, m] = selectedMonth.split('-').map(Number);
-                const prev = new Date(y, m - 2, 1);
-                setSelectedMonth(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`);
-              }}
-              className="font-orbitron"
-              style={{ padding: '8px 12px', fontSize: 12, background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderRadius: 6, cursor: 'pointer', color: 'var(--ng-muted)' }}
-            >
-              ◀
-            </button>
-            <div className="font-orbitron" style={{ fontSize: 14, color: 'var(--ng-text)', letterSpacing: '2px' }}>
-              {new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}
-            </div>
-            <button
-              onClick={() => {
-                const [y, m] = selectedMonth.split('-').map(Number);
-                const next = new Date(y, m, 1);
-                setSelectedMonth(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`);
-              }}
-              className="font-orbitron"
-              style={{ padding: '8px 12px', fontSize: 12, background: 'var(--ng-surface)', border: '1px solid var(--ng-border)', borderRadius: 6, cursor: 'pointer', color: 'var(--ng-muted)' }}
-            >
-              ▶
-            </button>
-          </div>
-
-          {/* Monthly summary card */}
-          <div className="card mb-4" style={{ borderColor: logViewData.monthlyPnl >= 0 ? 'rgba(0,255,65,0.3)' : 'rgba(255,71,87,0.3)' }}>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-muted)', letterSpacing: '1px' }}>MONTHLY P&L</div>
-                <div className="font-orbitron font-bold" style={{ fontSize: 28, color: logViewData.monthlyPnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
-                  {logViewData.monthlyPnl >= 0 ? '+' : ''}{logViewData.monthlyPnl.toFixed(2)}
+        <div className="flex-1 overflow-y-auto">
+          {/* Monthly Hero Header */}
+          <div style={{
+            background: logViewData.monthlyPnl >= 0
+              ? 'linear-gradient(135deg, rgba(0,255,65,0.15) 0%, rgba(0,212,255,0.08) 100%)'
+              : 'linear-gradient(135deg, rgba(255,71,87,0.15) 0%, rgba(255,159,10,0.08) 100%)',
+            borderBottom: `1px solid ${logViewData.monthlyPnl >= 0 ? 'rgba(0,255,65,0.3)' : 'rgba(255,71,87,0.3)'}`,
+            padding: '20px 16px 24px',
+          }}>
+            {/* Month Navigator */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={() => {
+                  const [y, m] = selectedMonth.split('-').map(Number);
+                  const prev = new Date(y, m - 2, 1);
+                  setSelectedMonth(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`);
+                }}
+                style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--ng-border)', borderRadius: 8, cursor: 'pointer', color: 'var(--ng-text)', fontSize: 14 }}
+              >
+                ◀
+              </button>
+              <div className="text-center">
+                <div className="font-orbitron" style={{ fontSize: 18, color: 'var(--ng-text)', letterSpacing: '3px', fontWeight: 900 }}>
+                  {new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long' }).toUpperCase()}
                 </div>
-              </div>
-              <div className="text-right">
                 <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)' }}>
-                  {logViewData.totalTrades} trades
-                </div>
-                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-green)' }}>
-                  {logViewData.monthlyWins}W
-                </div>
-                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-red)' }}>
-                  {logViewData.monthlyLosses}L
+                  {new Date(selectedMonth + '-01').getFullYear()}
                 </div>
               </div>
+              <button
+                onClick={() => {
+                  const [y, m] = selectedMonth.split('-').map(Number);
+                  const next = new Date(y, m, 1);
+                  setSelectedMonth(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`);
+                }}
+                style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--ng-border)', borderRadius: 8, cursor: 'pointer', color: 'var(--ng-text)', fontSize: 14 }}
+              >
+                ▶
+              </button>
             </div>
+
+            {/* Big P&L Display */}
+            <div className="text-center mb-4">
+              <div className="font-orbitron font-bold" style={{
+                fontSize: 48,
+                color: logViewData.monthlyPnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)',
+                textShadow: logViewData.monthlyPnl >= 0
+                  ? '0 0 30px rgba(0,255,65,0.4)'
+                  : '0 0 30px rgba(255,71,87,0.4)',
+                letterSpacing: '2px',
+              }}>
+                {logViewData.monthlyPnl >= 0 ? '+' : ''}{logViewData.monthlyPnl.toFixed(2)}
+              </div>
+              <div className="font-mono" style={{ fontSize: 12, color: 'var(--ng-muted)', marginTop: 4 }}>
+                MONTHLY P&L
+              </div>
+            </div>
+
+            {/* Stats Row */}
+            <div className="flex justify-center gap-6">
+              <div className="text-center">
+                <div className="font-orbitron font-bold" style={{ fontSize: 20, color: 'var(--ng-text)' }}>
+                  {logViewData.totalTrades}
+                </div>
+                <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px' }}>TRADES</div>
+              </div>
+              <div style={{ width: 1, background: 'var(--ng-border)' }} />
+              <div className="text-center">
+                <div className="font-orbitron font-bold" style={{ fontSize: 20, color: 'var(--ng-green)' }}>
+                  {logViewData.monthlyWins}
+                </div>
+                <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px' }}>WINS</div>
+              </div>
+              <div style={{ width: 1, background: 'var(--ng-border)' }} />
+              <div className="text-center">
+                <div className="font-orbitron font-bold" style={{ fontSize: 20, color: 'var(--ng-red)' }}>
+                  {logViewData.monthlyLosses}
+                </div>
+                <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px' }}>LOSSES</div>
+              </div>
+              <div style={{ width: 1, background: 'var(--ng-border)' }} />
+              <div className="text-center">
+                <div className="font-orbitron font-bold" style={{ fontSize: 20, color: 'var(--ng-cyan)' }}>
+                  {logViewData.totalTrades > 0 ? Math.round((logViewData.monthlyWins / logViewData.totalTrades) * 100) : 0}%
+                </div>
+                <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px' }}>WIN RATE</div>
+              </div>
+            </div>
+
+            {/* Win Rate Progress Bar */}
+            {logViewData.totalTrades > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ height: 6, background: 'rgba(255,71,87,0.3)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${(logViewData.monthlyWins / logViewData.totalTrades) * 100}%`,
+                    background: 'linear-gradient(90deg, var(--ng-green), var(--ng-cyan))',
+                    borderRadius: 3,
+                    transition: 'width 0.5s ease',
+                  }} />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Weekly breakdown */}
-          {logViewData.weeks.map((week, weekIdx) => (
-            <div key={weekIdx} className="mb-4">
-              {/* Week header */}
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-muted)', letterSpacing: '1px' }}>
-                  WEEK {weekIdx + 1} · {new Date(week.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(week.weekEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </div>
-                <div className="font-orbitron font-bold" style={{ fontSize: 14, color: week.totalPnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
-                  {week.totalPnl >= 0 ? '+' : ''}{week.totalPnl.toFixed(2)}
-                </div>
-              </div>
+          <div className="px-4 py-4">
+            {logViewData.weeks.map((week, weekIdx) => {
+              const weekWins = week.trades.filter(t => (t.pnl || 0) > 0).length;
+              const weekLosses = week.trades.filter(t => (t.pnl || 0) < 0).length;
 
-              {/* Trades in this week */}
-              {week.trades.length > 0 ? (
-                week.trades.map(trade => {
-                  const isEditing = editingTradeId === trade.id;
-
-                  return (
-                    <div key={trade.id} className="mb-2" style={{ background: 'var(--ng-surface)', border: '0.5px solid var(--ng-border)', borderLeft: `3px solid ${(trade.pnl || 0) >= 0 ? 'var(--ng-green)' : 'var(--ng-red)'}`, borderRadius: 8 }}>
-                      {isEditing ? (
-                        /* Edit form */
-                        <div className="p-3">
-                          <div className="flex gap-2 mb-2">
-                            <input type="number" className="ng-input flex-1" placeholder="P&L" value={editPnl} onChange={e => setEditPnl(e.target.value)} style={{ padding: '6px 10px' }} />
-                            <select className="ng-input" value={editPair} onChange={e => setEditPair(e.target.value)} style={{ padding: '6px 10px' }}>
-                              {COMMON_PAIRS.map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                          </div>
-                          <div className="flex gap-2 mb-2">
-                            <select className="ng-input flex-1" value={editSession} onChange={e => setEditSession(e.target.value as TradingSession)} style={{ padding: '6px 10px' }}>
-                              {TRADING_SESSIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                            <select className="ng-input" value={editDirection} onChange={e => setEditDirection(e.target.value as TradeDirection)} style={{ padding: '6px 10px' }}>
-                              {TRADE_DIRECTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                            </select>
-                          </div>
-                          <div className="flex gap-2 mb-2">
-                            <button onClick={() => setEditRules(!editRules)} className="font-orbitron flex-1"
-                              style={{ padding: '6px', fontSize: 9, border: `1px solid ${editRules ? 'var(--ng-green)' : 'var(--ng-red)'}`, color: editRules ? 'var(--ng-green)' : 'var(--ng-red)', background: editRules ? 'rgba(0,255,65,0.1)' : 'rgba(255,71,87,0.1)', borderRadius: 6, cursor: 'pointer' }}>
-                              {editRules ? '✓ RULES' : '✗ BROKE'}
-                            </button>
-                            <div className="flex gap-1">
-                              {([1,2,3,4,5] as const).map(n => (
-                                <button key={n} onClick={() => setEditQuality(n)} style={{ fontSize: 14, background: 'none', border: 'none', cursor: 'pointer', color: n <= editQuality ? '#FFD700' : 'var(--ng-dimmer)', padding: '2px' }}>★</button>
-                              ))}
-                            </div>
-                          </div>
-                          <textarea className="ng-textarea mb-2" rows={2} style={{ width: '100%', resize: 'none', padding: '8px' }} placeholder="Note..." value={editNote} onChange={e => setEditNote(e.target.value)} />
-                          <div className="flex gap-2">
-                            <button onClick={saveEditTrade} className="btn-green-solid flex-1" style={{ padding: '8px', fontSize: 10 }}>SAVE</button>
-                            <button onClick={cancelEditTrade} className="font-orbitron flex-1" style={{ padding: '8px', fontSize: 10, border: '1px solid var(--ng-border)', background: 'transparent', color: 'var(--ng-muted)', borderRadius: 6, cursor: 'pointer' }}>CANCEL</button>
-                          </div>
+              return (
+                <div key={weekIdx} className="mb-5">
+                  {/* Week header - more prominent */}
+                  <div style={{
+                    background: week.totalPnl >= 0 ? 'rgba(0,255,65,0.08)' : 'rgba(255,71,87,0.08)',
+                    border: `1px solid ${week.totalPnl >= 0 ? 'rgba(0,255,65,0.2)' : 'rgba(255,71,87,0.2)'}`,
+                    borderRadius: 10,
+                    padding: '12px 14px',
+                    marginBottom: 10,
+                  }}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-text)', letterSpacing: '1px' }}>
+                          WEEK {weekIdx + 1}
                         </div>
-                      ) : (
-                        /* Display view */
-                        <div className="p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
-                                {new Date(trade.date).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}
-                              </span>
-                              {trade.pair && <span className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-text)' }}>{trade.pair}</span>}
-                              {trade.direction && <span className="font-orbitron" style={{ fontSize: 8, color: trade.direction === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)' }}>{trade.direction}</span>}
-                              {trade.session && <span className="font-mono" style={{ fontSize: 7, color: trade.session === 'LONDON' ? 'var(--ng-green)' : 'var(--ng-muted)', padding: '2px 4px', background: 'var(--ng-surface2)', borderRadius: 3 }}>{trade.session.replace('-SESSION', '').replace(' SESSION', '')}</span>}
+                        <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+                          {new Date(week.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {new Date(week.weekEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-orbitron font-bold" style={{
+                          fontSize: 18,
+                          color: week.totalPnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)',
+                        }}>
+                          {week.totalPnl >= 0 ? '+' : ''}{week.totalPnl.toFixed(2)}
+                        </div>
+                        <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>
+                          {weekWins}W · {weekLosses}L · {week.trades.length} trades
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trades in this week */}
+                  {week.trades.length > 0 ? (
+                    week.trades.map(trade => {
+                      const isEditing = editingTradeId === trade.id;
+
+                      return (
+                        <div key={trade.id} className="mb-2" style={{
+                          background: 'var(--ng-surface)',
+                          border: '1px solid var(--ng-border)',
+                          borderLeft: `4px solid ${(trade.pnl || 0) >= 0 ? 'var(--ng-green)' : 'var(--ng-red)'}`,
+                          borderRadius: 10,
+                        }}>
+                          {isEditing ? (
+                            /* Edit form */
+                            <div className="p-3">
+                              <div className="flex gap-2 mb-2">
+                                <input type="number" className="ng-input flex-1" placeholder="P&L" value={editPnl} onChange={e => setEditPnl(e.target.value)} style={{ padding: '8px 12px' }} />
+                                <select className="ng-input" value={editPair} onChange={e => setEditPair(e.target.value)} style={{ padding: '8px 12px' }}>
+                                  {COMMON_PAIRS.map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                              </div>
+                              <div className="flex gap-2 mb-2">
+                                <select className="ng-input flex-1" value={editSession} onChange={e => setEditSession(e.target.value as TradingSession)} style={{ padding: '8px 12px' }}>
+                                  {TRADING_SESSIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                                <select className="ng-input" value={editDirection} onChange={e => setEditDirection(e.target.value as TradeDirection)} style={{ padding: '8px 12px' }}>
+                                  {TRADE_DIRECTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                              </div>
+                              <div className="flex gap-2 mb-2">
+                                <button onClick={() => setEditRules(!editRules)} className="font-orbitron flex-1"
+                                  style={{ padding: '8px', fontSize: 10, border: `1.5px solid ${editRules ? 'var(--ng-green)' : 'var(--ng-red)'}`, color: editRules ? 'var(--ng-green)' : 'var(--ng-red)', background: editRules ? 'rgba(0,255,65,0.1)' : 'rgba(255,71,87,0.1)', borderRadius: 8, cursor: 'pointer' }}>
+                                  {editRules ? '✓ RULES FOLLOWED' : '✗ BROKE RULES'}
+                                </button>
+                                <div className="flex gap-1 items-center" style={{ padding: '0 8px' }}>
+                                  {([1,2,3,4,5] as const).map(n => (
+                                    <button key={n} onClick={() => setEditQuality(n)} style={{ fontSize: 18, background: 'none', border: 'none', cursor: 'pointer', color: n <= editQuality ? '#FFD700' : 'var(--ng-dimmer)', padding: '2px' }}>★</button>
+                                  ))}
+                                </div>
+                              </div>
+                              <textarea className="ng-textarea mb-3" rows={2} style={{ width: '100%', resize: 'none', padding: '10px' }} placeholder="Trade notes..." value={editNote} onChange={e => setEditNote(e.target.value)} />
+                              <div className="flex gap-2">
+                                <button onClick={saveEditTrade} className="btn-green-solid flex-1" style={{ padding: '10px', fontSize: 11 }}>SAVE CHANGES</button>
+                                <button onClick={cancelEditTrade} className="font-orbitron flex-1" style={{ padding: '10px', fontSize: 11, border: '1px solid var(--ng-border)', background: 'transparent', color: 'var(--ng-muted)', borderRadius: 8, cursor: 'pointer' }}>CANCEL</button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-orbitron font-bold" style={{ fontSize: 14, color: (trade.pnl || 0) >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
-                                {(trade.pnl || 0) >= 0 ? '+' : ''}{(trade.pnl || 0).toFixed(2)}
-                              </span>
-                              <button onClick={() => startEditTrade(trade)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ng-muted)', fontSize: 10, padding: '2px' }}>✎</button>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span style={{ fontSize: 9, color: '#FFD700' }}>{'★'.repeat(trade.quality)}{'☆'.repeat(5 - trade.quality)}</span>
-                            <span className="font-orbitron" style={{ fontSize: 7, color: trade.rulesFollowed ? 'var(--ng-green)' : 'var(--ng-red)' }}>
-                              {trade.rulesFollowed ? '✓' : '✗'}
-                            </span>
-                            <span className="font-mono" style={{ fontSize: 7, color: 'var(--ng-cyan)', textTransform: 'uppercase' }}>{trade.emotionalState}</span>
-                          </div>
-                          {trade.note && <div className="font-mono mt-1" style={{ fontSize: 9, color: 'var(--ng-dimmer)' }}>{trade.note}</div>}
-                          {trade.images && trade.images.length > 0 && (
-                            <div className="flex gap-1 mt-2">
-                              {trade.images.map((url, i) => (
-                                <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                                  <img src={url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--ng-border)' }} />
-                                </a>
-                              ))}
+                          ) : (
+                            /* Display view */
+                            <div className="p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)', minWidth: 50 }}>
+                                    {new Date(trade.date).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}
+                                  </span>
+                                  {trade.pair && <span className="font-orbitron font-bold" style={{ fontSize: 13, color: 'var(--ng-text)' }}>{trade.pair}</span>}
+                                  {trade.direction && (
+                                    <span className="font-orbitron" style={{
+                                      fontSize: 9,
+                                      color: trade.direction === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)',
+                                      padding: '3px 8px',
+                                      background: trade.direction === 'BUY' ? 'rgba(0,255,65,0.15)' : 'rgba(255,71,87,0.15)',
+                                      borderRadius: 4,
+                                    }}>
+                                      {trade.direction === 'BUY' ? '▲' : '▼'} {trade.direction}
+                                    </span>
+                                  )}
+                                  {trade.session && (
+                                    <span className="font-mono" style={{
+                                      fontSize: 9,
+                                      color: trade.session === 'LONDON' ? 'var(--ng-green)' : 'var(--ng-muted)',
+                                      padding: '3px 8px',
+                                      background: trade.session === 'LONDON' ? 'rgba(0,255,65,0.1)' : 'var(--ng-surface2)',
+                                      borderRadius: 4,
+                                    }}>
+                                      {trade.session}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="font-orbitron font-bold" style={{ fontSize: 16, color: (trade.pnl || 0) >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
+                                    {(trade.pnl || 0) >= 0 ? '+' : ''}{(trade.pnl || 0).toFixed(2)}
+                                  </span>
+                                  <button onClick={() => startEditTrade(trade)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--ng-border)', borderRadius: 6, cursor: 'pointer', color: 'var(--ng-muted)', fontSize: 12, padding: '4px 8px' }}>✎</button>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 mt-2">
+                                <span style={{ fontSize: 12, color: '#FFD700' }}>{'★'.repeat(trade.quality)}{'☆'.repeat(5 - trade.quality)}</span>
+                                <span className="font-orbitron" style={{
+                                  fontSize: 9,
+                                  color: trade.rulesFollowed ? 'var(--ng-green)' : 'var(--ng-red)',
+                                  padding: '2px 6px',
+                                  background: trade.rulesFollowed ? 'rgba(0,255,65,0.1)' : 'rgba(255,71,87,0.1)',
+                                  borderRadius: 4,
+                                }}>
+                                  {trade.rulesFollowed ? '✓ RULES' : '✗ BROKE'}
+                                </span>
+                                <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-cyan)', textTransform: 'uppercase' }}>{trade.emotionalState}</span>
+                                {trade.images && trade.images.length > 0 && (
+                                  <span style={{ fontSize: 10, color: 'var(--ng-purple)' }}>📷 {trade.images.length}</span>
+                                )}
+                              </div>
+                              {trade.note && <div className="font-mono mt-2" style={{ fontSize: 10, color: 'var(--ng-dimmer)', lineHeight: 1.5 }}>{trade.note}</div>}
+                              {trade.images && trade.images.length > 0 && (
+                                <div className="flex gap-2 mt-3">
+                                  {trade.images.map((url, i) => (
+                                    <button key={i} onClick={() => setLightboxImage(url)} style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}>
+                                      <img src={url} alt="" style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 6, border: '2px solid var(--ng-border)' }} />
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
-                      )}
+                      );
+                    })
+                  ) : (
+                    <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-dimmer)', padding: '16px', textAlign: 'center', background: 'var(--ng-surface)', borderRadius: 8, border: '1px dashed var(--ng-border)' }}>
+                      No trades this week
                     </div>
-                  );
-                })
-              ) : (
-                <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-dimmer)', padding: '12px', textAlign: 'center', background: 'var(--ng-surface)', borderRadius: 6 }}>No trades this week</div>
-              )}
+                  )}
+                </div>
+              );
+            })}
 
-              {/* Week total bar */}
-              {week.trades.length > 0 && (
-                <div style={{ height: 2, background: week.totalPnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)', borderRadius: 1, opacity: 0.5 }} />
-              )}
-            </div>
-          ))}
-
-          {logViewData.weeks.length === 0 && (
-            <div className="text-center py-8">
-              <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
-              <div className="font-orbitron" style={{ fontSize: 11, color: 'var(--ng-muted)', letterSpacing: '2px' }}>NO TRADES THIS MONTH</div>
-              <div className="font-mono mt-2" style={{ fontSize: 10, color: 'var(--ng-dimmer)' }}>Log some trades to see your P&L breakdown</div>
-            </div>
-          )}
+            {logViewData.weeks.length === 0 && (
+              <div className="text-center py-12">
+                <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>📊</div>
+                <div className="font-orbitron" style={{ fontSize: 13, color: 'var(--ng-muted)', letterSpacing: '2px', marginBottom: 8 }}>NO TRADES THIS MONTH</div>
+                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-dimmer)' }}>Log some trades to see your P&L breakdown</div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1119,13 +1231,13 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                         {expandedTrade === session.id && (
                           <div className="flex gap-2 mt-2 flex-wrap">
                             {session.images.map((url, i) => (
-                              <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                              <button key={i} onClick={() => setLightboxImage(url)} style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}>
                                 <img
                                   src={url}
                                   alt={`Trade screenshot ${i + 1}`}
-                                  style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ng-border)', cursor: 'pointer' }}
+                                  style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ng-border)' }}
                                 />
-                              </a>
+                              </button>
                             ))}
                           </div>
                         )}
@@ -1144,6 +1256,58 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
               <div className="font-mono mt-2" style={{ fontSize: 10, color: 'var(--ng-dimmer)' }}>Start tracking your trades to see insights</div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Image Lightbox Modal */}
+      {lightboxImage && (
+        <div
+          onClick={() => setLightboxImage(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: 20,
+            cursor: 'pointer',
+          }}
+        >
+          <button
+            onClick={() => setLightboxImage(null)}
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              background: 'rgba(255,255,255,0.1)',
+              border: 'none',
+              color: '#fff',
+              fontSize: 24,
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ✕
+          </button>
+          <img
+            src={lightboxImage}
+            alt="Trade screenshot"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '90%',
+              maxHeight: '90%',
+              objectFit: 'contain',
+              borderRadius: 8,
+              cursor: 'default',
+            }}
+          />
         </div>
       )}
 
