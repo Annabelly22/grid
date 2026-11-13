@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Storage } from '../lib/storage';
+import { Storage, type FastRecord } from '../lib/storage';
 import { getTodayStr } from '../lib/time';
 import { getTodayQuote } from '../lib/dailyQuotes';
 
@@ -182,6 +182,18 @@ export default function MealPlanTab() {
   const [editLogCheat, setEditLogCheat] = useState(false);
   const [editLogNotes, setEditLogNotes] = useState('');
 
+  // Body stats and fasting for TDEE/deficit calculations
+  const [bodyStats, setBodyStats] = useState<{
+    age: number;
+    heightFt: number;
+    heightIn: number;
+    weight: number;
+    goalWeight: number;
+    sex: 'female' | 'male';
+    activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'veryActive';
+  } | null>(null);
+  const [fastHistory, setFastHistory] = useState<FastRecord[]>([]);
+
   // Load from storage on mount
   useEffect(() => {
     const saved = Storage.getMealPlan?.() as MealPlan | null;
@@ -200,6 +212,12 @@ export default function MealPlanTab() {
     if (savedHabits) setHabits(savedHabits);
     const savedHabitTimes = Storage.getHabitTimes?.() || {};
     setHabitTimes(savedHabitTimes);
+    // Load body stats for TDEE calculation
+    const savedBodyStats = Storage.getBodyStats?.();
+    if (savedBodyStats) setBodyStats(savedBodyStats);
+    // Load fasting history for deficit calculations
+    const savedFastHistory = Storage.getFastHistory?.() || [];
+    setFastHistory(savedFastHistory);
   }, []);
 
   // Save to storage on change
@@ -249,10 +267,61 @@ export default function MealPlanTab() {
     saveMealLog({ ...mealLog, [today]: entry });
   }, [plan, mealLog, saveMealLog]);
 
+  // Calculate TDEE from body stats (Mifflin-St Jeor formula)
+  const calculateTDEE = useCallback(() => {
+    if (!bodyStats) return 1800; // fallback
+    const heightCm = (bodyStats.heightFt * 12 + bodyStats.heightIn) * 2.54;
+    const weightKg = bodyStats.weight * 0.453592;
+    const bmr = Math.round(10 * weightKg + 6.25 * heightCm - 5 * bodyStats.age + (bodyStats.sex === 'male' ? 5 : -161));
+    const activityMultipliers = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, veryActive: 1.9 };
+    return Math.round(bmr * activityMultipliers[bodyStats.activityLevel]);
+  }, [bodyStats]);
+
+  // Get fasting stats for the logged period
+  const getFastingStats = useCallback(() => {
+    const entries = Object.values(mealLog).filter(e => e && typeof e === 'object');
+    if (entries.length === 0 || fastHistory.length === 0) {
+      return { totalFastingHours: 0, avgFastDuration: 0, fastCount: 0, fastingBonus: 0 };
+    }
+
+    // Get date range from meal log
+    const dates = entries.map(e => e?.date).filter(Boolean) as string[];
+    const minDate = dates.sort()[0];
+    const maxDate = dates.sort().reverse()[0];
+
+    // Filter fasting records within the meal log period
+    const periodFasts = fastHistory.filter(f => {
+      const fastDate = new Date(f.startTime).toISOString().split('T')[0];
+      return fastDate >= minDate && fastDate <= maxDate;
+    });
+
+    const totalFastingHours = periodFasts.reduce((sum, f) => sum + f.durationH, 0);
+    const avgFastDuration = periodFasts.length > 0
+      ? Math.round((totalFastingHours / periodFasts.length) * 10) / 10
+      : 0;
+
+    // Fasting bonus: estimate ~50 extra calories burned per hour of fasting beyond 12h
+    // due to metabolic shift to fat burning
+    const fastingBonus = periodFasts.reduce((sum, f) => {
+      const extraHours = Math.max(0, f.durationH - 12);
+      return sum + (extraHours * 50);
+    }, 0);
+
+    return {
+      totalFastingHours: Math.round(totalFastingHours * 10) / 10,
+      avgFastDuration,
+      fastCount: periodFasts.length,
+      fastingBonus: Math.round(fastingBonus),
+    };
+  }, [mealLog, fastHistory]);
+
   // Get stats for meal log
   const getLogStats = useCallback(() => {
     const entries = Object.values(mealLog).filter(e => e && typeof e === 'object');
-    if (entries.length === 0) return { avgKcal: 0, totalDays: 0, cheatDays: 0, daysSinceCheat: 0, expectedLoss: 0 };
+    if (entries.length === 0) return {
+      avgKcal: 0, totalDays: 0, cheatDays: 0, daysSinceCheat: 0, expectedLoss: 0,
+      tdee: calculateTDEE(), fastingStats: { totalFastingHours: 0, avgFastDuration: 0, fastCount: 0, fastingBonus: 0 }
+    };
 
     const sorted = entries.sort((a, b) => (b?.date ?? '').localeCompare(a?.date ?? ''));
     const lastCheat = sorted.find(e => e?.isCheatDay);
@@ -265,11 +334,14 @@ export default function MealPlanTab() {
       ? Math.round(nonCheatDays.reduce((s, e) => s + (e?.totalKcal ?? 0), 0) / nonCheatDays.length)
       : 0;
 
-    // Expected loss: (TDEE - avgKcal) * days / 3500 lbs
-    // Assume TDEE ~1800 for active female (adjustable)
-    const TDEE = 1800;
-    const totalDeficit = nonCheatDays.reduce((s, e) => s + Math.max(0, TDEE - (e?.totalKcal ?? 0)), 0);
-    const expectedLoss = totalDeficit / 3500; // lbs
+    // Calculate TDEE from actual body stats
+    const tdee = calculateTDEE();
+    const fastingStats = getFastingStats();
+
+    // Expected loss: (TDEE - avgKcal) * days / 3500 lbs + fasting bonus
+    const totalDeficit = nonCheatDays.reduce((s, e) => s + Math.max(0, tdee - (e?.totalKcal ?? 0)), 0);
+    const totalDeficitWithFasting = totalDeficit + fastingStats.fastingBonus;
+    const expectedLoss = totalDeficitWithFasting / 3500; // lbs
 
     return {
       avgKcal,
@@ -277,8 +349,10 @@ export default function MealPlanTab() {
       cheatDays: entries.filter(e => e?.isCheatDay).length,
       daysSinceCheat,
       expectedLoss: Math.round(expectedLoss * 10) / 10,
+      tdee,
+      fastingStats,
     };
-  }, [mealLog]);
+  }, [mealLog, calculateTDEE, getFastingStats]);
 
   // Toggle meal check for today
   const toggleMealCheck = useCallback((mealType: string) => {
@@ -565,8 +639,13 @@ export default function MealPlanTab() {
             padding: 14,
             marginBottom: 16,
           }}>
-            <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-green)', letterSpacing: '2px', marginBottom: 10 }}>
-              📊 TRACKING STATS
+            <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
+              <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-green)', letterSpacing: '2px' }}>
+                📊 TRACKING STATS
+              </div>
+              <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>
+                TDEE: {logStats.tdee} kcal
+              </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               <div style={{ textAlign: 'center' }}>
@@ -582,6 +661,43 @@ export default function MealPlanTab() {
                 <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>LBS DEFICIT</div>
               </div>
             </div>
+
+            {/* Fasting Contribution */}
+            {logStats.fastingStats && logStats.fastingStats.fastCount > 0 && (
+              <div style={{
+                marginTop: 12,
+                paddingTop: 10,
+                borderTop: '1px solid var(--ng-border)',
+              }}>
+                <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-purple)', marginBottom: 6 }}>
+                  🕐 FASTING CONTRIBUTION
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div className="font-orbitron" style={{ fontSize: 14, color: 'var(--ng-purple)' }}>
+                      {logStats.fastingStats.fastCount}
+                    </div>
+                    <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>FASTS</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div className="font-orbitron" style={{ fontSize: 14, color: 'var(--ng-purple)' }}>
+                      {logStats.fastingStats.avgFastDuration}h
+                    </div>
+                    <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>AVG DURATION</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div className="font-orbitron" style={{ fontSize: 14, color: 'var(--ng-purple)' }}>
+                      +{logStats.fastingStats.fastingBonus}
+                    </div>
+                    <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-muted)' }}>BONUS CAL</div>
+                  </div>
+                </div>
+                <div className="font-mono" style={{ fontSize: 7, color: 'var(--ng-dimmer)', textAlign: 'center', marginTop: 6 }}>
+                  ~50 extra cal burned per hour fasting beyond 12h
+                </div>
+              </div>
+            )}
+
             {logStats.daysSinceCheat >= 7 && (
               <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-amber)', textAlign: 'center', marginTop: 10 }}>
                 🎉 {logStats.daysSinceCheat} days clean! You&apos;ve earned a cheat meal.
