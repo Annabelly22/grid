@@ -31,6 +31,9 @@ export interface Habit {
   reminderTime?: string;      // HH:MM format, if set shows bell icon and schedules notification
 }
 
+export type TradingSession = 'LONDON' | 'ASIAN' | 'NEWYORK';
+export type TradeDirection = 'BUY' | 'SELL';
+
 export interface TradeSession {
   id: string;
   date: string;
@@ -39,6 +42,11 @@ export interface TradeSession {
   emotionalState: 'calm' | 'anxious' | 'confident' | 'fearful' | 'neutral';
   note: string;
   createdAt: string;
+  // Extended fields for trading dashboard
+  pnl?: number;              // profit/loss in dollars
+  pair?: string;             // e.g. 'XAUUSD', 'GBPJPY'
+  session?: TradingSession;  // trading session
+  direction?: TradeDirection; // BUY or SELL
 }
 
 export type HabitCategory = 'body' | 'mind' | 'trade' | 'build' | 'spirit' | 'recovery';
