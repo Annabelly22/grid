@@ -85,6 +85,19 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set());
+
+  const toggleWeek = (weekIdx: number) => {
+    setExpandedWeeks(prev => {
+      const next = new Set(prev);
+      if (next.has(weekIdx)) {
+        next.delete(weekIdx);
+      } else {
+        next.add(weekIdx);
+      }
+      return next;
+    });
+  };
 
   // Edit trade state
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
@@ -624,42 +637,82 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
               const weekWins = week.trades.filter(t => (t.pnl || 0) > 0).length;
               const weekLosses = week.trades.filter(t => (t.pnl || 0) < 0).length;
 
+              const isExpanded = expandedWeeks.has(weekIdx);
+
               return (
-                <div key={weekIdx} className="mb-5">
-                  {/* Week header - more prominent */}
-                  <div style={{
-                    background: week.totalPnl >= 0 ? 'rgba(0,255,65,0.08)' : 'rgba(255,71,87,0.08)',
-                    border: `1px solid ${week.totalPnl >= 0 ? 'rgba(0,255,65,0.2)' : 'rgba(255,71,87,0.2)'}`,
-                    borderRadius: 10,
-                    padding: '12px 14px',
-                    marginBottom: 10,
-                  }}>
+                <div key={weekIdx} className="mb-4">
+                  {/* Week header - clickable to expand/collapse */}
+                  <button
+                    onClick={() => week.trades.length > 0 && toggleWeek(weekIdx)}
+                    style={{
+                      width: '100%',
+                      background: week.totalPnl >= 0 ? 'rgba(0,255,65,0.08)' : 'rgba(255,71,87,0.08)',
+                      border: `1px solid ${week.totalPnl >= 0 ? 'rgba(0,255,65,0.25)' : 'rgba(255,71,87,0.25)'}`,
+                      borderRadius: 12,
+                      padding: '14px 16px',
+                      cursor: week.trades.length > 0 ? 'pointer' : 'default',
+                      textAlign: 'left',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
                     <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-orbitron font-bold" style={{ fontSize: 11, color: 'var(--ng-text)', letterSpacing: '1px' }}>
-                          WEEK {weekIdx + 1}
-                        </div>
-                        <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
-                          {new Date(week.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {new Date(week.weekEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      <div className="flex items-center gap-3">
+                        {/* Expand/collapse indicator */}
+                        {week.trades.length > 0 && (
+                          <span style={{
+                            fontSize: 12,
+                            color: 'var(--ng-muted)',
+                            transition: 'transform 0.2s ease',
+                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                          }}>
+                            ▶
+                          </span>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-orbitron font-bold" style={{ fontSize: 12, color: 'var(--ng-text)', letterSpacing: '1px' }}>
+                              WEEK {weekIdx + 1}
+                            </span>
+                            {/* Trade count badge - prominent */}
+                            {week.trades.length > 0 && (
+                              <span style={{
+                                padding: '3px 10px',
+                                background: 'var(--ng-amber)',
+                                color: '#000',
+                                borderRadius: 12,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                fontFamily: 'var(--font-orbitron)',
+                              }}>
+                                {week.trades.length} {week.trades.length === 1 ? 'TRADE' : 'TRADES'}
+                              </span>
+                            )}
+                          </div>
+                          <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)', marginTop: 2 }}>
+                            {new Date(week.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {new Date(week.weekEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </div>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="font-orbitron font-bold" style={{
-                          fontSize: 18,
+                          fontSize: 20,
                           color: week.totalPnl >= 0 ? 'var(--ng-green)' : 'var(--ng-red)',
                         }}>
                           {week.totalPnl >= 0 ? '+' : ''}{week.totalPnl.toFixed(2)}
                         </div>
-                        <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>
-                          {weekWins}W · {weekLosses}L · {week.trades.length} trades
+                        <div className="flex items-center gap-2 justify-end" style={{ marginTop: 2 }}>
+                          <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-green)', fontWeight: 600 }}>{weekWins}W</span>
+                          <span style={{ color: 'var(--ng-border)' }}>·</span>
+                          <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-red)', fontWeight: 600 }}>{weekLosses}L</span>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
 
-                  {/* Trades in this week */}
-                  {week.trades.length > 0 ? (
-                    week.trades.map(trade => {
+                  {/* Trades in this week - collapsible */}
+                  {isExpanded && week.trades.length > 0 && (
+                    <div style={{ marginTop: 10, paddingLeft: 8 }}>
+                      {week.trades.map(trade => {
                       const isEditing = editingTradeId === trade.id;
 
                       return (
@@ -772,10 +825,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                           )}
                         </div>
                       );
-                    })
-                  ) : (
-                    <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-dimmer)', padding: '16px', textAlign: 'center', background: 'var(--ng-surface)', borderRadius: 8, border: '1px dashed var(--ng-border)' }}>
-                      No trades this week
+                    })}
                     </div>
                   )}
                 </div>
