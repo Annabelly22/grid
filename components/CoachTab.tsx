@@ -163,6 +163,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
   const [setupTP, setSetupTP] = useState('');
   const [setupSL, setSetupSL] = useState('');
   const [setupTimeline, setSetupTimeline] = useState<TradeTimeline>('SWING');
+  const [setupStatus, setSetupStatus] = useState<'WATCHING' | 'PENDING'>('WATCHING');
   const [newsDate, setNewsDate] = useState('');
   const [newsTime, setNewsTime] = useState('');
   const [newsEvent, setNewsEvent] = useState('');
@@ -378,7 +379,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
       tp: setupTP.trim() || undefined,
       sl: setupSL.trim() || undefined,
       timeline: setupTimeline,
-      status: 'PENDING',
+      status: setupStatus,
       createdAt: new Date().toISOString(),
     };
     const currentPlan = weeklyPlan || { weekStart: getWeekStart(), goal: parseFloat(weeklyGoal) || 0, setups: [], news: [] };
@@ -389,6 +390,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
     setSetupEntryZone('');
     setSetupTP('');
     setSetupSL('');
+    setSetupStatus('WATCHING');
     setShowSetupForm(false);
   };
 
@@ -1319,9 +1321,14 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                 <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-green)', letterSpacing: '2px' }}>WEEKLY SETUPS</div>
                 {weeklyPlan?.setups && weeklyPlan.setups.length > 0 && (
                   <div className="flex gap-1">
+                    {weeklyPlan.setups.filter(s => s.status === 'WATCHING').length > 0 && (
+                      <span className="font-mono" style={{ fontSize: 8, padding: '2px 6px', background: 'rgba(191,0,255,0.2)', color: 'var(--ng-purple)', borderRadius: 10 }}>
+                        👁 {weeklyPlan.setups.filter(s => s.status === 'WATCHING').length}
+                      </span>
+                    )}
                     {weeklyPlan.setups.filter(s => s.status === 'PENDING').length > 0 && (
                       <span className="font-mono" style={{ fontSize: 8, padding: '2px 6px', background: 'var(--ng-surface2)', color: 'var(--ng-muted)', borderRadius: 10 }}>
-                        {weeklyPlan.setups.filter(s => s.status === 'PENDING').length} pending
+                        {weeklyPlan.setups.filter(s => s.status === 'PENDING').length} ready
                       </span>
                     )}
                     {weeklyPlan.setups.filter(s => s.status === 'ACTIVE').length > 0 && (
@@ -1385,15 +1392,30 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                     <input className="ng-input" placeholder="e.g. 2640" value={setupSL} onChange={e => setSetupSL(e.target.value)} style={{ width: '100%', padding: '8px' }} />
                   </div>
                 </div>
-                <div className="mb-3">
-                  <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>TIMELINE</div>
-                  <div className="flex gap-1 flex-wrap">
-                    {TRADE_TIMELINES.map(t => (
-                      <button key={t.value} onClick={() => setSetupTimeline(t.value)} className="font-orbitron"
-                        style={{ padding: '6px 10px', fontSize: 8, border: `1px solid ${setupTimeline === t.value ? t.color : 'var(--ng-border)'}`, color: setupTimeline === t.value ? t.color : 'var(--ng-muted)', background: setupTimeline === t.value ? `${t.color}15` : 'transparent', borderRadius: 4, cursor: 'pointer' }}>
-                        {t.label}
+                <div className="flex gap-3 mb-3">
+                  <div style={{ flex: 1 }}>
+                    <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>TIMELINE</div>
+                    <div className="flex gap-1 flex-wrap">
+                      {TRADE_TIMELINES.map(t => (
+                        <button key={t.value} onClick={() => setSetupTimeline(t.value)} className="font-orbitron"
+                          style={{ padding: '6px 10px', fontSize: 8, border: `1px solid ${setupTimeline === t.value ? t.color : 'var(--ng-border)'}`, color: setupTimeline === t.value ? t.color : 'var(--ng-muted)', background: setupTimeline === t.value ? `${t.color}15` : 'transparent', borderRadius: 4, cursor: 'pointer' }}>
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ minWidth: 140 }}>
+                    <div className="font-mono mb-1" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>STATUS</div>
+                    <div className="flex gap-1">
+                      <button onClick={() => setSetupStatus('WATCHING')} className="font-orbitron flex-1"
+                        style={{ padding: '6px 8px', fontSize: 8, border: `1px solid ${setupStatus === 'WATCHING' ? 'var(--ng-purple)' : 'var(--ng-border)'}`, color: setupStatus === 'WATCHING' ? 'var(--ng-purple)' : 'var(--ng-muted)', background: setupStatus === 'WATCHING' ? 'rgba(191,0,255,0.15)' : 'transparent', borderRadius: 4, cursor: 'pointer' }}>
+                        👁 WATCHING
                       </button>
-                    ))}
+                      <button onClick={() => setSetupStatus('PENDING')} className="font-orbitron flex-1"
+                        style={{ padding: '6px 8px', fontSize: 8, border: `1px solid ${setupStatus === 'PENDING' ? 'var(--ng-cyan)' : 'var(--ng-border)'}`, color: setupStatus === 'PENDING' ? 'var(--ng-cyan)' : 'var(--ng-muted)', background: setupStatus === 'PENDING' ? 'rgba(0,212,255,0.15)' : 'transparent', borderRadius: 4, cursor: 'pointer' }}>
+                        ⏳ READY
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <button onClick={handleAddSetup} disabled={!setupBias.trim()} className="btn-green-solid w-full" style={{ padding: '10px', opacity: setupBias.trim() ? 1 : 0.5 }}>
@@ -1408,22 +1430,40 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                 {weeklyPlan.setups.map(setup => (
                   <div key={setup.id} style={{
                     padding: '10px 12px',
-                    background: setup.status === 'EXECUTED' ? 'rgba(0,255,65,0.08)' : setup.status === 'CANCELLED' ? 'rgba(255,71,87,0.05)' : 'var(--ng-surface)',
-                    border: `1px solid ${setup.status === 'EXECUTED' ? 'var(--ng-green)' : setup.status === 'ACTIVE' ? 'var(--ng-cyan)' : 'var(--ng-border)'}`,
-                    borderLeft: `3px solid ${setup.direction === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)'}`,
+                    background: setup.status === 'EXECUTED' ? 'rgba(0,255,65,0.08)'
+                      : setup.status === 'WATCHING' ? 'rgba(191,0,255,0.05)'
+                      : setup.status === 'CANCELLED' ? 'rgba(255,71,87,0.05)'
+                      : 'var(--ng-surface)',
+                    border: `1px solid ${
+                      setup.status === 'EXECUTED' ? 'var(--ng-green)'
+                      : setup.status === 'ACTIVE' ? 'var(--ng-cyan)'
+                      : setup.status === 'WATCHING' ? 'rgba(191,0,255,0.4)'
+                      : 'var(--ng-border)'
+                    }`,
+                    borderLeft: `3px solid ${setup.status === 'WATCHING' ? 'var(--ng-purple)' : setup.direction === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)'}`,
                     borderRadius: 8,
                     opacity: setup.status === 'CANCELLED' || setup.status === 'MISSED' ? 0.6 : 1,
                   }}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
+                        {setup.status === 'WATCHING' && (
+                          <span className="font-mono" style={{ fontSize: 8, padding: '2px 6px', background: 'rgba(191,0,255,0.2)', borderRadius: 4, color: 'var(--ng-purple)' }}>👁 WATCHING</span>
+                        )}
                         <span className="font-orbitron font-bold" style={{ fontSize: 12, color: 'var(--ng-text)' }}>{setup.pair}</span>
                         <span className="font-orbitron" style={{ fontSize: 9, color: setup.direction === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)' }}>{setup.direction}</span>
                         <span className="font-mono" style={{ fontSize: 8, padding: '2px 6px', background: 'var(--ng-surface2)', borderRadius: 4, color: TRADE_TIMELINES.find(t => t.value === setup.timeline)?.color || 'var(--ng-muted)' }}>{setup.timeline}</span>
                       </div>
                       <div className="flex items-center gap-1">
+                        {setup.status === 'WATCHING' && (
+                          <>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'PENDING')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,212,255,0.15)', border: '1px solid var(--ng-cyan)', color: 'var(--ng-cyan)', borderRadius: 4, cursor: 'pointer' }}>✓ READY</button>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'CANCELLED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(255,71,87,0.15)', border: '1px solid var(--ng-red)', color: 'var(--ng-red)', borderRadius: 4, cursor: 'pointer' }}>✕</button>
+                          </>
+                        )}
                         {setup.status === 'PENDING' && (
                           <>
-                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'ACTIVE')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,212,255,0.15)', border: '1px solid var(--ng-cyan)', color: 'var(--ng-cyan)', borderRadius: 4, cursor: 'pointer' }}>ACTIVE</button>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'ACTIVE')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,255,65,0.15)', border: '1px solid var(--ng-green)', color: 'var(--ng-green)', borderRadius: 4, cursor: 'pointer' }}>▶ ACTIVE</button>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'WATCHING')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(191,0,255,0.15)', border: '1px solid var(--ng-purple)', color: 'var(--ng-purple)', borderRadius: 4, cursor: 'pointer' }}>👁</button>
                             <button onClick={() => handleUpdateSetupStatus(setup.id, 'CANCELLED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(255,71,87,0.15)', border: '1px solid var(--ng-red)', color: 'var(--ng-red)', borderRadius: 4, cursor: 'pointer' }}>✕</button>
                           </>
                         )}

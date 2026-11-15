@@ -63,7 +63,11 @@ export interface WeeklySetup {
   tp?: string;
   sl?: string;
   timeline: TradeTimeline;
-  status: 'PENDING' | 'ACTIVE' | 'EXECUTED' | 'CANCELLED' | 'MISSED';
+  status: 'WATCHING' | 'PENDING' | 'ACTIVE' | 'EXECUTED' | 'CANCELLED' | 'MISSED';
+  // WATCHING = structure forming, monitoring for completion
+  // PENDING = structure complete, ready for entry
+  // ACTIVE = position open
+  // EXECUTED/CANCELLED/MISSED = final states
   createdAt: string;
   executedTradeId?: string;  // links to trade if executed
 }
