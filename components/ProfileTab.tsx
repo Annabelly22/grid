@@ -636,6 +636,99 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
                 )}
               </div>
 
+              {/* PROGRESS SO FAR - The hero section */}
+              {startDate && startWeight && (() => {
+                const lbsLost = startWeight - bodyStats.weight;
+                const totalToLose = startWeight - bodyStats.goalWeight;
+                const progressPct = totalToLose > 0 ? Math.min(100, Math.max(0, (lbsLost / totalToLose) * 100)) : 0;
+                const lbsRemaining = bodyStats.weight - bodyStats.goalWeight;
+                const weeksElapsed = Math.floor(daysElapsed / 7);
+                const avgLossPerWeek = weeksElapsed > 0 ? lbsLost / weeksElapsed : lbsLost;
+
+                return (
+                  <div style={{ padding: 16, background: 'linear-gradient(135deg, rgba(48,209,88,0.15), rgba(0,212,255,0.1))', border: '1px solid rgba(48,209,88,0.3)', borderRadius: 14, marginBottom: 16 }}>
+                    {/* Progress percentage headline */}
+                    <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                      <div className="font-orbitron" style={{ fontSize: 36, color: 'var(--ng-green)', textShadow: '0 0 20px rgba(48,209,88,0.4)' }}>
+                        {progressPct.toFixed(0)}%
+                      </div>
+                      <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>of your goal complete</div>
+                    </div>
+
+                    {/* Visual progress bar */}
+                    <div style={{ height: 12, background: 'var(--ng-surface)', borderRadius: 6, overflow: 'hidden', marginBottom: 12, position: 'relative' }}>
+                      <div style={{
+                        width: `${progressPct}%`,
+                        height: '100%',
+                        background: 'linear-gradient(90deg, var(--ng-green), var(--ng-cyan))',
+                        borderRadius: 6,
+                        transition: 'width 0.5s ease',
+                        boxShadow: progressPct > 5 ? '0 0 10px var(--ng-green)' : 'none',
+                      }} />
+                      {/* Milestone markers */}
+                      <div style={{ position: 'absolute', top: 0, left: '25%', width: 2, height: '100%', background: 'rgba(255,255,255,0.2)' }} />
+                      <div style={{ position: 'absolute', top: 0, left: '50%', width: 2, height: '100%', background: 'rgba(255,255,255,0.3)' }} />
+                      <div style={{ position: 'absolute', top: 0, left: '75%', width: 2, height: '100%', background: 'rgba(255,255,255,0.2)' }} />
+                    </div>
+
+                    {/* Stats grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                      <div style={{ textAlign: 'center', padding: 10, background: 'var(--ng-surface)', borderRadius: 10 }}>
+                        <div className="font-orbitron" style={{ fontSize: 18, color: lbsLost > 0 ? 'var(--ng-green)' : lbsLost < 0 ? 'var(--ng-red)' : 'var(--ng-text)' }}>
+                          {lbsLost > 0 ? '-' : lbsLost < 0 ? '+' : ''}{Math.abs(lbsLost).toFixed(1)}
+                        </div>
+                        <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>lbs {lbsLost >= 0 ? 'lost' : 'gained'}</div>
+                      </div>
+                      <div style={{ textAlign: 'center', padding: 10, background: 'var(--ng-surface)', borderRadius: 10 }}>
+                        <div className="font-orbitron" style={{ fontSize: 18, color: 'var(--ng-amber)' }}>
+                          {lbsRemaining > 0 ? lbsRemaining.toFixed(1) : '0'}
+                        </div>
+                        <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>lbs to go</div>
+                      </div>
+                      <div style={{ textAlign: 'center', padding: 10, background: 'var(--ng-surface)', borderRadius: 10 }}>
+                        <div className="font-orbitron" style={{ fontSize: 18, color: 'var(--ng-cyan)' }}>
+                          {weeksElapsed}
+                        </div>
+                        <div className="font-mono" style={{ fontSize: 8, color: 'var(--ng-muted)' }}>weeks in</div>
+                      </div>
+                    </div>
+
+                    {/* Weekly average */}
+                    {weeksElapsed >= 1 && (
+                      <div style={{ marginTop: 10, padding: 8, background: 'var(--ng-bg)', borderRadius: 8, textAlign: 'center' }}>
+                        <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>
+                          Avg loss: <strong style={{ color: avgLossPerWeek > 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>{avgLossPerWeek.toFixed(1)} lbs/week</strong>
+                          {' · '}Started at <strong style={{ color: 'var(--ng-text)' }}>{startWeight} lbs</strong>
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Motivation message */}
+                    {progressPct >= 100 && (
+                      <div style={{ marginTop: 10, padding: 10, background: 'rgba(48,209,88,0.2)', borderRadius: 8, textAlign: 'center' }}>
+                        <span className="font-orbitron" style={{ fontSize: 11, color: 'var(--ng-green)' }}>
+                          GOAL REACHED
+                        </span>
+                      </div>
+                    )}
+                    {progressPct >= 50 && progressPct < 100 && (
+                      <div style={{ marginTop: 10, padding: 10, background: 'rgba(0,212,255,0.15)', borderRadius: 8, textAlign: 'center' }}>
+                        <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-cyan)' }}>
+                          Past the halfway point — keep pushing
+                        </span>
+                      </div>
+                    )}
+                    {progressPct >= 25 && progressPct < 50 && (
+                      <div style={{ marginTop: 10, padding: 10, background: 'rgba(255,184,0,0.1)', borderRadius: 8, textAlign: 'center' }}>
+                        <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-amber)' }}>
+                          Quarter way there — building momentum
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Current vs Goal */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 12, marginBottom: 16, alignItems: 'center' }}>
                 <div style={{ textAlign: 'center', padding: 12, background: 'var(--ng-surface)', borderRadius: 10 }}>
