@@ -233,34 +233,26 @@ html, body {
 .loader-dots span:nth-child(2) { animation-delay: 0.2s; }
 .loader-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-/* ── Chat bubbles (iMessage-style) ──────────────────────────── */
+/* ── Chat bubbles ──────────────────────────────────────────── */
 .chat-bubble-user {
   background: var(--ng-green);
-  border-radius: 18px 18px 4px 18px;
+  border-radius: 16px 16px 4px 16px;
   padding: 10px 14px;
   font-size: 15px;
   color: #000000;
-  line-height: 1.5;
+  line-height: 1.4;
   align-self: flex-end;
   max-width: 85%;
 }
 .chat-bubble-ai {
   background: var(--ng-surface2);
-  border-radius: 18px 18px 18px 4px;
-  padding: 12px 14px;
+  border-radius: 16px 16px 16px 4px;
+  padding: 14px 16px;
   font-size: 15px;
   color: var(--ng-text);
-  line-height: 1.6;
+  line-height: 1.45;
   align-self: flex-start;
-  max-width: 92%;
-  white-space: pre-wrap;
-}
-
-/* ── GODWILL response styling ──────────────────────────────── */
-.chat-bubble-ai {
-  padding: 12px 14px;
-  font-size: 15px;
-  line-height: 1.5;
+  max-width: 95%;
   letter-spacing: -0.01em;
 }
 .chat-bubble-ai strong {
@@ -270,10 +262,6 @@ html, body {
 .chat-bubble-ai em {
   color: var(--ng-muted);
   font-style: italic;
-}
-.chat-bubble-user {
-  font-size: 15px;
-  line-height: 1.5;
 }
 
 /* ── XP bar ─────────────────────────────────────────────────── */
