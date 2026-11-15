@@ -43,7 +43,7 @@ const EMOTIONAL_STATES: TradeSession['emotionalState'][] = ['calm', 'confident',
 const TRADING_SESSIONS: TradingSession[] = ['LONDON', 'ASIAN', 'NEWYORK'];
 const TRADE_DIRECTIONS: TradeDirection[] = ['BUY', 'SELL'];
 // Pairs ordered by win rate from Notion data (top performers first)
-const COMMON_PAIRS = ['XAUUSD', 'GBPJPY', 'GBPAUD', 'AUDJPY', 'EURUSD', 'GBPUSD', 'USDJPY', 'OTHER'];
+const COMMON_PAIRS = ['XAUUSD', 'XAGUSD', 'GBPJPY', 'GBPAUD', 'AUDJPY', 'EURUSD', 'GBPUSD', 'USDJPY', 'OTHER'];
 
 // Trading rules based on Notion journal analysis (75 trades analyzed)
 // LONDON: 87.5% WR (+$2,715) | NY: 30.8% WR (-$313) | ASIAN: 42.9% WR (-$193)
