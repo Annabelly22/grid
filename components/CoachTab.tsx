@@ -170,6 +170,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
   const [newsImpact, setNewsImpact] = useState<'HIGH' | 'MEDIUM' | 'LOW'>('HIGH');
   const [newsPairs, setNewsPairs] = useState<string[]>([]);
   const [weeklyGoal, setWeeklyGoal] = useState('');
+  const [executingSetupId, setExecutingSetupId] = useState<string | null>(null); // Track setup being journaled
 
   // Calculate stats from trade journal
   const stats = useMemo(() => {
@@ -397,6 +398,35 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
   // Update setup status
   const handleUpdateSetupStatus = (setupId: string, status: WeeklySetup['status']) => {
     if (!weeklyPlan) return;
+
+    // When marking EXECUTED, pre-fill journal form with setup data
+    if (status === 'EXECUTED') {
+      const setup = weeklyPlan.setups.find(s => s.id === setupId);
+      if (setup) {
+        // Pre-fill journal form with setup data
+        setJournalDate(getTodayStr());
+        setJournalPair(setup.pair);
+        setJournalDirection(setup.direction);
+        setJournalTimeline(setup.timeline);
+        setJournalSession('LONDON'); // Default to LONDON (best session)
+        setJournalQuality(3);
+        setJournalRules(true); // Assume rules followed since it was a planned setup
+        setJournalEmotion('calm');
+        // Pre-fill note with setup context
+        const noteLines = [`Setup: ${setup.bias}`];
+        if (setup.entryZone) noteLines.push(`Entry: ${setup.entryZone}`);
+        if (setup.tp) noteLines.push(`TP: ${setup.tp}`);
+        if (setup.sl) noteLines.push(`SL: ${setup.sl}`);
+        setJournalNote(noteLines.join('\n'));
+        setJournalPnl(''); // User needs to fill this
+        setJournalImages([]);
+        setExecutingSetupId(setupId);
+        setShowLogForm(true);
+        setActiveTab('journal');
+        return; // Don't update status yet - wait for journal submission
+      }
+    }
+
     const updatedSetups = weeklyPlan.setups.map(s => s.id === setupId ? { ...s, status } : s);
     saveWeeklyPlan({ ...weeklyPlan, setups: updatedSetups });
   };
@@ -578,6 +608,16 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
       images: journalImages.length > 0 ? journalImages : undefined,
       timeline: journalTimeline,
     });
+
+    // If this was from an executed setup, mark the setup as EXECUTED
+    if (executingSetupId && weeklyPlan) {
+      const updatedSetups = weeklyPlan.setups.map(s =>
+        s.id === executingSetupId ? { ...s, status: 'EXECUTED' as const } : s
+      );
+      saveWeeklyPlan({ ...weeklyPlan, setups: updatedSetups });
+      setExecutingSetupId(null);
+    }
+
     // Reset form
     setJournalDate(today);
     setJournalQuality(3);
@@ -1640,10 +1680,19 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
 
           {/* Log Trade Form */}
           {showLogForm && (
-            <div className="card mb-4" style={{ borderColor: 'rgba(255,159,10,0.4)', background: 'linear-gradient(135deg, var(--ng-surface) 0%, rgba(255,159,10,0.05) 100%)' }}>
+            <div className="card mb-4" style={{ borderColor: executingSetupId ? 'rgba(0,255,65,0.4)' : 'rgba(255,159,10,0.4)', background: executingSetupId ? 'linear-gradient(135deg, var(--ng-surface) 0%, rgba(0,255,65,0.08) 100%)' : 'linear-gradient(135deg, var(--ng-surface) 0%, rgba(255,159,10,0.05) 100%)' }}>
               <div className="flex items-center justify-between mb-3">
-                <div className="font-orbitron" style={{ fontSize: 10, color: 'var(--ng-amber)', letterSpacing: '2px' }}>LOG TRADE</div>
-                <button onClick={() => setShowLogForm(false)} style={{ background: 'rgba(255,71,87,0.15)', border: '1px solid var(--ng-red)', borderRadius: 6, cursor: 'pointer', color: 'var(--ng-red)', fontSize: 9, padding: '4px 10px' }}>✕ CANCEL</button>
+                <div>
+                  <div className="font-orbitron" style={{ fontSize: 10, color: executingSetupId ? 'var(--ng-green)' : 'var(--ng-amber)', letterSpacing: '2px' }}>
+                    {executingSetupId ? 'JOURNAL EXECUTED SETUP' : 'LOG TRADE'}
+                  </div>
+                  {executingSetupId && (
+                    <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)', marginTop: 2 }}>
+                      {journalPair} {journalDirection} — add P&L, notes, screenshot
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => { setShowLogForm(false); setExecutingSetupId(null); }} style={{ background: 'rgba(255,71,87,0.15)', border: '1px solid var(--ng-red)', borderRadius: 6, cursor: 'pointer', color: 'var(--ng-red)', fontSize: 9, padding: '4px 10px' }}>✕ CANCEL</button>
               </div>
 
               {/* Row 1: Date & P&L side by side */}
@@ -1893,7 +1942,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
               </div>
 
               <button onClick={handleLogSession} disabled={journalRules === null} className="btn-green-solid w-full" style={{ opacity: journalRules === null ? 0.5 : 1 }}>
-                SUBMIT TRADE
+                {executingSetupId ? 'SAVE & MARK EXECUTED' : 'SUBMIT TRADE'}
               </button>
             </div>
           )}
