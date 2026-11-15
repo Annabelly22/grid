@@ -95,12 +95,20 @@ export async function POST(request: NextRequest) {
 
   interface CipherProfile { codename: string; xp: number; longestStreak: number; missionsCompleted: number; }
   interface MarketPrice { symbol: string; price: number; change: number; changePct: number; high: number; low: number; }
+  interface UserData {
+    habits?: { completedToday: number; total: number; percentage: number; topStreaks: { name: string; streak: number; category: string }[]; notDoneToday: string[] };
+    body?: { currentWeight?: number; goalWeight?: number; startWeight?: number; lbsLost?: number; journeyStartDate?: string };
+    fasting?: { active: boolean; startedAt?: string; hoursIn?: number };
+    sleep?: { date: string; quality: number; durationH: number };
+    trading?: { total: number; wins: number; losses: number; totalPnl: number; winRate: number; rulesFollowed: number; lastTrade?: unknown };
+  }
   interface RequestBody {
     message?: unknown;
     profile?: CipherProfile;
     history?: { role: 'user' | 'assistant'; content: string }[];
     marketData?: MarketPrice[];
     isTrading?: boolean;
+    userData?: UserData;
   }
 
   let body: RequestBody;
@@ -108,13 +116,59 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 
-  const { message, profile, history = [], marketData, isTrading } = body;
+  const { message, profile, history = [], marketData, isTrading, userData } = body;
   if (!message || typeof message !== 'string') {
     return NextResponse.json({ error: 'Message required' }, { status: 400 });
   }
 
   // Build context header from profile
   const profileContext = profile ? `\n[OPERATIVE: ${profile.codename} | XP: ${profile.xp} | STREAK: ${profile.longestStreak}d | MISSIONS: ${profile.missionsCompleted}]` : '';
+
+  // Build user data context
+  let userDataContext = '';
+  if (userData) {
+    userDataContext = '\n\n[YOUR LIVE DATA]';
+
+    // Habits
+    if (userData.habits) {
+      const h = userData.habits;
+      userDataContext += `\n• Habits today: ${h.completedToday}/${h.total} (${h.percentage}%)`;
+      if (h.topStreaks.length > 0) {
+        userDataContext += `\n• Top streaks: ${h.topStreaks.map(s => `${s.name} (${s.streak}d)`).join(', ')}`;
+      }
+      if (h.notDoneToday.length > 0) {
+        userDataContext += `\n• Not done yet: ${h.notDoneToday.join(', ')}`;
+      }
+    }
+
+    // Body/Weight
+    if (userData.body && userData.body.currentWeight) {
+      const b = userData.body;
+      userDataContext += `\n• Weight: ${b.currentWeight} lbs`;
+      if (b.goalWeight) userDataContext += ` → goal ${b.goalWeight} lbs`;
+      if (b.lbsLost && b.lbsLost > 0) userDataContext += ` (${b.lbsLost.toFixed(1)} lbs lost)`;
+    }
+
+    // Fasting
+    if (userData.fasting) {
+      if (userData.fasting.active) {
+        userDataContext += `\n• Fasting: ${userData.fasting.hoursIn}h into fast`;
+      } else {
+        userDataContext += `\n• Fasting: not currently fasting`;
+      }
+    }
+
+    // Sleep
+    if (userData.sleep) {
+      userDataContext += `\n• Last sleep: ${userData.sleep.durationH}h, quality ${userData.sleep.quality}/5`;
+    }
+
+    // Trading (30 day)
+    if (userData.trading && userData.trading.total > 0) {
+      const t = userData.trading;
+      userDataContext += `\n• Trading (30d): ${t.total} trades, ${t.winRate}% WR, $${t.totalPnl.toFixed(0)} P&L, ${t.rulesFollowed}/${t.total} rules followed`;
+    }
+  }
 
   // Build market context if trading-related
   let marketContext = '';
@@ -141,7 +195,7 @@ export async function POST(request: NextRequest) {
     const response = await client.messages.create({
       model: 'claude-sonnet-4-5',
       max_tokens: 500,
-      system: CIPHER_SYSTEM + profileContext + marketContext,
+      system: CIPHER_SYSTEM + profileContext + userDataContext + marketContext,
       messages,
     });
 

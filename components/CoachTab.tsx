@@ -1,12 +1,13 @@
 'use client';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import DOMPurify from 'dompurify';
-import { UserProfile, TradeSession, TradingSession, TradeDirection, TradeTimeline, WeeklyPlan, WeeklySetup, WeeklyNews } from '../lib/gameStore';
+import { UserProfile, TradeSession, TradingSession, TradeDirection, TradeTimeline, WeeklyPlan, WeeklySetup, WeeklyNews, Habit } from '../lib/gameStore';
 import { Storage } from '../lib/storage';
 import { getTodayStr } from '../lib/time';
 
 interface Props {
   profile: UserProfile;
+  habits: Habit[];
   onFocusMinutes: (minutes: number) => void;
   tradeJournal: TradeSession[];
   onLogTrade: (data: Omit<TradeSession, 'id' | 'createdAt'>) => void;
@@ -90,7 +91,7 @@ const INITIAL_MSG = (codename: string, xp: number, streak: number): Message => (
   id: 0,
 });
 
-export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogTrade, onUpdateTrade, onDeleteTradeSession }: Props) {
+export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal, onLogTrade, onUpdateTrade, onDeleteTradeSession }: Props) {
   const [activeTab, setActiveTab] = useState<'journal' | 'log' | 'chat'>('journal');
   const [messages, setMessages] = useState<Message[]>([INITIAL_MSG(profile.codename, profile.xp, profile.longestStreak)]);
   const [input, setInput]           = useState('');
@@ -545,10 +546,67 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
             marketData = marketJson.prices;
           }
         } catch {
-          // Market data fetch failed, continue without it
           console.warn('Market data unavailable');
         }
       }
+
+      // Build comprehensive user data context
+      const today = getTodayStr();
+      const bodyStats = Storage.getBodyStats?.() || {};
+      const fastStart = Storage.getFastStart?.();
+      const fastHistory = Storage.getFastHistory?.() || [];
+      const sleepLog = Storage.getSleepLog?.() || [];
+      const weightJourney = (() => {
+        try {
+          const raw = localStorage.getItem('grid_weight_journey');
+          return raw ? JSON.parse(raw) : null;
+        } catch { return null; }
+      })();
+
+      // Habits summary
+      const habitsToday = habits.filter(h => h.completedToday).length;
+      const totalHabits = habits.length;
+      const topStreaks = habits.filter(h => h.streak > 0).sort((a, b) => b.streak - a.streak).slice(0, 5);
+
+      // Trading stats (last 30 days)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const recentTrades = tradeJournal.filter(t => new Date(t.date) >= thirtyDaysAgo);
+      const tradingStats = {
+        total: recentTrades.length,
+        wins: recentTrades.filter(t => (t.pnl || 0) > 0).length,
+        losses: recentTrades.filter(t => (t.pnl || 0) < 0).length,
+        totalPnl: recentTrades.reduce((sum, t) => sum + (t.pnl || 0), 0),
+        winRate: recentTrades.length > 0 ? Math.round((recentTrades.filter(t => (t.pnl || 0) > 0).length / recentTrades.length) * 100) : 0,
+        rulesFollowed: recentTrades.filter(t => t.rulesFollowed).length,
+        lastTrade: recentTrades.length > 0 ? recentTrades[recentTrades.length - 1] : null,
+      };
+
+      // Fasting status
+      const fastingStatus = fastStart ? {
+        active: true,
+        startedAt: new Date(fastStart).toISOString(),
+        hoursIn: Math.floor((Date.now() - fastStart) / (1000 * 60 * 60)),
+      } : { active: false };
+
+      const userData = {
+        habits: {
+          completedToday: habitsToday,
+          total: totalHabits,
+          percentage: totalHabits > 0 ? Math.round((habitsToday / totalHabits) * 100) : 0,
+          topStreaks: topStreaks.map(h => ({ name: h.name, streak: h.streak, category: h.category })),
+          notDoneToday: habits.filter(h => !h.completedToday).slice(0, 5).map(h => h.name),
+        },
+        body: {
+          currentWeight: bodyStats.weight,
+          goalWeight: bodyStats.goalWeight,
+          startWeight: weightJourney?.startWeight,
+          lbsLost: weightJourney?.startWeight ? weightJourney.startWeight - bodyStats.weight : 0,
+          journeyStartDate: weightJourney?.startDate,
+        },
+        fasting: fastingStatus,
+        sleep: sleepLog.length > 0 ? sleepLog[sleepLog.length - 1] : null,
+        trading: tradingStats,
+      };
 
       const res = await fetch('/api/cipher', {
         method: 'POST',
@@ -559,6 +617,7 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
           history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
           marketData,
           isTrading,
+          userData,
         }),
       });
       const data = await res.json();
