@@ -671,72 +671,21 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
 
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="px-4 pt-4 pb-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--ng-border)' }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-amber)', fontSize: 16, letterSpacing: '3px' }}>GODWILL</h2>
-              <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-green)', border: '1px solid var(--ng-green)', padding: '2px 7px', letterSpacing: '1px' }}>ONLINE</span>
-            </div>
-            <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
-              AI COACH · {profile.focusMinutes} focus mins logged
-            </div>
-          </div>
-
-          {/* Focus widget */}
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            {timerPhase === 'focus' ? (
-              <>
-                <span className="font-orbitron font-bold" style={{ fontSize: 15, color: 'var(--ng-green)', letterSpacing: '1px' }}>
-                  {formatTime(remaining)}
-                </span>
-                <button onClick={() => { setTimerPhase('idle'); setFocusTime(0); setBreakTime(0); }} className="font-orbitron"
-                  style={{ fontSize: 13, padding: '7px 14px', border: '1.5px solid var(--ng-red)', color: 'var(--ng-red)', background: 'transparent', cursor: 'pointer', borderRadius: 8 }}>
-                  ■ STOP
-                </button>
-              </>
-            ) : timerPhase === 'break' ? (
-              <>
-                <div className="flex flex-col items-end">
-                  <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-cyan)', letterSpacing: '2px' }}>BREAK</span>
-                  <span className="font-orbitron font-bold" style={{ fontSize: 15, color: 'var(--ng-cyan)', letterSpacing: '1px' }}>
-                    {formatTime(breakRemaining)}
-                  </span>
-                </div>
-                <button onClick={() => { setTimerPhase('idle'); setBreakTime(0); }} className="font-orbitron"
-                  style={{ fontSize: 13, padding: '7px 14px', border: '1.5px solid var(--ng-cyan)', color: 'var(--ng-cyan)', background: 'transparent', cursor: 'pointer', borderRadius: 8 }}>
-                  SKIP
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="flex gap-1">
-                  {[25, 50, 90].map(d => (
-                    <button key={d} onClick={() => setFocusDuration(d)} className="font-orbitron"
-                      style={{ fontSize: 12, padding: '6px 10px', border: `1px solid ${focusDuration === d ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: focusDuration === d ? 'var(--ng-amber)' : 'var(--ng-muted)', background: focusDuration === d ? 'rgba(255,159,10,0.1)' : 'transparent', cursor: 'pointer', borderRadius: 8 }}>
-                      {d}m
-                    </button>
-                  ))}
-                </div>
-                <button onClick={() => { setTimerPhase('focus'); setFocusTime(0); }} className="font-orbitron"
-                  style={{ fontSize: 13, padding: '7px 14px', border: '1.5px solid var(--ng-amber)', color: 'var(--ng-amber)', background: 'transparent', cursor: 'pointer', borderRadius: 8 }}>
-                  ▷
-                </button>
-              </>
-            )}
+            <h2 className="font-orbitron font-bold" style={{ color: 'var(--ng-amber)', fontSize: 16, letterSpacing: '3px' }}>GODWILL</h2>
+            <span className="font-orbitron" style={{ fontSize: 8, color: 'var(--ng-green)', border: '1px solid var(--ng-green)', padding: '2px 7px', letterSpacing: '1px' }}>ONLINE</span>
+          </div>
+          <div className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </div>
         </div>
 
-        {timerPhase !== 'idle' && (
-          <div style={{ height: 2, background: 'var(--ng-border)', marginTop: 10, borderRadius: 1, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${timerPhase === 'focus' ? focusPct : breakPct}%`, background: timerPhase === 'focus' ? 'var(--ng-green)' : 'var(--ng-cyan)', transition: 'width 1s linear' }} />
-          </div>
-        )}
-
         {/* Sub-tab toggle: JOURNAL -> LOG -> CHAT */}
-        <div className="flex gap-1 mt-3">
+        <div className="flex gap-1">
           {(['journal', 'log', 'chat'] as const).map(t => (
-            <button key={t} onClick={() => setActiveTab(t)} className="font-orbitron"
-              style={{ padding: '6px 14px', fontSize: 9, letterSpacing: '1px', border: `1px solid ${activeTab === t ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: activeTab === t ? 'var(--ng-amber)' : 'var(--ng-muted)', background: activeTab === t ? 'rgba(255,159,10,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer' }}>
+            <button key={t} onClick={() => setActiveTab(t)} className="font-orbitron flex-1"
+              style={{ padding: '8px 14px', fontSize: 9, letterSpacing: '1px', border: `1px solid ${activeTab === t ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: activeTab === t ? 'var(--ng-amber)' : 'var(--ng-muted)', background: activeTab === t ? 'rgba(255,159,10,0.08)' : 'transparent', borderRadius: 8, cursor: 'pointer' }}>
               {t === 'journal' ? '📋 JOURNAL' : t === 'log' ? '📊 LOG' : '⚡ CHAT'}
             </button>
           ))}
@@ -1083,53 +1032,104 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
       {/* ── Chat tab ─────────────────────────────────────────── */}
       {activeTab === 'chat' && (
         <>
-          <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3" style={{ minHeight: 0 }}>
-            {messages.map(msg => (
+          {/* Quick actions bar at top */}
+          <div className="px-4 py-3 flex-shrink-0" style={{ background: 'var(--ng-surface)', borderBottom: '1px solid var(--ng-border)' }}>
+            <div className="flex gap-2 mb-2">
+              {(['general', 'trading'] as const).map(cat => (
+                <button key={cat} onClick={() => setPromptCategory(cat)} className="font-orbitron flex-1"
+                  style={{
+                    padding: '10px 12px',
+                    fontSize: 10,
+                    letterSpacing: '1px',
+                    border: `1.5px solid ${promptCategory === cat ? (cat === 'trading' ? 'var(--ng-green)' : 'var(--ng-cyan)') : 'var(--ng-border)'}`,
+                    color: promptCategory === cat ? (cat === 'trading' ? 'var(--ng-green)' : 'var(--ng-cyan)') : 'var(--ng-muted)',
+                    background: promptCategory === cat ? (cat === 'trading' ? 'rgba(48,209,88,0.1)' : 'rgba(0,212,255,0.1)') : 'transparent',
+                    borderRadius: 8,
+                    cursor: 'pointer'
+                  }}>
+                  {cat === 'general' ? '🧠 LIFE' : '📈 TRADING'}
+                </button>
+              ))}
+            </div>
+            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+              {QUICK_PROMPTS[promptCategory].slice(0, 4).map(p => (
+                <button key={p.label} onClick={() => sendMessage(p.prompt, p.needsMarket)} className="font-mono"
+                  style={{
+                    fontSize: 10,
+                    padding: '10px 12px',
+                    border: `1px solid ${p.needsMarket ? 'var(--ng-green)' : 'var(--ng-border)'}`,
+                    color: p.needsMarket ? 'var(--ng-green)' : 'var(--ng-text)',
+                    background: p.needsMarket ? 'rgba(48,209,88,0.08)' : 'var(--ng-bg)',
+                    cursor: 'pointer',
+                    borderRadius: 10,
+                    textAlign: 'left',
+                    lineHeight: 1.3
+                  }}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {QUICK_PROMPTS[promptCategory].length > 4 && (
+              <div className="flex gap-2 mt-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                {QUICK_PROMPTS[promptCategory].slice(4).map(p => (
+                  <button key={p.label} onClick={() => sendMessage(p.prompt, p.needsMarket)} className="font-mono flex-shrink-0"
+                    style={{
+                      fontSize: 9,
+                      padding: '6px 12px',
+                      border: `1px solid var(--ng-border)`,
+                      color: 'var(--ng-muted)',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      borderRadius: 16,
+                      whiteSpace: 'nowrap'
+                    }}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Chat messages */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4" style={{ minHeight: 0 }}>
+            {messages.length === 1 && (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>⚡</div>
+                <div className="font-orbitron" style={{ fontSize: 12, color: 'var(--ng-green)', letterSpacing: '2px', marginBottom: 8 }}>GODWILL READY</div>
+                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)', lineHeight: 1.6 }}>
+                  Tap a quick action above or ask anything below.
+                  <br />Trading prompts fetch live market data.
+                </div>
+              </div>
+            )}
+            {messages.slice(1).map(msg => (
               <div key={msg.id} className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}>
                 {msg.role === 'assistant' && (
-                  <div style={{ fontSize: 10, color: 'var(--ng-green)', fontWeight: 700, marginBottom: 6, letterSpacing: 0 }}>⚡ GODWILL</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <span style={{ fontSize: 12 }}>⚡</span>
+                    <span className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-green)', letterSpacing: '1px' }}>GODWILL</span>
+                  </div>
                 )}
                 {msg.role === 'assistant'
-                  ? <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.content) }} />
+                  ? <div className="godwill-response" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.content) }} />
                   : msg.content
                 }
               </div>
             ))}
             {loading && (
               <div className="chat-bubble-ai">
-                <div className="font-orbitron mb-1" style={{ fontSize: 8, color: 'var(--ng-green)', letterSpacing: '2px' }}>⚡ GODWILL</div>
-                <div className="loader-dots flex gap-1"><span /><span /><span /></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <span style={{ fontSize: 12 }}>⚡</span>
+                  <span className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-green)', letterSpacing: '1px' }}>THINKING...</span>
+                </div>
+                <div className="loader-dots flex gap-2"><span /><span /><span /></div>
               </div>
             )}
             <div ref={chatEndRef} />
           </div>
 
-          <div className="px-4 pb-2 flex-shrink-0" style={{ borderTop: '1px solid var(--ng-border)', paddingTop: 10 }}>
-            <div className="flex gap-1 mb-2">
-              {(['general', 'trading'] as const).map(cat => (
-                <button key={cat} onClick={() => setPromptCategory(cat)} className="font-orbitron"
-                  style={{ padding: '4px 12px', fontSize: 8, letterSpacing: '1px', border: `1px solid ${promptCategory === cat ? 'var(--ng-amber)' : 'var(--ng-border)'}`, color: promptCategory === cat ? 'var(--ng-amber)' : 'var(--ng-muted)', background: promptCategory === cat ? 'rgba(255,159,10,0.08)' : 'transparent', borderRadius: 6, cursor: 'pointer' }}>
-                  {cat === 'general' ? 'GENERAL' : '📈 TRADING'}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-1 overflow-x-auto pb-2 mb-2" style={{ scrollbarWidth: 'none' }}>
-              {QUICK_PROMPTS[promptCategory].map(p => (
-                <button key={p.label} onClick={() => sendMessage(p.prompt, p.needsMarket)} className="font-mono flex-shrink-0"
-                  style={{
-                    fontSize: 11,
-                    padding: '7px 14px',
-                    border: `0.5px solid ${p.needsMarket ? 'var(--ng-green)' : 'var(--ng-border)'}`,
-                    color: p.needsMarket ? 'var(--ng-green)' : 'var(--ng-muted)',
-                    background: p.needsMarket ? 'rgba(48,209,88,0.08)' : 'var(--ng-surface)',
-                    cursor: 'pointer',
-                    borderRadius: 20,
-                    whiteSpace: 'nowrap'
-                  }}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
+          {/* Input area */}
+          <div className="px-4 pb-3 pt-2 flex-shrink-0" style={{ borderTop: '1px solid var(--ng-border)', background: 'var(--ng-surface)' }}>
             <div className="flex gap-2">
               <textarea
                 className="ng-textarea"
@@ -1138,10 +1138,11 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                style={{ fontSize: 14 }}
               />
               <button onClick={() => sendMessage()} disabled={loading || !input.trim()}
-                style={{ width: 44, background: input.trim() ? 'var(--ng-green)' : 'var(--ng-surface2)', border: 'none', color: input.trim() ? '#000' : 'var(--ng-muted)', cursor: input.trim() ? 'pointer' : 'default', borderRadius: 10, fontWeight: 700, fontSize: 16, flexShrink: 0, transition: 'all 0.2s' }}>
-                ▷
+                style={{ width: 50, height: 50, background: input.trim() ? 'var(--ng-green)' : 'var(--ng-surface2)', border: 'none', color: input.trim() ? '#000' : 'var(--ng-muted)', cursor: input.trim() ? 'pointer' : 'default', borderRadius: 12, fontWeight: 700, fontSize: 18, flexShrink: 0, transition: 'all 0.2s', alignSelf: 'flex-end' }}>
+                ↑
               </button>
             </div>
           </div>
