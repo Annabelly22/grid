@@ -20,22 +20,24 @@ interface Message {
   id: number;
 }
 
-const QUICK_PROMPTS: Record<'general' | 'trading', string[]> = {
+const QUICK_PROMPTS: Record<'general' | 'trading', { label: string; prompt: string; needsMarket?: boolean }[]> = {
   general: [
-    "What should I focus on today?",
-    "I'm in my luteal phase — help",
-    "Give me a 5-min morning protocol",
-    "I broke my streak. How do I reset?",
-    "Best supplements for a training day",
-    "I'm feeling low energy today",
+    { label: "Today's focus", prompt: "What should I focus on today?" },
+    { label: "Luteal phase help", prompt: "I'm in my luteal phase — help" },
+    { label: "5-min morning protocol", prompt: "Give me a 5-min morning protocol" },
+    { label: "Broke my streak", prompt: "I broke my streak. How do I reset mentally?" },
+    { label: "Training day supps", prompt: "Best supplements for a training day" },
+    { label: "Low energy", prompt: "I'm feeling low energy today" },
   ],
   trading: [
-    "I broke my risk rules today",
-    "I'm in a drawdown — help me stay disciplined",
-    "Pre-market bias check",
-    "I'm about to revenge trade — talk me off the ledge",
-    "Rate my trade setup logic",
-    "Walk me through ICT market structure review",
+    { label: "🎯 XAUUSD Setup", prompt: "Analyze XAUUSD for me. Give me bias, key levels, entry zone, SL, TP. Is there a valid setup right now?", needsMarket: true },
+    { label: "🎯 GBPJPY Setup", prompt: "Analyze GBPJPY for me. Give me bias, key levels, entry zone, SL, TP. Is there a valid setup right now?", needsMarket: true },
+    { label: "🔍 Market Scan", prompt: "Scan all pairs and tell me which has the cleanest setup right now. Give specific entry, SL, TP.", needsMarket: true },
+    { label: "📊 Session Check", prompt: "What session are we in? Should I be trading right now based on my stats?", needsMarket: true },
+    { label: "⚠️ Pre-Trade Checklist", prompt: "Run me through a pre-trade checklist. Am I in the right mental state? Is this the right session? Do I have edge?", needsMarket: true },
+    { label: "🛑 Revenge Trade Block", prompt: "I'm about to revenge trade. Talk me off the ledge with data from my trading stats." },
+    { label: "📉 Drawdown Protocol", prompt: "I'm in a drawdown. Give me the protocol: position sizing, mental reset, when to step away." },
+    { label: "✅ Trade Review", prompt: "I just took a trade. Walk me through what I should journal and analyze." },
   ],
 };
 
@@ -519,13 +521,31 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
     });
   }
 
-  async function sendMessage(text?: string) {
+  async function sendMessage(text?: string, needsMarket?: boolean) {
     const msg = (text || input).trim();
     if (!msg || loading) return;
     setInput('');
     addMessage('user', msg);
     setLoading(true);
+
     try {
+      // Fetch market data if this is a trading query that needs it
+      let marketData = null;
+      const isTrading = needsMarket || promptCategory === 'trading';
+
+      if (isTrading) {
+        try {
+          const marketRes = await fetch('/api/market');
+          const marketJson = await marketRes.json();
+          if (marketJson.prices && marketJson.prices.length > 0) {
+            marketData = marketJson.prices;
+          }
+        } catch {
+          // Market data fetch failed, continue without it
+          console.warn('Market data unavailable');
+        }
+      }
+
       const res = await fetch('/api/cipher', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -533,6 +553,8 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
           message: msg,
           profile,
           history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+          marketData,
+          isTrading,
         }),
       });
       const data = await res.json();
@@ -1093,9 +1115,18 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
             </div>
             <div className="flex gap-1 overflow-x-auto pb-2 mb-2" style={{ scrollbarWidth: 'none' }}>
               {QUICK_PROMPTS[promptCategory].map(p => (
-                <button key={p} onClick={() => sendMessage(p)} className="font-mono flex-shrink-0"
-                  style={{ fontSize: 12, padding: '7px 14px', border: '0.5px solid var(--ng-border)', color: 'var(--ng-muted)', background: 'var(--ng-surface)', cursor: 'pointer', borderRadius: 20, whiteSpace: 'nowrap' }}>
-                  {p}
+                <button key={p.label} onClick={() => sendMessage(p.prompt, p.needsMarket)} className="font-mono flex-shrink-0"
+                  style={{
+                    fontSize: 11,
+                    padding: '7px 14px',
+                    border: `0.5px solid ${p.needsMarket ? 'var(--ng-green)' : 'var(--ng-border)'}`,
+                    color: p.needsMarket ? 'var(--ng-green)' : 'var(--ng-muted)',
+                    background: p.needsMarket ? 'rgba(48,209,88,0.08)' : 'var(--ng-surface)',
+                    cursor: 'pointer',
+                    borderRadius: 20,
+                    whiteSpace: 'nowrap'
+                  }}>
+                  {p.label}
                 </button>
               ))}
             </div>

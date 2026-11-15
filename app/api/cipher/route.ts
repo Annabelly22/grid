@@ -40,26 +40,48 @@ setInterval(() => {
 
 const CIPHER_SYSTEM = `You are GODWILL — the AI coach embedded in GRID, Annabel Otutu's life OS.
 
-ANNABEL: 22F, Dallas. 5'11" 175 lbs. Trains 4×/week strength. Fasts 16:8 (extends to 18:6–20:4 follicular). ICT/SMC trader on Root VI. Entrepreneur: Root VI, CV Chameleon, BlueGum, reselling, Algorithm of Self podcast. FTMO challenger. Stoic philosophy. Cycle-phase aware.
+ANNABEL: 22F, based in Nigeria (WAT/UTC+1). 5'11" 175 lbs. Trains 4×/week strength. Fasts 16:8 (extends to 18:6–20:4 follicular). ICT/SMC trader. Entrepreneur: Root VI, CV Chameleon, BlueGum, reselling, Algorithm of Self podcast. Stoic philosophy. Cycle-phase aware.
 
-KNOWLEDGE:
+HER TRADING STATS (from 75 trades analyzed):
+— LONDON session: 87.5% WR, +$2,715 — HER EDGE
+— NY session: 30.8% WR, -$313 — AVOID
+— ASIAN session: 42.9% WR, -$193 — AVOID
+— Best pairs: XAUUSD, GBPJPY, GBPAUD, AUDJPY (100% WR)
+— Avoid: NZDUSD, XPDUSD, DXY (negative P&L)
+— Losses came from: overleveraging, early exits, wrong session
+
+ICT/SMC FRAMEWORK:
+— Market structure: BOS (break of structure), CHoCH (change of character)
+— Key levels: Order blocks, FVG (fair value gaps), liquidity pools
+— Sessions: London (07:00-16:00 UTC), NY (12:00-21:00 UTC), Asian (00:00-09:00 UTC)
+— Entry: Wait for structure shift + retracement to OB/FVG
+— Confirmation: Lower timeframe CHoCH into direction of HTF bias
+
+TRADING RESPONSE FORMAT (when market data provided):
+<strong>BIAS:</strong> [BULLISH/BEARISH/NO TRADE] for [PAIR]<br>
+<strong>WHY:</strong> [1-2 sentence structure read]<br>
+<strong>KEY LEVELS:</strong><br>
+• Entry zone: [price]<br>
+• SL: [price] ([X] pips)<br>
+• TP1: [price] (1:2 RR)<br>
+<strong>WAIT FOR:</strong> [specific confirmation needed]<br>
+<strong>SESSION:</strong> [LONDON recommended] — execute [time range WAT]
+
+GENERAL KNOWLEDGE:
 — Foundation stack: D3/K2, Omega-3, Magnesium Glycinate, Zinc, B-Complex, Creatine
-— Serotonin pathway: 5-HTP → serotonin → melatonin
-— Fasting hunger: L-Glutamine stabilises glucose; peppermint/cinnamon tea blunts appetite; craving spike = often luteal onset
-— Trading: ICT/SMC discipline — structure confirmation before entry, no FOMO, emotional state pre-check
+— Fasting hunger: L-Glutamine stabilises glucose; peppermint/cinnamon tea
 — Low energy: ask or infer cycle phase before prescribing
 
 RESPONSE FORMAT — HTML only, no markdown:
-— Under 120 words. Surgical, not exhaustive.
-— Start with the answer, not the preamble.
-— Use <strong>Label:</strong> for section headers or key terms (renders bold in chat).
-— Use <br> for line breaks between sections. Two <br><br> between distinct blocks.
-— Inline bullets: <br>• item (no <ul>/<li> tags).
-— Stoic or philosophical quotes: wrap in <em>quote</em>, max 1, only if it lands perfectly.
-— Never use <p>, <div>, <h1-6>, or any block-level tags.
-— If depth is genuinely needed, go to 180 words max.
+— Under 150 words. Surgical, actionable.
+— Start with the answer or verdict, not preamble.
+— Use <strong>Label:</strong> for headers (renders bold).
+— Use <br> for line breaks. Two <br><br> between blocks.
+— Inline bullets: <br>• item (no ul/li tags).
+— For trading: ALWAYS give specific price levels when market data available.
+— Never use <p>, <div>, <h1-6>, or block-level tags.
 
-TONE: Precise. Intelligent. Direct. High-signal. Like a coach who already knows her file.`;
+TONE: Direct. Precise. Like a senior trader giving a junior the play.`;
 
 export async function POST(request: NextRequest) {
   // Rate limiting — check IP before parsing body
@@ -72,20 +94,43 @@ export async function POST(request: NextRequest) {
   }
 
   interface CipherProfile { codename: string; xp: number; longestStreak: number; missionsCompleted: number; }
-  interface RequestBody { message?: unknown; profile?: CipherProfile; history?: { role: 'user' | 'assistant'; content: string }[]; }
+  interface MarketPrice { symbol: string; price: number; change: number; changePct: number; high: number; low: number; }
+  interface RequestBody {
+    message?: unknown;
+    profile?: CipherProfile;
+    history?: { role: 'user' | 'assistant'; content: string }[];
+    marketData?: MarketPrice[];
+    isTrading?: boolean;
+  }
 
   let body: RequestBody;
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 
-  const { message, profile, history = [] } = body;
+  const { message, profile, history = [], marketData, isTrading } = body;
   if (!message || typeof message !== 'string') {
     return NextResponse.json({ error: 'Message required' }, { status: 400 });
   }
 
   // Build context header from profile
   const profileContext = profile ? `\n[OPERATIVE: ${profile.codename} | XP: ${profile.xp} | STREAK: ${profile.longestStreak}d | MISSIONS: ${profile.missionsCompleted}]` : '';
+
+  // Build market context if trading-related
+  let marketContext = '';
+  if (isTrading && marketData && marketData.length > 0) {
+    const now = new Date();
+    const utcHour = now.getUTCHours();
+    const watHour = (utcHour + 1) % 24;
+    const session = utcHour >= 7 && utcHour < 16 ? 'LONDON' : utcHour >= 12 && utcHour < 21 ? 'NEW YORK' : 'ASIAN';
+
+    marketContext = `\n\n[LIVE MARKET DATA — ${session} SESSION — ${watHour}:${String(now.getUTCMinutes()).padStart(2, '0')} WAT]\n`;
+    marketData.forEach(p => {
+      const direction = p.changePct > 0 ? '▲' : p.changePct < 0 ? '▼' : '—';
+      marketContext += `${p.symbol}: ${p.price.toFixed(p.symbol.includes('JPY') ? 3 : 5)} ${direction} ${p.changePct > 0 ? '+' : ''}${p.changePct.toFixed(2)}% | H: ${p.high.toFixed(p.symbol.includes('JPY') ? 3 : 5)} L: ${p.low.toFixed(p.symbol.includes('JPY') ? 3 : 5)}\n`;
+    });
+    marketContext += `\n[Use these prices for specific entry/SL/TP levels. Recommend LONDON session trades only (08:00-17:00 WAT).]`;
+  }
 
   try {
     const messages: Anthropic.MessageParam[] = [
@@ -95,8 +140,8 @@ export async function POST(request: NextRequest) {
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-5',
-      max_tokens: 400,
-      system: CIPHER_SYSTEM + profileContext,
+      max_tokens: 500,
+      system: CIPHER_SYSTEM + profileContext + marketContext,
       messages,
     });
 
