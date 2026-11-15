@@ -1457,13 +1457,15 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
                         {setup.status === 'WATCHING' && (
                           <>
                             <button onClick={() => handleUpdateSetupStatus(setup.id, 'PENDING')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,212,255,0.15)', border: '1px solid var(--ng-cyan)', color: 'var(--ng-cyan)', borderRadius: 4, cursor: 'pointer' }}>✓ READY</button>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'ACTIVE')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,255,65,0.15)', border: '1px solid var(--ng-green)', color: 'var(--ng-green)', borderRadius: 4, cursor: 'pointer' }}>▶ ENTER</button>
                             <button onClick={() => handleUpdateSetupStatus(setup.id, 'CANCELLED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(255,71,87,0.15)', border: '1px solid var(--ng-red)', color: 'var(--ng-red)', borderRadius: 4, cursor: 'pointer' }}>✕</button>
                           </>
                         )}
                         {setup.status === 'PENDING' && (
                           <>
-                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'ACTIVE')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,255,65,0.15)', border: '1px solid var(--ng-green)', color: 'var(--ng-green)', borderRadius: 4, cursor: 'pointer' }}>▶ ACTIVE</button>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'ACTIVE')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,255,65,0.15)', border: '1px solid var(--ng-green)', color: 'var(--ng-green)', borderRadius: 4, cursor: 'pointer' }}>▶ ENTER</button>
                             <button onClick={() => handleUpdateSetupStatus(setup.id, 'WATCHING')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(191,0,255,0.15)', border: '1px solid var(--ng-purple)', color: 'var(--ng-purple)', borderRadius: 4, cursor: 'pointer' }}>👁</button>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'MISSED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(255,159,10,0.15)', border: '1px solid var(--ng-amber)', color: 'var(--ng-amber)', borderRadius: 4, cursor: 'pointer' }}>MISSED</button>
                             <button onClick={() => handleUpdateSetupStatus(setup.id, 'CANCELLED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(255,71,87,0.15)', border: '1px solid var(--ng-red)', color: 'var(--ng-red)', borderRadius: 4, cursor: 'pointer' }}>✕</button>
                           </>
                         )}
