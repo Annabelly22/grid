@@ -23,21 +23,25 @@ interface Message {
 const QUICK_PROMPTS: Record<'general' | 'trading', { label: string; prompt: string; needsMarket?: boolean }[]> = {
   general: [
     { label: "Today's focus", prompt: "What should I focus on today?" },
-    { label: "Luteal phase help", prompt: "I'm in my luteal phase — help" },
-    { label: "5-min morning protocol", prompt: "Give me a 5-min morning protocol" },
-    { label: "Broke my streak", prompt: "I broke my streak. How do I reset mentally?" },
-    { label: "Training day supps", prompt: "Best supplements for a training day" },
+    { label: "Luteal phase", prompt: "I'm in my luteal phase — help" },
+    { label: "Morning protocol", prompt: "Give me a 5-min morning protocol" },
+    { label: "Broke streak", prompt: "I broke my streak. How do I reset mentally?" },
+    { label: "Training supps", prompt: "Best supplements for a training day" },
     { label: "Low energy", prompt: "I'm feeling low energy today" },
   ],
   trading: [
-    { label: "🎯 XAUUSD Setup", prompt: "Analyze XAUUSD for me. Give me bias, key levels, entry zone, SL, TP. Is there a valid setup right now?", needsMarket: true },
-    { label: "🎯 GBPJPY Setup", prompt: "Analyze GBPJPY for me. Give me bias, key levels, entry zone, SL, TP. Is there a valid setup right now?", needsMarket: true },
-    { label: "🔍 Market Scan", prompt: "Scan all pairs and tell me which has the cleanest setup right now. Give specific entry, SL, TP.", needsMarket: true },
-    { label: "📊 Session Check", prompt: "What session are we in? Should I be trading right now based on my stats?", needsMarket: true },
-    { label: "⚠️ Pre-Trade Checklist", prompt: "Run me through a pre-trade checklist. Am I in the right mental state? Is this the right session? Do I have edge?", needsMarket: true },
-    { label: "🛑 Revenge Trade Block", prompt: "I'm about to revenge trade. Talk me off the ledge with data from my trading stats." },
-    { label: "📉 Drawdown Protocol", prompt: "I'm in a drawdown. Give me the protocol: position sizing, mental reset, when to step away." },
-    { label: "✅ Trade Review", prompt: "I just took a trade. Walk me through what I should journal and analyze." },
+    { label: "🔍 Scan All", prompt: "Scan all pairs and tell me which has the cleanest setup right now. Give specific entry, SL, TP.", needsMarket: true },
+    { label: "📊 Session?", prompt: "What session are we in? Should I be trading right now based on my stats?", needsMarket: true },
+    { label: "XAUUSD", prompt: "Analyze XAUUSD. Bias, entry zone, SL, TP.", needsMarket: true },
+    { label: "XAGUSD", prompt: "Analyze XAGUSD. Bias, entry zone, SL, TP.", needsMarket: true },
+    { label: "GBPJPY", prompt: "Analyze GBPJPY. Bias, entry zone, SL, TP.", needsMarket: true },
+    { label: "GBPAUD", prompt: "Analyze GBPAUD. Bias, entry zone, SL, TP.", needsMarket: true },
+    { label: "AUDJPY", prompt: "Analyze AUDJPY. Bias, entry zone, SL, TP.", needsMarket: true },
+    { label: "EURUSD", prompt: "Analyze EURUSD. Bias, entry zone, SL, TP.", needsMarket: true },
+    { label: "⚠️ Checklist", prompt: "Pre-trade checklist. Mental state? Right session? Do I have edge?", needsMarket: true },
+    { label: "🛑 Revenge", prompt: "I'm about to revenge trade. Talk me off the ledge with my stats." },
+    { label: "📉 Drawdown", prompt: "I'm in a drawdown. Position sizing, mental reset, when to step away." },
+    { label: "✅ Review", prompt: "I just took a trade. What should I journal?" },
   ],
 };
 
@@ -1032,116 +1036,77 @@ export default function CoachTab({ profile, onFocusMinutes, tradeJournal, onLogT
       {/* ── Chat tab ─────────────────────────────────────────── */}
       {activeTab === 'chat' && (
         <>
-          {/* Quick actions bar at top */}
-          <div className="px-4 py-3 flex-shrink-0" style={{ background: 'var(--ng-surface)', borderBottom: '1px solid var(--ng-border)' }}>
-            <div className="flex gap-2 mb-2">
-              {(['general', 'trading'] as const).map(cat => (
-                <button key={cat} onClick={() => setPromptCategory(cat)} className="font-orbitron flex-1"
-                  style={{
-                    padding: '10px 12px',
-                    fontSize: 10,
-                    letterSpacing: '1px',
-                    border: `1.5px solid ${promptCategory === cat ? (cat === 'trading' ? 'var(--ng-green)' : 'var(--ng-cyan)') : 'var(--ng-border)'}`,
-                    color: promptCategory === cat ? (cat === 'trading' ? 'var(--ng-green)' : 'var(--ng-cyan)') : 'var(--ng-muted)',
-                    background: promptCategory === cat ? (cat === 'trading' ? 'rgba(48,209,88,0.1)' : 'rgba(0,212,255,0.1)') : 'transparent',
-                    borderRadius: 8,
-                    cursor: 'pointer'
-                  }}>
-                  {cat === 'general' ? '🧠 LIFE' : '📈 TRADING'}
-                </button>
-              ))}
-            </div>
-            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-              {QUICK_PROMPTS[promptCategory].slice(0, 4).map(p => (
-                <button key={p.label} onClick={() => sendMessage(p.prompt, p.needsMarket)} className="font-mono"
-                  style={{
-                    fontSize: 10,
-                    padding: '10px 12px',
-                    border: `1px solid ${p.needsMarket ? 'var(--ng-green)' : 'var(--ng-border)'}`,
-                    color: p.needsMarket ? 'var(--ng-green)' : 'var(--ng-text)',
-                    background: p.needsMarket ? 'rgba(48,209,88,0.08)' : 'var(--ng-bg)',
-                    cursor: 'pointer',
-                    borderRadius: 10,
-                    textAlign: 'left',
-                    lineHeight: 1.3
-                  }}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            {QUICK_PROMPTS[promptCategory].length > 4 && (
-              <div className="flex gap-2 mt-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-                {QUICK_PROMPTS[promptCategory].slice(4).map(p => (
-                  <button key={p.label} onClick={() => sendMessage(p.prompt, p.needsMarket)} className="font-mono flex-shrink-0"
-                    style={{
-                      fontSize: 9,
-                      padding: '6px 12px',
-                      border: `1px solid var(--ng-border)`,
-                      color: 'var(--ng-muted)',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      borderRadius: 16,
-                      whiteSpace: 'nowrap'
-                    }}>
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Chat messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4" style={{ minHeight: 0 }}>
-            {messages.length === 1 && (
-              <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>⚡</div>
-                <div className="font-orbitron" style={{ fontSize: 12, color: 'var(--ng-green)', letterSpacing: '2px', marginBottom: 8 }}>GODWILL READY</div>
-                <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)', lineHeight: 1.6 }}>
-                  Tap a quick action above or ask anything below.
-                  <br />Trading prompts fetch live market data.
-                </div>
-              </div>
-            )}
-            {messages.slice(1).map(msg => (
+          <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3" style={{ minHeight: 0 }}>
+            {messages.map(msg => (
               <div key={msg.id} className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}>
-                {msg.role === 'assistant' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <span style={{ fontSize: 12 }}>⚡</span>
-                    <span className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-green)', letterSpacing: '1px' }}>GODWILL</span>
-                  </div>
-                )}
                 {msg.role === 'assistant'
-                  ? <div className="godwill-response" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.content) }} />
+                  ? <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.content) }} />
                   : msg.content
                 }
               </div>
             ))}
             {loading && (
               <div className="chat-bubble-ai">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                  <span style={{ fontSize: 12 }}>⚡</span>
-                  <span className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-green)', letterSpacing: '1px' }}>THINKING...</span>
-                </div>
                 <div className="loader-dots flex gap-2"><span /><span /><span /></div>
               </div>
             )}
             <div ref={chatEndRef} />
           </div>
 
-          {/* Input area */}
-          <div className="px-4 pb-3 pt-2 flex-shrink-0" style={{ borderTop: '1px solid var(--ng-border)', background: 'var(--ng-surface)' }}>
-            <div className="flex gap-2">
+          {/* Input area with prompts */}
+          <div className="px-4 pb-3 flex-shrink-0" style={{ borderTop: '1px solid var(--ng-border)' }}>
+            {/* Category toggle */}
+            <div className="flex gap-2 py-2">
+              {(['general', 'trading'] as const).map(cat => (
+                <button key={cat} onClick={() => setPromptCategory(cat)} className="font-orbitron"
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: 9,
+                    letterSpacing: '1px',
+                    border: `1px solid ${promptCategory === cat ? 'var(--ng-amber)' : 'var(--ng-border)'}`,
+                    color: promptCategory === cat ? 'var(--ng-amber)' : 'var(--ng-muted)',
+                    background: promptCategory === cat ? 'rgba(255,159,10,0.08)' : 'transparent',
+                    borderRadius: 6,
+                    cursor: 'pointer'
+                  }}>
+                  {cat === 'general' ? 'LIFE' : 'TRADING'}
+                </button>
+              ))}
+            </div>
+
+            {/* Quick prompts - horizontal scroll */}
+            <div className="flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+              {QUICK_PROMPTS[promptCategory].map(p => (
+                <button key={p.label} onClick={() => sendMessage(p.prompt, p.needsMarket)} className="font-mono flex-shrink-0"
+                  style={{
+                    fontSize: 11,
+                    padding: '8px 12px',
+                    border: `1px solid ${p.needsMarket ? 'rgba(48,209,88,0.4)' : 'var(--ng-border)'}`,
+                    color: p.needsMarket ? 'var(--ng-green)' : 'var(--ng-muted)',
+                    background: p.needsMarket ? 'rgba(48,209,88,0.06)' : 'var(--ng-surface)',
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                    whiteSpace: 'nowrap'
+                  }}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Text input */}
+            <div className="flex gap-2 pt-1">
               <textarea
                 className="ng-textarea"
-                rows={2}
-                placeholder="Ask GODWILL anything..."
+                rows={1}
+                placeholder="Ask anything..."
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                style={{ fontSize: 14 }}
+                style={{ fontSize: 15, minHeight: 44, resize: 'none' }}
               />
               <button onClick={() => sendMessage()} disabled={loading || !input.trim()}
-                style={{ width: 50, height: 50, background: input.trim() ? 'var(--ng-green)' : 'var(--ng-surface2)', border: 'none', color: input.trim() ? '#000' : 'var(--ng-muted)', cursor: input.trim() ? 'pointer' : 'default', borderRadius: 12, fontWeight: 700, fontSize: 18, flexShrink: 0, transition: 'all 0.2s', alignSelf: 'flex-end' }}>
+                style={{ width: 44, height: 44, background: input.trim() ? 'var(--ng-green)' : 'var(--ng-surface2)', border: 'none', color: input.trim() ? '#000' : 'var(--ng-muted)', cursor: input.trim() ? 'pointer' : 'default', borderRadius: 10, fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
                 ↑
               </button>
             </div>
