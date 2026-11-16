@@ -334,21 +334,28 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
 
   // Save edited trade
   const saveEditTrade = () => {
-    if (!editingTradeId) return;
-    onUpdateTrade(editingTradeId, {
-      date: editDate,
-      pnl: editPnl ? parseFloat(editPnl) : undefined,
-      pair: editPair,
-      session: editSession,
-      direction: editDirection,
-      quality: editQuality,
-      rulesFollowed: editRules,
-      emotionalState: editEmotion,
-      note: editNote,
-      images: editImages.length > 0 ? editImages : undefined,
-      timeline: editTimeline,
-    });
-    setEditingTradeId(null);
+    if (!editingTradeId) {
+      alert('Error: No trade selected');
+      return;
+    }
+    try {
+      onUpdateTrade(editingTradeId, {
+        date: editDate,
+        pnl: editPnl ? parseFloat(editPnl) : undefined,
+        pair: editPair,
+        session: editSession,
+        direction: editDirection,
+        quality: editQuality,
+        rulesFollowed: editRules,
+        emotionalState: editEmotion,
+        note: editNote,
+        images: editImages.length > 0 ? editImages : undefined,
+        timeline: editTimeline,
+      });
+      setEditingTradeId(null);
+    } catch (err) {
+      alert('Save failed: ' + (err as Error).message);
+    }
   };
 
   // Cancel editing
@@ -1099,21 +1106,12 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
                               {/* Row 6: Notes */}
                               <textarea
                                 className="ng-textarea mb-2"
-                                rows={2}
+                                rows={3}
                                 style={{ width: '100%', resize: 'none', padding: '10px' }}
                                 placeholder="Trade notes..."
                                 value={editNote}
+                                onInput={e => setEditNote((e.target as HTMLTextAreaElement).value)}
                                 onChange={e => setEditNote(e.target.value)}
-                                onPaste={e => {
-                                  e.preventDefault();
-                                  const paste = e.clipboardData.getData('text');
-                                  const target = e.target as HTMLTextAreaElement;
-                                  const start = target.selectionStart;
-                                  const end = target.selectionEnd;
-                                  const newValue = editNote.substring(0, start) + paste + editNote.substring(end);
-                                  setEditNote(newValue.substring(0, 280));
-                                }}
-                                maxLength={280}
                               />
 
                               {/* Row 7: Images */}
