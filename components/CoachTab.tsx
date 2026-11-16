@@ -318,18 +318,20 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
 
   // Start editing a trade
   const startEditTrade = (trade: TradeSession) => {
+    console.log('[startEditTrade] Starting edit for trade:', trade.id);
     setEditingTradeId(trade.id);
     setEditPnl(trade.pnl?.toString() || '');
     setEditPair(trade.pair || 'XAUUSD');
     setEditSession(trade.session || 'LONDON');
     setEditDirection(trade.direction || 'BUY');
-    setEditQuality(trade.quality);
-    setEditRules(trade.rulesFollowed);
-    setEditEmotion(trade.emotionalState);
-    setEditNote(trade.note);
+    setEditQuality(trade.quality || 3);
+    setEditRules(trade.rulesFollowed ?? true);
+    setEditEmotion(trade.emotionalState || 'neutral');
+    setEditNote(trade.note || '');
     setEditImages(trade.images || []);
     setEditTimeline(trade.timeline || 'INTRADAY');
-    setEditDate(trade.date);
+    setEditDate(trade.date || '');
+    console.log('[startEditTrade] Edit state set, editingTradeId:', trade.id);
   };
 
   // Save edited trade
@@ -1106,7 +1108,7 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
                               </div>
 
                               {/* Row 6: Notes */}
-                              <textarea className="ng-textarea mb-2" rows={2} style={{ width: '100%', resize: 'none', padding: '10px' }} placeholder="Trade notes..." value={editNote} onChange={e => setEditNote(e.target.value)} maxLength={280} />
+                              <textarea className="ng-textarea mb-2" rows={2} style={{ width: '100%', resize: 'none', padding: '10px' }} placeholder="Trade notes..." value={editNote} onChange={e => { console.log('[editNote onChange]', e.target.value); setEditNote(e.target.value); }} maxLength={280} />
 
                               {/* Row 7: Images */}
                               <div className="mb-3">
