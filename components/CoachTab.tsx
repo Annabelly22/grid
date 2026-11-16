@@ -334,28 +334,21 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
 
   // Save edited trade
   const saveEditTrade = () => {
-    if (!editingTradeId) {
-      alert('Error: No trade selected');
-      return;
-    }
-    try {
-      onUpdateTrade(editingTradeId, {
-        date: editDate,
-        pnl: editPnl ? parseFloat(editPnl) : undefined,
-        pair: editPair,
-        session: editSession,
-        direction: editDirection,
-        quality: editQuality,
-        rulesFollowed: editRules,
-        emotionalState: editEmotion,
-        note: editNote,
-        images: editImages.length > 0 ? editImages : undefined,
-        timeline: editTimeline,
-      });
-      setEditingTradeId(null);
-    } catch (err) {
-      alert('Save failed: ' + (err as Error).message);
-    }
+    if (!editingTradeId) return;
+    onUpdateTrade(editingTradeId, {
+      date: editDate,
+      pnl: editPnl ? parseFloat(editPnl) : undefined,
+      pair: editPair,
+      session: editSession,
+      direction: editDirection,
+      quality: editQuality,
+      rulesFollowed: editRules,
+      emotionalState: editEmotion,
+      note: editNote,
+      images: editImages.length > 0 ? editImages : undefined,
+      timeline: editTimeline,
+    });
+    setEditingTradeId(null);
   };
 
   // Cancel editing
