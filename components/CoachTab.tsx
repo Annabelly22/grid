@@ -334,8 +334,14 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
 
   // Save edited trade
   const saveEditTrade = () => {
-    if (!editingTradeId) return;
-    onUpdateTrade(editingTradeId, {
+    console.log('[SAVE] editingTradeId:', editingTradeId);
+    console.log('[SAVE] editNote:', editNote);
+    console.log('[SAVE] editPnl:', editPnl);
+    if (!editingTradeId) {
+      console.log('[SAVE] ABORTED - no editingTradeId');
+      return;
+    }
+    const updateData = {
       date: editDate,
       pnl: editPnl ? parseFloat(editPnl) : undefined,
       pair: editPair,
@@ -347,8 +353,11 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
       note: editNote,
       images: editImages.length > 0 ? editImages : undefined,
       timeline: editTimeline,
-    });
+    };
+    console.log('[SAVE] Calling onUpdateTrade with:', updateData);
+    onUpdateTrade(editingTradeId, updateData);
     setEditingTradeId(null);
+    console.log('[SAVE] Complete');
   };
 
   // Cancel editing
