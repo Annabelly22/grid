@@ -5,12 +5,13 @@ import {
   UserProfile, Habit, Mission, Achievement, TradeSession,
   loadProfile, saveProfile, loadHabits, saveHabits,
   loadMissions, saveMissions, loadAchievements, saveAchievements,
-  loadTradeJournal, saveTradeJournal,
+  loadTradeJournal,
   checkAchievements,
 } from '../lib/gameStore';
 import { Storage } from '../lib/storage';
 import { getCyclePhase, CYCLE_PHASES, CyclePhase } from '../lib/supplementData';
 import { scheduleGridNotifications } from '../lib/notifications';
+import { loadTradesFromIDB, saveTradesToIDB, migrateFromLocalStorage } from '../lib/indexedDB';
 
 export type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile' | 'meals';
 
@@ -146,8 +147,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
     const h = loadHabits();
     const m = loadMissions();
     const a = loadAchievements();
-    const tj = loadTradeJournal();
-    setProfile(p); setHabits(h); setMissions(m); setAchievements(a); setTradeJournal(tj);
+    setProfile(p); setHabits(h); setMissions(m); setAchievements(a);
     if (!p.onboarded) setOnboarded(false);
     const dp = Storage.getDailyPriorities();
     setDailyPriorities(dp.date === getTodayStr() ? dp.items : []);
@@ -155,22 +155,47 @@ export function GridProvider({ children }: { children: ReactNode }) {
     const t = Storage.getTheme();
     setTheme(t);
 
-    // 2. Hydrate from Supabase in background — overrides localStorage if cloud is newer
-    cloudLoad(uid).then(cloudData => {
-      if (!cloudData) return; // first-time user or offline — localStorage is source of truth
+    // 2. Load trades from IndexedDB (async, larger storage)
+    const loadTrades = async () => {
+      // First, migrate any existing localStorage trades to IndexedDB
+      await migrateFromLocalStorage();
+      // Then load from IndexedDB
+      const trades = await loadTradesFromIDB();
+      if (trades.length > 0) {
+        setTradeJournal(trades);
+      } else {
+        // Fallback: try localStorage (for first-time migration)
+        const localTrades = loadTradeJournal();
+        if (localTrades.length > 0) {
+          setTradeJournal(localTrades);
+          // Save to IndexedDB for next time
+          await saveTradesToIDB(localTrades);
+        }
+      }
+    };
+    loadTrades();
+
+    // 3. Hydrate from cloud in background — overrides local if cloud is newer
+    cloudLoad(uid).then(async cloudData => {
+      if (!cloudData) return; // first-time user or offline — local is source of truth
       Storage.setAllData(cloudData);
       // Reload state from the freshly-restored localStorage
       const cp = loadProfile();
       const ch = loadHabits();
       const cm = loadMissions();
       const ca = loadAchievements();
-      const ctj = loadTradeJournal();
-      setProfile(cp); setHabits(ch); setMissions(cm); setAchievements(ca); setTradeJournal(ctj);
+      setProfile(cp); setHabits(ch); setMissions(cm); setAchievements(ca);
       if (!cp.onboarded) setOnboarded(false);
       const cdp = Storage.getDailyPriorities();
       setDailyPriorities(cdp.date === getTodayStr() ? cdp.items : []);
       const ct = Storage.getTheme();
       setTheme(ct);
+      // Reload trades from cloud data if present
+      if (cloudData.tradeJournal && Array.isArray(cloudData.tradeJournal)) {
+        const cloudTrades = cloudData.tradeJournal as TradeSession[];
+        setTradeJournal(cloudTrades);
+        await saveTradesToIDB(cloudTrades);
+      }
     });
 
     // Phase change detection
@@ -443,23 +468,25 @@ export function GridProvider({ children }: { children: ReactNode }) {
     triggerSync();
   };
 
-  const handleLogTrade = (data: Omit<TradeSession, 'id' | 'createdAt'>) => {
+  const handleLogTrade = async (data: Omit<TradeSession, 'id' | 'createdAt'>) => {
     const session: TradeSession = { ...data, id: `t_${Date.now()}`, createdAt: new Date().toISOString() };
     const updated = [session, ...tradeJournal];
-    saveTradeJournal(updated); setTradeJournal(updated);
-    triggerSync();
-  };
-
-  const handleUpdateTrade = (id: string, data: Partial<Omit<TradeSession, 'id' | 'createdAt'>>) => {
-    const updated = tradeJournal.map(t => t.id === id ? { ...t, ...data } : t);
-    saveTradeJournal(updated);
     setTradeJournal(updated);
+    await saveTradesToIDB(updated);
     triggerSync();
   };
 
-  const handleDeleteTradeSession = (id: string) => {
+  const handleUpdateTrade = async (id: string, data: Partial<Omit<TradeSession, 'id' | 'createdAt'>>) => {
+    const updated = tradeJournal.map(t => t.id === id ? { ...t, ...data } : t);
+    setTradeJournal(updated);
+    await saveTradesToIDB(updated);
+    triggerSync();
+  };
+
+  const handleDeleteTradeSession = async (id: string) => {
     const updated = tradeJournal.filter(t => t.id !== id);
-    saveTradeJournal(updated); setTradeJournal(updated);
+    setTradeJournal(updated);
+    await saveTradesToIDB(updated);
     triggerSync();
   };
 
