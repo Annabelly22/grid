@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Storage, type FastRecord } from '../lib/storage';
 import { getTodayStr } from '../lib/time';
 import { getTodayQuote } from '../lib/dailyQuotes';
+import { useGridContext } from '../contexts/GridContext';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export interface MealItem {
@@ -142,6 +143,7 @@ const MINDFUL_TIPS = [
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function MealPlanTab() {
+  const { syncNow } = useGridContext();
   const [plan, setPlan] = useState<MealPlan>(DEFAULT_PLAN);
   const [selectedDay, setSelectedDay] = useState(0);
   const [editingMeal, setEditingMeal] = useState<{ day: number; type: typeof MEAL_TYPES[number]; idx: number } | null>(null);
@@ -224,13 +226,15 @@ export default function MealPlanTab() {
   const savePlan = useCallback((newPlan: MealPlan) => {
     setPlan(newPlan);
     Storage.setMealPlan?.(newPlan);
-  }, []);
+    syncNow(); // Trigger cloud sync
+  }, [syncNow]);
 
   // Save meal log
   const saveMealLog = useCallback((newLog: Record<string, MealLogEntry>) => {
     setMealLog(newLog);
     Storage.setMealLog?.(newLog);
-  }, []);
+    syncNow(); // Trigger cloud sync
+  }, [syncNow]);
 
   // Log today's meals from plan (only checked meals)
   const logTodayMeals = useCallback((isCheatDay: boolean = false, notes: string = '', checkedMeals?: Record<string, boolean>) => {
@@ -363,7 +367,8 @@ export default function MealPlanTab() {
     allChecks[today] = todayChecks;
     Storage.setMealChecks?.(allChecks);
     setMealChecks(todayChecks);
-  }, []);
+    syncNow(); // Trigger cloud sync
+  }, [syncNow]);
 
   // Start editing a log entry
   const startEditLog = (date: string) => {
