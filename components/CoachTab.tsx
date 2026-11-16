@@ -135,6 +135,11 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
   const [editRules, setEditRules] = useState<boolean>(true);
   const [editEmotion, setEditEmotion] = useState<TradeSession['emotionalState']>('neutral');
   const [editNote, setEditNote] = useState('');
+  const [editImages, setEditImages] = useState<string[]>([]);
+  const [editTimeline, setEditTimeline] = useState<TradeTimeline>('INTRADAY');
+  const [editDate, setEditDate] = useState('');
+  const [editUploading, setEditUploading] = useState(false);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   // Journal form state
   const today = getTodayStr();
@@ -321,12 +326,16 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
     setEditRules(trade.rulesFollowed);
     setEditEmotion(trade.emotionalState);
     setEditNote(trade.note);
+    setEditImages(trade.images || []);
+    setEditTimeline(trade.timeline || 'INTRADAY');
+    setEditDate(trade.date);
   };
 
   // Save edited trade
   const saveEditTrade = () => {
     if (!editingTradeId) return;
     onUpdateTrade(editingTradeId, {
+      date: editDate,
       pnl: editPnl ? parseFloat(editPnl) : undefined,
       pair: editPair,
       session: editSession,
@@ -335,6 +344,8 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
       rulesFollowed: editRules,
       emotionalState: editEmotion,
       note: editNote,
+      images: editImages.length > 0 ? editImages : undefined,
+      timeline: editTimeline,
     });
     setEditingTradeId(null);
   };
@@ -342,6 +353,56 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
   // Cancel editing
   const cancelEditTrade = () => {
     setEditingTradeId(null);
+  };
+
+  // Handle edit image upload
+  const handleEditImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setEditUploading(true);
+    const userId = profile?.codename || 'anonymous';
+
+    for (const file of Array.from(files)) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('userId', userId);
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (data.url) {
+          setEditImages(prev => [...prev, data.url]);
+        } else {
+          console.error('Upload failed:', data.error);
+        }
+      } catch (err) {
+        console.error('Upload error:', err);
+      }
+    }
+
+    setEditUploading(false);
+    if (editFileInputRef.current) {
+      editFileInputRef.current.value = '';
+    }
+  };
+
+  // Remove edit image
+  const handleRemoveEditImage = async (url: string) => {
+    try {
+      await fetch('/api/upload', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+    } catch (err) {
+      console.error('Delete error:', err);
+    }
+    setEditImages(prev => prev.filter(u => u !== url));
   };
 
   // Load persisted chat on mount
@@ -961,37 +1022,117 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
                           borderRadius: 10,
                         }}>
                           {isEditing ? (
-                            /* Edit form */
+                            /* Edit form - full featured */
                             <div className="p-3">
+                              {/* Header */}
+                              <div className="font-orbitron mb-3" style={{ fontSize: 11, color: 'var(--ng-cyan)', letterSpacing: '1px' }}>EDIT TRADE</div>
+
+                              {/* Row 1: Date + P&L */}
                               <div className="flex gap-2 mb-2">
-                                <input type="number" className="ng-input flex-1" placeholder="P&L" value={editPnl} onChange={e => setEditPnl(e.target.value)} style={{ padding: '8px 12px' }} />
-                                <select className="ng-input" value={editPair} onChange={e => setEditPair(e.target.value)} style={{ padding: '8px 12px' }}>
+                                <input type="date" className="ng-input" value={editDate} onChange={e => setEditDate(e.target.value)} style={{ padding: '8px 12px', flex: '0 0 130px' }} />
+                                <input type="number" className="ng-input flex-1" placeholder="P&L ($)" value={editPnl} onChange={e => setEditPnl(e.target.value)} style={{ padding: '8px 12px' }} />
+                              </div>
+
+                              {/* Row 2: Pair + Direction */}
+                              <div className="flex gap-2 mb-2">
+                                <select className="ng-input flex-1" value={editPair} onChange={e => setEditPair(e.target.value)} style={{ padding: '8px 12px' }}>
                                   {COMMON_PAIRS.map(p => <option key={p} value={p}>{p}</option>)}
                                 </select>
+                                <div className="flex gap-1">
+                                  {TRADE_DIRECTIONS.map(d => (
+                                    <button key={d} onClick={() => setEditDirection(d)} className="font-orbitron"
+                                      style={{
+                                        padding: '8px 16px', fontSize: 10, borderRadius: 8, cursor: 'pointer',
+                                        border: `1.5px solid ${editDirection === d ? (d === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)') : 'var(--ng-border)'}`,
+                                        color: editDirection === d ? (d === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)') : 'var(--ng-muted)',
+                                        background: editDirection === d ? (d === 'BUY' ? 'rgba(0,255,65,0.1)' : 'rgba(255,71,87,0.1)') : 'transparent',
+                                      }}>
+                                      {d === 'BUY' ? '▲' : '▼'} {d}
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
+
+                              {/* Row 3: Session + Timeline */}
                               <div className="flex gap-2 mb-2">
                                 <select className="ng-input flex-1" value={editSession} onChange={e => setEditSession(e.target.value as TradingSession)} style={{ padding: '8px 12px' }}>
                                   {TRADING_SESSIONS.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
-                                <select className="ng-input" value={editDirection} onChange={e => setEditDirection(e.target.value as TradeDirection)} style={{ padding: '8px 12px' }}>
-                                  {TRADE_DIRECTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                <select className="ng-input flex-1" value={editTimeline} onChange={e => setEditTimeline(e.target.value as TradeTimeline)} style={{ padding: '8px 12px' }}>
+                                  {TRADE_TIMELINES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                 </select>
                               </div>
-                              <div className="flex gap-2 mb-2">
+
+                              {/* Row 4: Rules + Quality */}
+                              <div className="flex gap-2 mb-2 items-center">
                                 <button onClick={() => setEditRules(!editRules)} className="font-orbitron flex-1"
                                   style={{ padding: '8px', fontSize: 10, border: `1.5px solid ${editRules ? 'var(--ng-green)' : 'var(--ng-red)'}`, color: editRules ? 'var(--ng-green)' : 'var(--ng-red)', background: editRules ? 'rgba(0,255,65,0.1)' : 'rgba(255,71,87,0.1)', borderRadius: 8, cursor: 'pointer' }}>
-                                  {editRules ? '✓ RULES FOLLOWED' : '✗ BROKE RULES'}
+                                  {editRules ? '✓ RULES' : '✗ BROKE'}
                                 </button>
-                                <div className="flex gap-1 items-center" style={{ padding: '0 8px' }}>
+                                <div className="flex gap-1 items-center flex-1 justify-center">
                                   {([1,2,3,4,5] as const).map(n => (
-                                    <button key={n} onClick={() => setEditQuality(n)} style={{ fontSize: 18, background: 'none', border: 'none', cursor: 'pointer', color: n <= editQuality ? '#FFD700' : 'var(--ng-dimmer)', padding: '2px' }}>★</button>
+                                    <button key={n} onClick={() => setEditQuality(n)} style={{ fontSize: 20, background: 'none', border: 'none', cursor: 'pointer', color: n <= editQuality ? '#FFD700' : 'var(--ng-dimmer)', padding: '2px' }}>★</button>
                                   ))}
                                 </div>
                               </div>
-                              <textarea className="ng-textarea mb-3" rows={2} style={{ width: '100%', resize: 'none', padding: '10px' }} placeholder="Trade notes..." value={editNote} onChange={e => setEditNote(e.target.value)} />
+
+                              {/* Row 5: Emotion */}
+                              <div className="flex gap-1 mb-2 flex-wrap">
+                                {(['calm', 'confident', 'neutral', 'anxious', 'fearful'] as const).map(e => (
+                                  <button key={e} onClick={() => setEditEmotion(e)}
+                                    style={{
+                                      padding: '6px 10px', fontSize: 9, borderRadius: 6, cursor: 'pointer', textTransform: 'uppercase',
+                                      border: `1px solid ${editEmotion === e ? 'var(--ng-cyan)' : 'var(--ng-border)'}`,
+                                      color: editEmotion === e ? 'var(--ng-cyan)' : 'var(--ng-muted)',
+                                      background: editEmotion === e ? 'rgba(100,210,255,0.1)' : 'transparent',
+                                    }}>
+                                    {e}
+                                  </button>
+                                ))}
+                              </div>
+
+                              {/* Row 6: Notes */}
+                              <textarea className="ng-textarea mb-2" rows={2} style={{ width: '100%', resize: 'none', padding: '10px' }} placeholder="Trade notes..." value={editNote} onChange={e => setEditNote(e.target.value)} maxLength={280} />
+
+                              {/* Row 7: Images */}
+                              <div className="mb-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <input ref={editFileInputRef} type="file" accept="image/*" multiple onChange={handleEditImageUpload} style={{ display: 'none' }} />
+                                  <button onClick={() => editFileInputRef.current?.click()} disabled={editUploading}
+                                    style={{
+                                      padding: '8px 16px', fontSize: 10, borderRadius: 8, cursor: 'pointer',
+                                      border: '1px solid var(--ng-purple)', color: 'var(--ng-purple)',
+                                      background: 'rgba(191,90,242,0.1)',
+                                      opacity: editUploading ? 0.5 : 1,
+                                    }}>
+                                    {editUploading ? 'UPLOADING...' : '📷 ADD SCREENSHOT'}
+                                  </button>
+                                  {editImages.length > 0 && (
+                                    <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>{editImages.length} attached</span>
+                                  )}
+                                </div>
+                                {editImages.length > 0 && (
+                                  <div className="flex gap-2 flex-wrap">
+                                    {editImages.map((url, i) => (
+                                      <div key={i} style={{ position: 'relative' }}>
+                                        <img src={url} alt="" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, border: '2px solid var(--ng-border)' }} />
+                                        <button onClick={() => handleRemoveEditImage(url)}
+                                          style={{
+                                            position: 'absolute', top: -6, right: -6, width: 18, height: 18,
+                                            borderRadius: '50%', border: 'none', background: 'var(--ng-red)',
+                                            color: '#fff', fontSize: 10, cursor: 'pointer', display: 'flex',
+                                            alignItems: 'center', justifyContent: 'center',
+                                          }}>×</button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Actions */}
                               <div className="flex gap-2">
-                                <button onClick={saveEditTrade} className="btn-green-solid flex-1" style={{ padding: '10px', fontSize: 11 }}>SAVE CHANGES</button>
-                                <button onClick={cancelEditTrade} className="font-orbitron flex-1" style={{ padding: '10px', fontSize: 11, border: '1px solid var(--ng-border)', background: 'transparent', color: 'var(--ng-muted)', borderRadius: 8, cursor: 'pointer' }}>CANCEL</button>
+                                <button onClick={saveEditTrade} className="btn-green-solid flex-1" style={{ padding: '12px', fontSize: 11 }}>SAVE CHANGES</button>
+                                <button onClick={cancelEditTrade} className="font-orbitron flex-1" style={{ padding: '12px', fontSize: 11, border: '1px solid var(--ng-border)', background: 'transparent', color: 'var(--ng-muted)', borderRadius: 8, cursor: 'pointer' }}>CANCEL</button>
                               </div>
                             </div>
                           ) : (
