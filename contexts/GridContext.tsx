@@ -112,6 +112,10 @@ export function GridProvider({ children }: { children: ReactNode }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ habit: Habit; timeout: number } | null>(null);
 
+  // Ref to always have latest trades for sync (since trades are in IndexedDB, not localStorage)
+  const tradesRef = useRef<TradeSession[]>([]);
+  useEffect(() => { tradesRef.current = tradeJournal; }, [tradeJournal]);
+
   // Debounced cloud sync — fires 3s after the last state change
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const midnightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -121,7 +125,11 @@ export function GridProvider({ children }: { children: ReactNode }) {
       const uid = Storage.getUserId();
       if (!uid) return;
       setIsSyncing(true);
-      const payload = Storage.getAllData();
+      // Merge localStorage data with IndexedDB trades
+      const payload = {
+        ...Storage.getAllData(),
+        tradeJournal: tradesRef.current, // Include trades from IndexedDB
+      };
       await cloudSave(uid, payload);
       setIsSyncing(false);
     }, 3000);
@@ -133,7 +141,12 @@ export function GridProvider({ children }: { children: ReactNode }) {
     const uid = Storage.getUserId();
     if (!uid) return;
     setIsSyncing(true);
-    await cloudSave(uid, Storage.getAllData());
+    // Merge localStorage data with IndexedDB trades
+    const payload = {
+      ...Storage.getAllData(),
+      tradeJournal: tradesRef.current,
+    };
+    await cloudSave(uid, payload);
     setIsSyncing(false);
   }, []);
 
@@ -254,7 +267,14 @@ export function GridProvider({ children }: { children: ReactNode }) {
       } else if (document.visibilityState === 'hidden') {
         // Flush any pending sync immediately when app is closed or backgrounded
         const uid = Storage.getUserId();
-        if (uid) cloudSave(uid, Storage.getAllData());
+        if (uid) {
+          // Include trades from IndexedDB in the sync payload
+          const payload = {
+            ...Storage.getAllData(),
+            tradeJournal: tradesRef.current,
+          };
+          cloudSave(uid, payload);
+        }
       }
     }
     document.addEventListener('visibilitychange', handleVisibility);
