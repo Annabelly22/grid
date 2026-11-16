@@ -160,6 +160,7 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
   const [expandedTrade, setExpandedTrade] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logFormRef = useRef<HTMLDivElement>(null);
 
   // Trade timeline
   const [journalTimeline, setJournalTimeline] = useState<TradeTimeline>('INTRADAY');
@@ -491,6 +492,10 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
         setExecutingSetupId(setupId);
         setShowLogForm(true);
         setActiveTab('journal');
+        // Scroll to the form after state updates
+        setTimeout(() => {
+          logFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
         return; // Don't update status yet - wait for journal submission
       }
     }
@@ -1707,10 +1712,10 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
                           </>
                         )}
                         {setup.status === 'ACTIVE' && (
-                          <>
-                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'EXECUTED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,255,65,0.15)', border: '1px solid var(--ng-green)', color: 'var(--ng-green)', borderRadius: 4, cursor: 'pointer' }}>✓ EXECUTED</button>
-                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'MISSED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(255,159,10,0.15)', border: '1px solid var(--ng-amber)', color: 'var(--ng-amber)', borderRadius: 4, cursor: 'pointer' }}>MISSED</button>
-                          </>
+                          <button onClick={() => handleUpdateSetupStatus(setup.id, 'MISSED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(255,159,10,0.15)', border: '1px solid var(--ng-amber)', color: 'var(--ng-amber)', borderRadius: 4, cursor: 'pointer' }}>MISSED</button>
+                        )}
+                        {setup.status === 'EXECUTED' && (
+                          <button onClick={() => handleUpdateSetupStatus(setup.id, 'EXECUTED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,212,255,0.15)', border: '1px solid var(--ng-cyan)', color: 'var(--ng-cyan)', borderRadius: 4, cursor: 'pointer' }}>+ JOURNAL</button>
                         )}
                         {(setup.status === 'EXECUTED' || setup.status === 'CANCELLED' || setup.status === 'MISSED') && (
                           <button onClick={() => handleDeleteSetup(setup.id)} style={{ padding: '4px 8px', fontSize: 8, background: 'transparent', border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', borderRadius: 4, cursor: 'pointer' }}>🗑</button>
@@ -1724,6 +1729,26 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
                         {setup.tp && <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-green)' }}>TP: {setup.tp}</span>}
                         {setup.sl && <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-red)' }}>SL: {setup.sl}</span>}
                       </div>
+                    )}
+                    {/* Prominent JOURNAL button for ACTIVE trades */}
+                    {setup.status === 'ACTIVE' && (
+                      <button
+                        onClick={() => handleUpdateSetupStatus(setup.id, 'EXECUTED')}
+                        className="w-full mt-3"
+                        style={{
+                          padding: '12px',
+                          background: 'linear-gradient(135deg, var(--ng-green) 0%, #00B847 100%)',
+                          border: 'none',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <span className="font-orbitron" style={{ fontSize: 11, color: '#000', fontWeight: 700, letterSpacing: '1px' }}>✓ CLOSE TRADE & JOURNAL</span>
+                      </button>
                     )}
                   </div>
                 ))}
@@ -1877,7 +1902,7 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
 
           {/* Log Trade Form */}
           {showLogForm && (
-            <div className="card mb-4" style={{ borderColor: executingSetupId ? 'rgba(0,255,65,0.4)' : 'rgba(255,159,10,0.4)', background: executingSetupId ? 'linear-gradient(135deg, var(--ng-surface) 0%, rgba(0,255,65,0.08) 100%)' : 'linear-gradient(135deg, var(--ng-surface) 0%, rgba(255,159,10,0.05) 100%)' }}>
+            <div ref={logFormRef} className="card mb-4" style={{ borderColor: executingSetupId ? 'rgba(0,255,65,0.4)' : 'rgba(255,159,10,0.4)', background: executingSetupId ? 'linear-gradient(135deg, var(--ng-surface) 0%, rgba(0,255,65,0.08) 100%)' : 'linear-gradient(135deg, var(--ng-surface) 0%, rgba(255,159,10,0.05) 100%)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <div className="font-orbitron" style={{ fontSize: 10, color: executingSetupId ? 'var(--ng-green)' : 'var(--ng-amber)', letterSpacing: '2px' }}>
