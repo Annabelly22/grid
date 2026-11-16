@@ -351,46 +351,14 @@ export function loadTradeJournal(): TradeSession[] {
   } catch { return []; }
 }
 
-export function saveTradeJournal(sessions: TradeSession[]): boolean {
+export function saveTradeJournal(sessions: TradeSession[]) {
   try {
     localStorage.setItem(KEY_TRADE_JOURNAL, JSON.stringify(sessions));
-    return true;
   } catch (e) {
-    // Quota exceeded - try removing images from older trades (keep last 10 with images)
-    console.warn('Storage quota exceeded, removing old images...');
-    const tradesWithImages = sessions.filter(t => t.images && t.images.length > 0);
-    if (tradesWithImages.length > 10) {
-      // Sort by date descending, remove images from older ones
-      const sorted = [...sessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      let imagesKept = 0;
-      const cleaned = sorted.map(t => {
-        if (t.images && t.images.length > 0) {
-          if (imagesKept < 10) {
-            imagesKept++;
-            return t;
-          }
-          return { ...t, images: undefined };
-        }
-        return t;
-      });
-      try {
-        localStorage.setItem(KEY_TRADE_JOURNAL, JSON.stringify(cleaned));
-        console.log('Saved after removing old images');
-        return true;
-      } catch {
-        // Still failing - try without any images
-        const noImages = sessions.map(t => ({ ...t, images: undefined }));
-        try {
-          localStorage.setItem(KEY_TRADE_JOURNAL, JSON.stringify(noImages));
-          console.log('Saved without images');
-          return true;
-        } catch {
-          console.error('Storage completely full');
-          return false;
-        }
-      }
+    if ((e as Error).name === 'QuotaExceededError' || (e as Error).message?.includes('quota')) {
+      throw new Error('Storage full. Your data is synced to cloud - clear local storage in browser settings to free space.');
     }
-    return false;
+    throw e;
   }
 }
 
