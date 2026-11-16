@@ -1045,7 +1045,7 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
                                 </select>
                                 <div className="flex gap-1">
                                   {TRADE_DIRECTIONS.map(d => (
-                                    <button key={d} onClick={() => setEditDirection(d)} className="font-orbitron"
+                                    <button type="button" key={d} onClick={() => setEditDirection(d)} className="font-orbitron"
                                       style={{
                                         padding: '8px 16px', fontSize: 10, borderRadius: 8, cursor: 'pointer',
                                         border: `1.5px solid ${editDirection === d ? (d === 'BUY' ? 'var(--ng-green)' : 'var(--ng-red)') : 'var(--ng-border)'}`,
@@ -1070,13 +1070,13 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
 
                               {/* Row 4: Rules + Quality */}
                               <div className="flex gap-2 mb-2 items-center">
-                                <button onClick={() => setEditRules(!editRules)} className="font-orbitron flex-1"
+                                <button type="button" onClick={() => setEditRules(!editRules)} className="font-orbitron flex-1"
                                   style={{ padding: '8px', fontSize: 10, border: `1.5px solid ${editRules ? 'var(--ng-green)' : 'var(--ng-red)'}`, color: editRules ? 'var(--ng-green)' : 'var(--ng-red)', background: editRules ? 'rgba(0,255,65,0.1)' : 'rgba(255,71,87,0.1)', borderRadius: 8, cursor: 'pointer' }}>
                                   {editRules ? '✓ RULES' : '✗ BROKE'}
                                 </button>
                                 <div className="flex gap-1 items-center flex-1 justify-center">
                                   {([1,2,3,4,5] as const).map(n => (
-                                    <button key={n} onClick={() => setEditQuality(n)} style={{ fontSize: 20, background: 'none', border: 'none', cursor: 'pointer', color: n <= editQuality ? '#FFD700' : 'var(--ng-dimmer)', padding: '2px' }}>★</button>
+                                    <button type="button" key={n} onClick={() => setEditQuality(n)} style={{ fontSize: 20, background: 'none', border: 'none', cursor: 'pointer', color: n <= editQuality ? '#FFD700' : 'var(--ng-dimmer)', padding: '2px' }}>★</button>
                                   ))}
                                 </div>
                               </div>
@@ -1084,7 +1084,7 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
                               {/* Row 5: Emotion */}
                               <div className="flex gap-1 mb-2 flex-wrap">
                                 {(['calm', 'confident', 'neutral', 'anxious', 'fearful'] as const).map(e => (
-                                  <button key={e} onClick={() => setEditEmotion(e)}
+                                  <button type="button" key={e} onClick={() => setEditEmotion(e)}
                                     style={{
                                       padding: '6px 10px', fontSize: 9, borderRadius: 6, cursor: 'pointer', textTransform: 'uppercase',
                                       border: `1px solid ${editEmotion === e ? 'var(--ng-cyan)' : 'var(--ng-border)'}`,
@@ -1103,7 +1103,7 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
                               <div className="mb-3">
                                 <div className="flex items-center gap-2 mb-2">
                                   <input ref={editFileInputRef} type="file" accept="image/*" multiple onChange={handleEditImageUpload} style={{ display: 'none' }} />
-                                  <button onClick={() => editFileInputRef.current?.click()} disabled={editUploading}
+                                  <button type="button" onClick={() => editFileInputRef.current?.click()} disabled={editUploading}
                                     style={{
                                       padding: '8px 16px', fontSize: 10, borderRadius: 8, cursor: 'pointer',
                                       border: '1px solid var(--ng-purple)', color: 'var(--ng-purple)',
@@ -1121,7 +1121,7 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
                                     {editImages.map((url, i) => (
                                       <div key={i} style={{ position: 'relative' }}>
                                         <img src={url} alt="" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, border: '2px solid var(--ng-border)' }} />
-                                        <button onClick={() => handleRemoveEditImage(url)}
+                                        <button type="button" onClick={() => handleRemoveEditImage(url)}
                                           style={{
                                             position: 'absolute', top: -6, right: -6, width: 18, height: 18,
                                             borderRadius: '50%', border: 'none', background: 'var(--ng-red)',
@@ -1136,8 +1136,8 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
 
                               {/* Actions */}
                               <div className="flex gap-2">
-                                <button onClick={saveEditTrade} className="btn-green-solid flex-1" style={{ padding: '12px', fontSize: 11 }}>SAVE CHANGES</button>
-                                <button onClick={cancelEditTrade} className="font-orbitron flex-1" style={{ padding: '12px', fontSize: 11, border: '1px solid var(--ng-border)', background: 'transparent', color: 'var(--ng-muted)', borderRadius: 8, cursor: 'pointer' }}>CANCEL</button>
+                                <button type="button" onClick={saveEditTrade} style={{ flex: 1, padding: '12px', fontSize: 11, background: 'var(--ng-green)', border: 'none', borderRadius: 8, color: '#000', fontWeight: 600, cursor: 'pointer' }}>SAVE CHANGES</button>
+                                <button type="button" onClick={cancelEditTrade} style={{ flex: 1, padding: '12px', fontSize: 11, border: '1px solid var(--ng-border)', background: 'transparent', color: 'var(--ng-muted)', borderRadius: 8, cursor: 'pointer' }}>CANCEL</button>
                               </div>
                             </div>
                           ) : (
