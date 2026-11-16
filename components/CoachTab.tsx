@@ -318,7 +318,6 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
 
   // Start editing a trade
   const startEditTrade = (trade: TradeSession) => {
-    console.log('[startEditTrade] Starting edit for trade:', trade.id);
     setEditingTradeId(trade.id);
     setEditPnl(trade.pnl?.toString() || '');
     setEditPair(trade.pair || 'XAUUSD');
@@ -331,19 +330,12 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
     setEditImages(trade.images || []);
     setEditTimeline(trade.timeline || 'INTRADAY');
     setEditDate(trade.date || '');
-    console.log('[startEditTrade] Edit state set, editingTradeId:', trade.id);
   };
 
   // Save edited trade
   const saveEditTrade = () => {
-    console.log('[SAVE] editingTradeId:', editingTradeId);
-    console.log('[SAVE] editNote:', editNote);
-    console.log('[SAVE] editPnl:', editPnl);
-    if (!editingTradeId) {
-      console.log('[SAVE] ABORTED - no editingTradeId');
-      return;
-    }
-    const updateData = {
+    if (!editingTradeId) return;
+    onUpdateTrade(editingTradeId, {
       date: editDate,
       pnl: editPnl ? parseFloat(editPnl) : undefined,
       pair: editPair,
@@ -355,11 +347,8 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
       note: editNote,
       images: editImages.length > 0 ? editImages : undefined,
       timeline: editTimeline,
-    };
-    console.log('[SAVE] Calling onUpdateTrade with:', updateData);
-    onUpdateTrade(editingTradeId, updateData);
+    });
     setEditingTradeId(null);
-    console.log('[SAVE] Complete');
   };
 
   // Cancel editing
@@ -1108,7 +1097,24 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
                               </div>
 
                               {/* Row 6: Notes */}
-                              <textarea className="ng-textarea mb-2" rows={2} style={{ width: '100%', resize: 'none', padding: '10px' }} placeholder="Trade notes..." value={editNote} onChange={e => { console.log('[editNote onChange]', e.target.value); setEditNote(e.target.value); }} maxLength={280} />
+                              <textarea
+                                className="ng-textarea mb-2"
+                                rows={2}
+                                style={{ width: '100%', resize: 'none', padding: '10px' }}
+                                placeholder="Trade notes..."
+                                value={editNote}
+                                onChange={e => setEditNote(e.target.value)}
+                                onPaste={e => {
+                                  e.preventDefault();
+                                  const paste = e.clipboardData.getData('text');
+                                  const target = e.target as HTMLTextAreaElement;
+                                  const start = target.selectionStart;
+                                  const end = target.selectionEnd;
+                                  const newValue = editNote.substring(0, start) + paste + editNote.substring(end);
+                                  setEditNote(newValue.substring(0, 280));
+                                }}
+                                maxLength={280}
+                              />
 
                               {/* Row 7: Images */}
                               <div className="mb-3">

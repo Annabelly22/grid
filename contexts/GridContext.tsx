@@ -451,15 +451,10 @@ export function GridProvider({ children }: { children: ReactNode }) {
   };
 
   const handleUpdateTrade = (id: string, data: Partial<Omit<TradeSession, 'id' | 'createdAt'>>) => {
-    console.log('[handleUpdateTrade] id:', id);
-    console.log('[handleUpdateTrade] data:', data);
-    console.log('[handleUpdateTrade] tradeJournal length:', tradeJournal.length);
     const updated = tradeJournal.map(t => t.id === id ? { ...t, ...data } : t);
-    console.log('[handleUpdateTrade] updated trade:', updated.find(t => t.id === id));
     saveTradeJournal(updated);
     setTradeJournal(updated);
     triggerSync();
-    console.log('[handleUpdateTrade] Complete');
   };
 
   const handleDeleteTradeSession = (id: string) => {
