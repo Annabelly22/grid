@@ -951,10 +951,9 @@ export default function MealPlanTab() {
             <div className="font-orbitron" style={{ fontSize: 9, color: 'var(--ng-cyan)', letterSpacing: '2px', marginBottom: 10 }}>
               📅 RECENT ENTRIES
             </div>
-            <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
               {Object.entries(mealLog)
                 .sort(([a], [b]) => b.localeCompare(a))
-                .slice(0, 10)
                 .map(([date, entry]) => {
                   // Get completed habits for this date
                   const dayHabitTimes = habitTimes[date] || {};

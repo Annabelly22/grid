@@ -188,10 +188,24 @@ export function GridProvider({ children }: { children: ReactNode }) {
     };
     loadTrades();
 
-    // 3. Hydrate from cloud in background — overrides local if cloud is newer
+    // 3. Hydrate from cloud in background — merge with local data
     cloudLoad(uid).then(async cloudData => {
       if (!cloudData) return; // first-time user or offline — local is source of truth
+
+      // Merge meal logs: keep all entries from both local and cloud
+      const localMealLog = Storage.getMealLog() || {};
+      const cloudMealLog = (cloudData.grid_meal_log || cloudData['grid_meal_log'] || {}) as Record<string, unknown>;
+      const mergedMealLog = { ...cloudMealLog, ...localMealLog }; // Local wins on conflict
+
+      // Merge meal checks similarly
+      const localMealChecks = Storage.getMealChecks() || {};
+      const cloudMealChecks = (cloudData.grid_meal_checks || cloudData['grid_meal_checks'] || {}) as Record<string, Record<string, boolean>>;
+      const mergedMealChecks = { ...cloudMealChecks, ...localMealChecks };
+
+      // Set cloud data first, then override with merged meals
       Storage.setAllData(cloudData);
+      Storage.setMealLog(mergedMealLog);
+      Storage.setMealChecks(mergedMealChecks);
       // Reload state from the freshly-restored localStorage
       const cp = loadProfile();
       const ch = loadHabits();
