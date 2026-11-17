@@ -332,6 +332,24 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
     setEditDate(trade.date || '');
   };
 
+  // Duplicate a trade entry
+  const duplicateTrade = (trade: TradeSession) => {
+    const today = new Date().toISOString().slice(0, 10);
+    onLogTrade({
+      date: today,
+      pnl: trade.pnl,
+      pair: trade.pair,
+      session: trade.session,
+      direction: trade.direction,
+      quality: trade.quality,
+      rulesFollowed: trade.rulesFollowed,
+      emotionalState: trade.emotionalState,
+      note: trade.note ? `[DUP] ${trade.note}` : '[DUP]',
+      images: trade.images || [],
+      timeline: trade.timeline,
+    });
+  };
+
   // Save edited trade
   const saveEditTrade = () => {
     if (!editingTradeId) return;
@@ -1204,6 +1222,7 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
                                   <span className="font-orbitron font-bold" style={{ fontSize: 16, color: (trade.pnl || 0) >= 0 ? 'var(--ng-green)' : 'var(--ng-red)' }}>
                                     {(trade.pnl || 0) >= 0 ? '+' : ''}{(trade.pnl || 0).toFixed(2)}
                                   </span>
+                                  <button onClick={() => duplicateTrade(trade)} style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid var(--ng-cyan)', borderRadius: 6, cursor: 'pointer', color: 'var(--ng-cyan)', fontSize: 10, padding: '4px 8px' }} title="Duplicate trade">⧉</button>
                                   <button onClick={() => startEditTrade(trade)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--ng-border)', borderRadius: 6, cursor: 'pointer', color: 'var(--ng-muted)', fontSize: 12, padding: '4px 8px' }}>✎</button>
                                 </div>
                               </div>
@@ -1733,6 +1752,15 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
                         )}
                         {setup.status === 'EXECUTED' && (
                           <button onClick={() => handleUpdateSetupStatus(setup.id, 'EXECUTED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,212,255,0.15)', border: '1px solid var(--ng-cyan)', color: 'var(--ng-cyan)', borderRadius: 4, cursor: 'pointer' }}>+ JOURNAL</button>
+                        )}
+                        {setup.status === 'MISSED' && (
+                          <>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'PENDING')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,212,255,0.15)', border: '1px solid var(--ng-cyan)', color: 'var(--ng-cyan)', borderRadius: 4, cursor: 'pointer' }}>↩ RECOVER</button>
+                            <button onClick={() => handleUpdateSetupStatus(setup.id, 'EXECUTED')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,255,65,0.15)', border: '1px solid var(--ng-green)', color: 'var(--ng-green)', borderRadius: 4, cursor: 'pointer' }}>+ JOURNAL</button>
+                          </>
+                        )}
+                        {setup.status === 'CANCELLED' && (
+                          <button onClick={() => handleUpdateSetupStatus(setup.id, 'PENDING')} style={{ padding: '4px 8px', fontSize: 8, background: 'rgba(0,212,255,0.15)', border: '1px solid var(--ng-cyan)', color: 'var(--ng-cyan)', borderRadius: 4, cursor: 'pointer' }}>↩ RECOVER</button>
                         )}
                         {(setup.status === 'EXECUTED' || setup.status === 'CANCELLED' || setup.status === 'MISSED') && (
                           <button onClick={() => handleDeleteSetup(setup.id)} style={{ padding: '4px 8px', fontSize: 8, background: 'transparent', border: '1px solid var(--ng-border)', color: 'var(--ng-muted)', borderRadius: 4, cursor: 'pointer' }}>🗑</button>
