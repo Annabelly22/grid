@@ -143,7 +143,7 @@ const MINDFUL_TIPS = [
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function MealPlanTab() {
-  const { syncNow } = useGridContext();
+  const { saveNow } = useGridContext();
   const [plan, setPlan] = useState<MealPlan>(DEFAULT_PLAN);
   const [selectedDay, setSelectedDay] = useState(0);
   const [editingMeal, setEditingMeal] = useState<{ day: number; type: typeof MEAL_TYPES[number]; idx: number } | null>(null);
@@ -226,15 +226,15 @@ export default function MealPlanTab() {
   const savePlan = useCallback((newPlan: MealPlan) => {
     setPlan(newPlan);
     Storage.setMealPlan?.(newPlan);
-    syncNow(); // Trigger cloud sync
-  }, [syncNow]);
+    saveNow(); // Trigger cloud sync
+  }, [saveNow]);
 
   // Save meal log
   const saveMealLog = useCallback((newLog: Record<string, MealLogEntry>) => {
     setMealLog(newLog);
     Storage.setMealLog?.(newLog);
-    syncNow(); // Trigger cloud sync
-  }, [syncNow]);
+    saveNow(); // Trigger cloud sync
+  }, [saveNow]);
 
   // Log today's meals from plan (only checked meals)
   const logTodayMeals = useCallback((isCheatDay: boolean = false, notes: string = '', checkedMeals?: Record<string, boolean>) => {
@@ -367,8 +367,8 @@ export default function MealPlanTab() {
     allChecks[today] = todayChecks;
     Storage.setMealChecks?.(allChecks);
     setMealChecks(todayChecks);
-    syncNow(); // Trigger cloud sync
-  }, [syncNow]);
+    saveNow(); // Trigger cloud sync
+  }, [saveNow]);
 
   // Start editing a log entry
   const startEditLog = (date: string) => {
