@@ -332,11 +332,10 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
     setEditDate(trade.date || '');
   };
 
-  // Duplicate a trade entry
+  // Duplicate a trade entry (keeps same date as original)
   const duplicateTrade = (trade: TradeSession) => {
-    const today = new Date().toISOString().slice(0, 10);
     onLogTrade({
-      date: today,
+      date: trade.date, // Keep original date so it shows next to the original
       pnl: trade.pnl,
       pair: trade.pair,
       session: trade.session,
@@ -345,7 +344,7 @@ export default function CoachTab({ profile, habits, onFocusMinutes, tradeJournal
       rulesFollowed: trade.rulesFollowed,
       emotionalState: trade.emotionalState,
       note: trade.note ? `[DUP] ${trade.note}` : '[DUP]',
-      images: trade.images || [],
+      images: [], // Don't copy images to save storage
       timeline: trade.timeline,
     });
   };
