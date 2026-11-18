@@ -4,6 +4,7 @@ import { getHomeTimezone, setHomeTimezone, getSupportedTimezones, getNowTimePart
 import { UserProfile, Habit, Achievement, Mission, getLevel, CATEGORY_COLORS, CATEGORY_ICONS } from '../lib/gameStore';
 import { requestNotificationPermission, getNotificationStatus, scheduleGridNotifications } from '../lib/notifications';
 import { Storage } from '../lib/storage';
+import { useGridContext } from '../contexts/GridContext';
 
 const DIFFICULTY_CONFIG = {
   EASY:    { color: 'var(--ng-green)',  bg: 'rgba(0,255,65,0.08)'   },
@@ -189,6 +190,7 @@ interface Props {
 }
 
 export default function ProfileTab({ profile, habits, achievements, missions, theme, onUpdateCodename, onToggleTheme, onResetData, onCompleteMission }: Props) {
+  const { saveNow } = useGridContext();
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(profile.codename);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -208,6 +210,8 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
   const [startDate, setStartDate] = useState<string | null>(null);
   const [startWeight, setStartWeight] = useState<number | null>(null);
   const [pendingActivityLevel, setPendingActivityLevel] = useState<typeof bodyStats.activityLevel | null>(null);
+  const [pendingWeight, setPendingWeight] = useState<string>('');
+  const [weightSaved, setWeightSaved] = useState(false);
 
   // Memoize mission progress calculations to avoid recalculating on every render
   const missionProgressMap = useMemo(() => {
@@ -223,6 +227,7 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
     const saved = Storage.getBodyStats?.();
     if (saved) {
       setBodyStats(prev => ({ ...prev, ...saved }));
+      setPendingWeight(String(saved.weight || 192));
     }
     // Load journey start data
     try {
@@ -236,10 +241,21 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
     } catch {}
   }, []);
 
-  // Save body stats
+  // Save body stats with cloud sync
   const saveBodyStats = (newStats: typeof bodyStats) => {
     setBodyStats(newStats);
     Storage.setBodyStats?.(newStats);
+    saveNow(); // Sync to cloud immediately
+  };
+
+  // Save weight with visual confirmation
+  const saveWeight = () => {
+    const weight = parseInt(pendingWeight) || 0;
+    if (weight > 0) {
+      saveBodyStats({ ...bodyStats, weight });
+      setWeightSaved(true);
+      setTimeout(() => setWeightSaved(false), 2000);
+    }
   };
 
   // Start/restart weight journey
@@ -752,15 +768,32 @@ export default function ProfileTab({ profile, habits, achievements, missions, th
                   </button>
                 ) : (
                   <>
-                    <div style={{ flex: 1, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div style={{ flex: 1, display: 'flex', gap: 6, alignItems: 'center' }}>
                       <input
                         type="number"
-                        value={bodyStats.weight}
-                        onChange={(e) => saveBodyStats({ ...bodyStats, weight: parseInt(e.target.value) || 0 })}
+                        value={pendingWeight}
+                        onChange={(e) => setPendingWeight(e.target.value)}
                         className="ng-input"
-                        style={{ width: 80, fontSize: 12, padding: '8px 10px', textAlign: 'center' }}
+                        style={{ width: 70, fontSize: 12, padding: '8px 10px', textAlign: 'center' }}
                       />
-                      <span className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>lbs current</span>
+                      <span className="font-mono" style={{ fontSize: 9, color: 'var(--ng-muted)' }}>lbs</span>
+                      <button
+                        onClick={saveWeight}
+                        className="font-mono"
+                        style={{
+                          padding: '6px 10px',
+                          fontSize: 9,
+                          background: weightSaved ? 'var(--ng-green)' : (pendingWeight !== String(bodyStats.weight) ? 'var(--ng-cyan)' : 'transparent'),
+                          color: weightSaved ? '#000' : (pendingWeight !== String(bodyStats.weight) ? '#000' : 'var(--ng-muted)'),
+                          border: `1px solid ${weightSaved ? 'var(--ng-green)' : (pendingWeight !== String(bodyStats.weight) ? 'var(--ng-cyan)' : 'var(--ng-border)')}`,
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        {weightSaved ? '✓ SAVED' : 'SAVE'}
+                      </button>
                     </div>
                     <button
                       onClick={startJourney}
