@@ -267,6 +267,7 @@ export const Storage = {
       'grid_trade_journal', 'grid_alphawill_chat', 'grid_focus_log', 'grid_daily_priorities',
       'grid_fast_history', 'grid_sleep_log', 'grid_habit_times', 'grid_energy_log',
       'grid_workout_week', 'grid_meal_plan', 'grid_fasting_hours', 'grid_meal_checks', 'grid_meal_log', 'grid_body_stats',
+      'grid_weight_journey', 'grid_weekly_plan',
     ];
     for (const key of staticKeys) {
       const raw = localStorage.getItem(key);
