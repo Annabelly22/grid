@@ -210,10 +210,22 @@ export function GridProvider({ children }: { children: ReactNode }) {
       const cloudMealChecks = (cloudData.grid_meal_checks || cloudData['grid_meal_checks'] || {}) as Record<string, Record<string, boolean>>;
       const mergedMealChecks = { ...cloudMealChecks, ...localMealChecks };
 
-      // Set cloud data first, then override with merged meals
+      // Preserve local body stats (weight, goal) — local always wins to prevent stale cloud data
+      const localBodyStats = Storage.getBodyStats();
+      const localWeightJourney = (() => {
+        try {
+          const raw = localStorage.getItem('grid_weight_journey');
+          return raw ? JSON.parse(raw) : null;
+        } catch { return null; }
+      })();
+
+      // Set cloud data first, then override with local data that should be preserved
       Storage.setAllData(cloudData);
       Storage.setMealLog(mergedMealLog);
       Storage.setMealChecks(mergedMealChecks);
+      // Restore local body stats and weight journey to prevent stale cloud data from overwriting
+      if (localBodyStats) Storage.setBodyStats(localBodyStats);
+      if (localWeightJourney) localStorage.setItem('grid_weight_journey', JSON.stringify(localWeightJourney));
       // Reload state from the freshly-restored localStorage
       const cp = loadProfile();
       const ch = loadHabits();
