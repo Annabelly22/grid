@@ -130,6 +130,8 @@ export function GridProvider({ children }: { children: ReactNode }) {
       const uid = Storage.getUserId();
       if (!uid) return;
       setIsSyncing(true);
+      // Ensure timestamp is current before sync
+      Storage.touchLastModified();
       // Merge localStorage data with IndexedDB trades
       const payload = {
         ...Storage.getAllData(),
@@ -148,6 +150,8 @@ export function GridProvider({ children }: { children: ReactNode }) {
     console.log('[GRID SYNC] saveNow uid:', uid);
     if (!uid) return;
     setIsSyncing(true);
+    // Ensure timestamp is current before sync
+    Storage.touchLastModified();
     // Merge localStorage data with IndexedDB trades
     const payload = {
       ...Storage.getAllData(),
@@ -162,6 +166,12 @@ export function GridProvider({ children }: { children: ReactNode }) {
     setMounted(true);
 
     const uid = Storage.getUserId();
+
+    // Initialize last modified timestamp if not set (first run after update)
+    if (Storage.getLastModified() === 0) {
+      Storage.touchLastModified();
+      console.log('[GRID SYNC] Initialized lastModified timestamp for existing user');
+    }
 
     // 1. Load from localStorage immediately (fast, offline-safe)
     const p = loadProfile();
@@ -196,37 +206,151 @@ export function GridProvider({ children }: { children: ReactNode }) {
     };
     loadTrades();
 
-    // 3. Hydrate from cloud in background — merge with local data
+    // 3. Hydrate from cloud in background — with COMPREHENSIVE merge logic
+    // CRITICAL: Local data ALWAYS wins to prevent stale cloud data from overwriting recent changes
     cloudLoad(uid).then(async cloudData => {
       if (!cloudData) return; // first-time user or offline — local is source of truth
 
-      // Merge meal logs: keep all entries from both local and cloud
-      const localMealLog = Storage.getMealLog() || {};
-      const cloudMealLog = (cloudData.grid_meal_log || cloudData['grid_meal_log'] || {}) as Record<string, unknown>;
-      const mergedMealLog = { ...cloudMealLog, ...localMealLog }; // Local wins on conflict
+      // ─── STEP 1: Capture ALL local data before any cloud processing ───
+      const localSnapshot = Storage.captureLocalSnapshot();
+      const localLastModified = Storage.getLastModified();
+      const cloudLastModified = typeof cloudData.grid_last_modified === 'number'
+        ? cloudData.grid_last_modified
+        : (typeof cloudData.grid_last_modified === 'string' ? parseInt(cloudData.grid_last_modified, 10) : 0);
 
-      // Merge meal checks similarly
-      const localMealChecks = Storage.getMealChecks() || {};
-      const cloudMealChecks = (cloudData.grid_meal_checks || cloudData['grid_meal_checks'] || {}) as Record<string, Record<string, boolean>>;
-      const mergedMealChecks = { ...cloudMealChecks, ...localMealChecks };
+      console.log('[GRID SYNC] Local lastModified:', localLastModified, 'Cloud lastModified:', cloudLastModified);
 
-      // Preserve local body stats (weight, goal) — local always wins to prevent stale cloud data
-      const localBodyStats = Storage.getBodyStats();
-      const localWeightJourney = (() => {
-        try {
-          const raw = localStorage.getItem('grid_weight_journey');
-          return raw ? JSON.parse(raw) : null;
-        } catch { return null; }
-      })();
+      // ─── STEP 2: If local is newer, skip cloud hydration entirely ───
+      if (localLastModified > 0 && localLastModified >= cloudLastModified) {
+        console.log('[GRID SYNC] Local data is newer or same age — skipping cloud hydration');
+        return;
+      }
 
-      // Set cloud data first, then override with local data that should be preserved
+      console.log('[GRID SYNC] Cloud data is newer — merging with local preservation');
+
+      // ─── STEP 3: Apply cloud data as base ───
       Storage.setAllData(cloudData);
-      Storage.setMealLog(mergedMealLog);
-      Storage.setMealChecks(mergedMealChecks);
-      // Restore local body stats and weight journey to prevent stale cloud data from overwriting
-      if (localBodyStats) Storage.setBodyStats(localBodyStats);
-      if (localWeightJourney) localStorage.setItem('grid_weight_journey', JSON.stringify(localWeightJourney));
-      // Reload state from the freshly-restored localStorage
+
+      // ─── STEP 4: Restore ALL local data that should never be overwritten ───
+      // These are values where local state is ALWAYS correct (user just changed it)
+
+      // 4a. Body stats & weight journey — ALWAYS preserve local
+      const localBodyStats = localSnapshot['grid_body_stats'];
+      const localWeightJourney = localSnapshot['grid_weight_journey'];
+      if (localBodyStats) {
+        localStorage.setItem('grid_body_stats', typeof localBodyStats === 'string' ? localBodyStats : JSON.stringify(localBodyStats));
+      }
+      if (localWeightJourney) {
+        localStorage.setItem('grid_weight_journey', typeof localWeightJourney === 'string' ? localWeightJourney : JSON.stringify(localWeightJourney));
+      }
+
+      // 4b. Daily priorities — ALWAYS preserve local (user just set them today)
+      const localPriorities = localSnapshot['grid_daily_priorities'];
+      if (localPriorities) {
+        localStorage.setItem('grid_daily_priorities', typeof localPriorities === 'string' ? localPriorities : JSON.stringify(localPriorities));
+      }
+
+      // 4c. Weekly plan — ALWAYS preserve local (trading setups are critical)
+      const localWeeklyPlan = localSnapshot['grid_weekly_plan'];
+      if (localWeeklyPlan) {
+        localStorage.setItem('grid_weekly_plan', typeof localWeeklyPlan === 'string' ? localWeeklyPlan : JSON.stringify(localWeeklyPlan));
+      }
+
+      // 4d. Godwill chat — ALWAYS preserve local (don't lose conversation)
+      const localChat = localSnapshot['grid_alphawill_chat'];
+      if (localChat) {
+        localStorage.setItem('grid_alphawill_chat', typeof localChat === 'string' ? localChat : JSON.stringify(localChat));
+      }
+
+      // 4e. Fast start (active fasting session) — ALWAYS preserve local
+      const localFastStart = localSnapshot['grid_fast_start'];
+      if (localFastStart) {
+        localStorage.setItem('grid_fast_start', typeof localFastStart === 'string' ? localFastStart : JSON.stringify(localFastStart));
+      }
+
+      // ─── STEP 5: Merge date-keyed data (local wins on date conflicts) ───
+      const mergeDateKeyed = (localKey: string, cloudKey: string) => {
+        const local = (localSnapshot[localKey] || {}) as Record<string, unknown>;
+        const cloud = (cloudData[cloudKey] || cloudData[localKey] || {}) as Record<string, unknown>;
+        const merged = { ...cloud, ...local }; // Local wins on same-date conflicts
+        localStorage.setItem(localKey, JSON.stringify(merged));
+      };
+
+      mergeDateKeyed('grid_meal_log', 'grid_meal_log');
+      mergeDateKeyed('grid_meal_checks', 'grid_meal_checks');
+      mergeDateKeyed('grid_habit_times', 'grid_habit_times');
+      mergeDateKeyed('grid_energy_log', 'grid_energy_log');
+      mergeDateKeyed('grid_focus_log', 'grid_focus_log');
+      mergeDateKeyed('grid_steps', 'grid_steps');
+      mergeDateKeyed('grid_habit_log', 'grid_habit_log');
+
+      // ─── STEP 6: Merge array data with IDs (deduplicate, local wins) ───
+      const mergeArrayById = <T extends { id: string }>(localKey: string, cloudKey: string): T[] => {
+        const local = (localSnapshot[localKey] || []) as T[];
+        const cloud = (cloudData[cloudKey] || cloudData[localKey] || []) as T[];
+        const idMap = new Map<string, T>();
+        // Add cloud items first
+        for (const item of cloud) {
+          if (item.id) idMap.set(item.id, item);
+        }
+        // Local items overwrite cloud items with same ID
+        for (const item of local) {
+          if (item.id) idMap.set(item.id, item);
+        }
+        return Array.from(idMap.values());
+      };
+
+      // Merge habits (preserve local streaks, completedToday, etc.)
+      const mergedHabits = mergeArrayById<Habit>('grid_habits', 'grid_habits');
+      localStorage.setItem('grid_habits', JSON.stringify(mergedHabits));
+
+      // Merge missions (preserve local completion state)
+      const mergedMissions = mergeArrayById<Mission>('grid_missions', 'grid_missions');
+      localStorage.setItem('grid_missions', JSON.stringify(mergedMissions));
+
+      // Merge achievements (preserve local unlock state)
+      const mergedAchievements = mergeArrayById<Achievement>('grid_achievements', 'grid_achievements');
+      localStorage.setItem('grid_achievements', JSON.stringify(mergedAchievements));
+
+      // Merge fast history
+      const mergedFastHistory = mergeArrayById<{ id: string }>('grid_fast_history', 'grid_fast_history');
+      localStorage.setItem('grid_fast_history', JSON.stringify(mergedFastHistory));
+
+      // Merge sleep log (by date as ID proxy)
+      const localSleep = (localSnapshot['grid_sleep_log'] || []) as Array<{ date: string }>;
+      const cloudSleep = (cloudData['grid_sleep_log'] || []) as Array<{ date: string }>;
+      const sleepMap = new Map<string, { date: string }>();
+      for (const entry of cloudSleep) sleepMap.set(entry.date, entry);
+      for (const entry of localSleep) sleepMap.set(entry.date, entry); // Local wins
+      localStorage.setItem('grid_sleep_log', JSON.stringify(Array.from(sleepMap.values())));
+
+      // ─── STEP 7: Profile — merge XP (take higher), preserve local streaks ───
+      const localProfile = localSnapshot['grid_profile'] as UserProfile | undefined;
+      const cloudProfile = cloudData['grid_profile'] as UserProfile | undefined;
+      if (localProfile && cloudProfile) {
+        const mergedProfile: UserProfile = {
+          ...cloudProfile,
+          ...localProfile,
+          // Take the HIGHER XP (never lose progress)
+          xp: Math.max(localProfile.xp || 0, cloudProfile.xp || 0),
+          // Keep local codename if set
+          codename: localProfile.codename || cloudProfile.codename,
+          // Keep local onboarded state
+          onboarded: localProfile.onboarded,
+        };
+        localStorage.setItem('grid_profile', JSON.stringify(mergedProfile));
+      } else if (localProfile) {
+        localStorage.setItem('grid_profile', JSON.stringify(localProfile));
+      }
+
+      // ─── STEP 8: Restore dynamic keys (gym checks, gym perf, notifs) ───
+      for (const [key, value] of Object.entries(localSnapshot)) {
+        if (key.startsWith('grid_gym_checks_') || key.startsWith('grid_gym_perf_') || key.startsWith('grid_notif_')) {
+          localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+        }
+      }
+
+      // ─── STEP 9: Reload React state from merged localStorage ───
       const cp = loadProfile();
       const ch = loadHabits();
       const cm = loadMissions();
@@ -237,12 +361,31 @@ export function GridProvider({ children }: { children: ReactNode }) {
       setDailyPriorities(cdp.date === getTodayStr() ? cdp.items : []);
       const ct = Storage.getTheme();
       setTheme(ct);
-      // Reload trades from cloud data if present
+
+      // ─── STEP 10: Merge trades from IndexedDB + cloud (by ID, local wins) ───
       if (cloudData.tradeJournal && Array.isArray(cloudData.tradeJournal)) {
         const cloudTrades = cloudData.tradeJournal as TradeSession[];
-        setTradeJournal(cloudTrades);
-        await saveTradesToIDB(cloudTrades);
+        const localTrades = tradesRef.current; // Current local trades from IndexedDB
+
+        // Merge by ID — local always wins
+        const tradeMap = new Map<string, TradeSession>();
+        for (const trade of cloudTrades) {
+          if (trade.id) tradeMap.set(trade.id, trade);
+        }
+        for (const trade of localTrades) {
+          if (trade.id) tradeMap.set(trade.id, trade); // Local overwrites cloud
+        }
+        const mergedTrades = Array.from(tradeMap.values());
+
+        // Sort by createdAt descending (newest first)
+        mergedTrades.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        setTradeJournal(mergedTrades);
+        await saveTradesToIDB(mergedTrades);
+        console.log('[GRID SYNC] Merged trades:', localTrades.length, 'local +', cloudTrades.length, 'cloud =', mergedTrades.length, 'merged');
       }
+
+      console.log('[GRID SYNC] Cloud hydration complete with local preservation');
     });
 
     // Phase change detection
@@ -302,6 +445,8 @@ export function GridProvider({ children }: { children: ReactNode }) {
         // Flush any pending sync immediately when app is closed or backgrounded
         const uid = Storage.getUserId();
         if (uid) {
+          // Ensure timestamp is current before sync
+          Storage.touchLastModified();
           // Include trades from IndexedDB in the sync payload
           const payload = {
             ...Storage.getAllData(),

@@ -46,6 +46,7 @@ const K = {
   habitTimes:      'grid_habit_times',
   energyLog:       'grid_energy_log',
   mealChecks:      'grid_meal_checks',
+  lastModified:    'grid_last_modified', // Timestamp for sync conflict resolution
 } as const;
 
 function get<T>(key: string, fallback: T): T {
@@ -76,26 +77,56 @@ function setRaw(key: string, value: string): void {
   try { localStorage.setItem(key, value); } catch {}
 }
 
+// Update last modified timestamp (called on every data change)
+function touchLastModified(): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(K.lastModified, Date.now().toString()); } catch {}
+}
+
+// Wrapper that updates timestamp on every set
+function setWithTimestamp(key: string, value: unknown): void {
+  set(key, value);
+  touchLastModified();
+}
+
+function setRawWithTimestamp(key: string, value: string): void {
+  setRaw(key, value);
+  touchLastModified();
+}
+
 export const Storage = {
+  // ── Last Modified Timestamp ─────────────────────────────────────
+  // Used to determine if local data is newer than cloud data
+  getLastModified: (): number => {
+    if (typeof window === 'undefined') return 0;
+    const raw = localStorage.getItem(K.lastModified);
+    return raw ? parseInt(raw, 10) : 0;
+  },
+  setLastModified: (ts: number) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(K.lastModified, ts.toString());
+  },
+  touchLastModified: () => touchLastModified(),
+
   // Profile
   getProfile: (fallback: UserProfile) => get<UserProfile>(K.profile, fallback),
-  setProfile: (p: UserProfile) => set(K.profile, p),
+  setProfile: (p: UserProfile) => setWithTimestamp(K.profile, p),
 
   // Habits
   getHabits: (fallback: Habit[]) => get<Habit[]>(K.habits, fallback),
-  setHabits: (h: Habit[]) => set(K.habits, h),
+  setHabits: (h: Habit[]) => setWithTimestamp(K.habits, h),
 
   // Missions
   getMissions: (fallback: Mission[]) => get<Mission[]>(K.missions, fallback),
-  setMissions: (m: Mission[]) => set(K.missions, m),
+  setMissions: (m: Mission[]) => setWithTimestamp(K.missions, m),
 
   // Achievements
   getAchievements: (fallback: Achievement[]) => get<Achievement[]>(K.achievements, fallback),
-  setAchievements: (a: Achievement[]) => set(K.achievements, a),
+  setAchievements: (a: Achievement[]) => setWithTimestamp(K.achievements, a),
 
   // Habit log
   getHabitLog: () => get<Record<string, { completed: number; total: number }>>(K.habitLog, {}),
-  setHabitLog: (log: Record<string, { completed: number; total: number }>) => set(K.habitLog, log),
+  setHabitLog: (log: Record<string, { completed: number; total: number }>) => setWithTimestamp(K.habitLog, log),
 
   // Cycle
   getCycleStart: (): string | null => getRaw(K.cycleStart),
@@ -115,15 +146,15 @@ export const Storage = {
 
   // Owned supplements
   getOwnedSupps: (): Set<string> => new Set(get<string[]>(K.ownedSupps, [])),
-  setOwnedSupps: (s: Set<string>) => set(K.ownedSupps, [...s]),
+  setOwnedSupps: (s: Set<string>) => setWithTimestamp(K.ownedSupps, [...s]),
 
   // Pending/cart supplements
   getPendingSupps: (): Set<string> => new Set(get<string[]>(K.pendingSupps, [])),
-  setPendingSupps: (s: Set<string>) => set(K.pendingSupps, [...s]),
+  setPendingSupps: (s: Set<string>) => setWithTimestamp(K.pendingSupps, [...s]),
 
   // Steps (daily)
   getSteps: (): Record<string, number> => get<Record<string, number>>('grid_steps', {}),
-  setSteps: (s: Record<string, number>) => set('grid_steps', s),
+  setSteps: (s: Record<string, number>) => setWithTimestamp('grid_steps', s),
 
   // Fasting
   getFastStart: (): number | null => {
@@ -135,29 +166,29 @@ export const Storage = {
 
   // Fast history
   getFastHistory: () => get<FastRecord[]>(K.fastHistory, []),
-  setFastHistory: (h: FastRecord[]) => set(K.fastHistory, h),
+  setFastHistory: (h: FastRecord[]) => setWithTimestamp(K.fastHistory, h),
 
   // Sleep log
   getSleepLog: () => get<SleepEntry[]>(K.sleepLog, []),
-  setSleepLog: (log: SleepEntry[]) => set(K.sleepLog, log),
+  setSleepLog: (log: SleepEntry[]) => setWithTimestamp(K.sleepLog, log),
 
   // Habit completion times (date → habitId → 'HH:MM')
   getHabitTimes: () => get<Record<string, Record<string, string>>>(K.habitTimes, {}),
-  setHabitTimes: (t: Record<string, Record<string, string>>) => set(K.habitTimes, t),
+  setHabitTimes: (t: Record<string, Record<string, string>>) => setWithTimestamp(K.habitTimes, t),
 
   // Energy log (date → EnergyLevel string)
   getEnergyLog: () => get<Record<string, string>>(K.energyLog, {}),
-  setEnergyLog: (log: Record<string, string>) => set(K.energyLog, log),
+  setEnergyLog: (log: Record<string, string>) => setWithTimestamp(K.energyLog, log),
 
   // Meal checks (date → { breakfast: boolean, lunch: boolean, dinner: boolean, snack: boolean })
   getMealChecks: () => get<Record<string, Record<string, boolean>>>(K.mealChecks, {}),
-  setMealChecks: (checks: Record<string, Record<string, boolean>>) => set(K.mealChecks, checks),
+  setMealChecks: (checks: Record<string, Record<string, boolean>>) => setWithTimestamp(K.mealChecks, checks),
 
   // Gym performance (per exercise per day per date)
   getGymPerf: (dayId: string, exId: string, date: string): { w: string; reps: number; rpe: number }[] =>
     get<{ w: string; reps: number; rpe: number }[]>(`grid_gym_perf_${dayId}_${exId}_${date}`, []),
   setGymPerf: (dayId: string, exId: string, date: string, sets: { w: string; reps: number; rpe: number }[]) =>
-    set(`grid_gym_perf_${dayId}_${exId}_${date}`, sets),
+    setWithTimestamp(`grid_gym_perf_${dayId}_${exId}_${date}`, sets),
 
   // Theme
   getTheme: (): 'dark' | 'light' => (getRaw(K.theme) as 'dark' | 'light') || 'dark',
@@ -171,7 +202,7 @@ export const Storage = {
   getGymChecks: (dayId: string, suffix: string, date: string): Record<string, boolean> =>
     get<Record<string, boolean>>(`grid_gym_checks_${dayId}${suffix}_${date}`, {}),
   setGymChecks: (dayId: string, suffix: string, date: string, data: Record<string, boolean>) =>
-    set(`grid_gym_checks_${dayId}${suffix}_${date}`, data),
+    setWithTimestamp(`grid_gym_checks_${dayId}${suffix}_${date}`, data),
 
   // Notification deduplication
   getNotifDate: (key: string): string | null => getRaw(`grid_notif_${key}`),
@@ -187,31 +218,31 @@ export const Storage = {
 
   // Trade journal
   getTradeJournal: () => get<import('./gameStore').TradeSession[]>(K.tradeJournal, []),
-  setTradeJournal: (s: import('./gameStore').TradeSession[]) => set(K.tradeJournal, s),
+  setTradeJournal: (s: import('./gameStore').TradeSession[]) => setWithTimestamp(K.tradeJournal, s),
 
   // Weekly trading plan
   getWeeklyPlan: () => get<import('./gameStore').WeeklyPlan | null>(K.weeklyPlan, null),
-  setWeeklyPlan: (p: import('./gameStore').WeeklyPlan) => set(K.weeklyPlan, p),
+  setWeeklyPlan: (p: import('./gameStore').WeeklyPlan) => setWithTimestamp(K.weeklyPlan, p),
 
   // Godwill chat history
   getGodwillChat: () => get<{ role: 'user' | 'assistant'; content: string }[]>(K.alphawillChat, []),
-  setGodwillChat: (msgs: { role: 'user' | 'assistant'; content: string }[]) => set(K.alphawillChat, msgs),
+  setGodwillChat: (msgs: { role: 'user' | 'assistant'; content: string }[]) => setWithTimestamp(K.alphawillChat, msgs),
 
   // Focus log (date → minutes)
   getFocusLog: () => get<Record<string, number>>(K.focusLog, {}),
-  setFocusLog: (log: Record<string, number>) => set(K.focusLog, log),
+  setFocusLog: (log: Record<string, number>) => setWithTimestamp(K.focusLog, log),
 
   // Daily priorities
   getDailyPriorities: () => get<{ date: string; items: string[] }>(K.dailyPriorities, { date: '', items: [] }),
-  setDailyPriorities: (v: { date: string; items: string[] }) => set(K.dailyPriorities, v),
+  setDailyPriorities: (v: { date: string; items: string[] }) => setWithTimestamp(K.dailyPriorities, v),
 
   // Meal plan
   getMealPlan: () => get<unknown>('grid_meal_plan', null),
-  setMealPlan: (plan: unknown) => set('grid_meal_plan', plan),
+  setMealPlan: (plan: unknown) => setWithTimestamp('grid_meal_plan', plan),
 
   // Meal log (daily tracking)
   getMealLog: () => get<Record<string, unknown>>('grid_meal_log', {}),
-  setMealLog: (log: Record<string, unknown>) => set('grid_meal_log', log),
+  setMealLog: (log: Record<string, unknown>) => setWithTimestamp('grid_meal_log', log),
 
   // Body stats for calorie calculations
   getBodyStats: () => get<{
@@ -232,7 +263,7 @@ export const Storage = {
     sex: 'female',
     activityLevel: 'active',
   }),
-  setBodyStats: (stats: unknown) => set('grid_body_stats', stats),
+  setBodyStats: (stats: unknown) => setWithTimestamp('grid_body_stats', stats),
 
   // Fasting hours target
   getFastingHours: () => { const v = getRaw('grid_fasting_hours'); return v ? parseInt(v, 10) : 16; },
@@ -267,7 +298,7 @@ export const Storage = {
       'grid_trade_journal', 'grid_alphawill_chat', 'grid_focus_log', 'grid_daily_priorities',
       'grid_fast_history', 'grid_sleep_log', 'grid_habit_times', 'grid_energy_log',
       'grid_workout_week', 'grid_meal_plan', 'grid_fasting_hours', 'grid_meal_checks', 'grid_meal_log', 'grid_body_stats',
-      'grid_weight_journey', 'grid_weekly_plan',
+      'grid_weight_journey', 'grid_weekly_plan', 'grid_last_modified',
     ];
     for (const key of staticKeys) {
       const raw = localStorage.getItem(key);
@@ -288,11 +319,32 @@ export const Storage = {
     return snapshot;
   },
 
+  // Capture ALL local data before cloud hydration (for selective restoration)
+  captureLocalSnapshot: (): Record<string, unknown> => {
+    if (typeof window === 'undefined') return {};
+    const snapshot: Record<string, unknown> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('grid_')) {
+        const raw = localStorage.getItem(key);
+        if (raw !== null) {
+          try { snapshot[key] = JSON.parse(raw); } catch { snapshot[key] = raw; }
+        }
+      }
+    }
+    return snapshot;
+  },
+
   // Restore a cloud snapshot back into localStorage
+  // IMPORTANT: This is a LOW-LEVEL function that should only be used by the merge logic
   setAllData: (data: Record<string, unknown>): void => {
     if (typeof window === 'undefined') return;
     for (const [key, value] of Object.entries(data)) {
       if (!key.startsWith('grid_')) continue;
+      // Never overwrite the last_modified timestamp from cloud - it's local-only
+      if (key === 'grid_last_modified') continue;
+      // Never overwrite user_id - it's device-specific
+      if (key === 'grid_user_id') continue;
       try {
         localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
       } catch {}
