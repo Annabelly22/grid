@@ -86,12 +86,17 @@ async function cloudLoad(uid: string): Promise<Record<string, unknown> | null> {
 
 async function cloudSave(uid: string, payload: Record<string, unknown>): Promise<void> {
   try {
-    await fetch('/api/sync', {
+    console.log('[GRID SYNC] Starting cloud save for uid:', uid);
+    const res = await fetch('/api/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid, payload }),
     });
-  } catch {}
+    const data = await res.json().catch(() => ({}));
+    console.log('[GRID SYNC] Cloud save response:', res.status, data);
+  } catch (err) {
+    console.error('[GRID SYNC] Cloud save error:', err);
+  }
 }
 
 export function GridProvider({ children }: { children: ReactNode }) {
@@ -137,8 +142,10 @@ export function GridProvider({ children }: { children: ReactNode }) {
 
   // Immediate cloud sync — cancels any pending debounce and saves right now
   const saveNow = useCallback(async () => {
+    console.log('[GRID SYNC] saveNow called');
     if (syncTimer.current) clearTimeout(syncTimer.current);
     const uid = Storage.getUserId();
+    console.log('[GRID SYNC] saveNow uid:', uid);
     if (!uid) return;
     setIsSyncing(true);
     // Merge localStorage data with IndexedDB trades
@@ -146,6 +153,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
       ...Storage.getAllData(),
       tradeJournal: tradesRef.current,
     };
+    console.log('[GRID SYNC] saveNow payload keys:', Object.keys(payload));
     await cloudSave(uid, payload);
     setIsSyncing(false);
   }, []);
