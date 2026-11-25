@@ -47,6 +47,11 @@ const K = {
   energyLog:       'grid_energy_log',
   mealChecks:      'grid_meal_checks',
   lastModified:    'grid_last_modified', // Timestamp for sync conflict resolution
+  // Storm Mode
+  stormActive:     'grid_storm_active',
+  stormSession:    'grid_storm_session',
+  stormMoodLog:    'grid_storm_mood_log',
+  stormConfig:     'grid_storm_config',
 } as const;
 
 function get<T>(key: string, fallback: T): T {
@@ -269,6 +274,25 @@ export const Storage = {
   getFastingHours: () => { const v = getRaw('grid_fasting_hours'); return v ? parseInt(v, 10) : 16; },
   setFastingHours: (h: number) => setRaw('grid_fasting_hours', String(h)),
 
+  // ── Storm Mode ─────────────────────────────────────────────
+  getStormActive: (): boolean => getRaw(K.stormActive) === 'true',
+  setStormActive: (active: boolean) => setRawWithTimestamp(K.stormActive, active ? 'true' : 'false'),
+
+  getStormSession: (): import('./gameStore').StormSession | null =>
+    get<import('./gameStore').StormSession | null>(K.stormSession, null),
+  setStormSession: (session: import('./gameStore').StormSession | null) =>
+    setWithTimestamp(K.stormSession, session),
+
+  getStormMoodLog: (): import('./gameStore').StormMoodEntry[] =>
+    get<import('./gameStore').StormMoodEntry[]>(K.stormMoodLog, []),
+  setStormMoodLog: (log: import('./gameStore').StormMoodEntry[]) =>
+    setWithTimestamp(K.stormMoodLog, log),
+
+  getStormConfig: (): import('./gameStore').StormConfig =>
+    get<import('./gameStore').StormConfig>(K.stormConfig, { defaultMeals: [] }),
+  setStormConfig: (config: import('./gameStore').StormConfig) =>
+    setWithTimestamp(K.stormConfig, config),
+
   // Clear all data
   clearAll: () => {
     if (typeof window !== 'undefined') localStorage.clear();
@@ -299,6 +323,8 @@ export const Storage = {
       'grid_fast_history', 'grid_sleep_log', 'grid_habit_times', 'grid_energy_log',
       'grid_workout_week', 'grid_meal_plan', 'grid_fasting_hours', 'grid_meal_checks', 'grid_meal_log', 'grid_body_stats',
       'grid_weight_journey', 'grid_weekly_plan', 'grid_last_modified',
+      // Storm Mode
+      'grid_storm_active', 'grid_storm_session', 'grid_storm_mood_log', 'grid_storm_config',
     ];
     for (const key of staticKeys) {
       const raw = localStorage.getItem(key);

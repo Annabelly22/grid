@@ -88,6 +88,71 @@ export interface WeeklyPlan {
   news: WeeklyNews[];
 }
 
+// ─── STORM MODE ──────────────────────────────────────────────
+// Storm Mode activates when you're emotionally blocked and can't start
+
+export type StormRung = 1 | 2 | 3 | 4;  // Ladder rungs
+
+export interface StormAction {
+  id: string;
+  rung: StormRung;
+  label: string;
+  durationMin: number;
+  type: 'reset' | 'task' | 'move' | 'work' | 'presentable' | 'outside' | 'meal' | 'reach';
+}
+
+export interface StormMoodEntry {
+  timestamp: string;
+  level: 1 | 2 | 3 | 4 | 5;  // 1=very low, 5=good
+  afterAction?: string;      // action ID that preceded this mood check
+}
+
+export interface StormMeal {
+  id: string;
+  name: string;
+  time: string;  // HH:MM
+}
+
+export interface StormSession {
+  startedAt: string;
+  currentRung: StormRung;
+  actionsCompleted: string[];  // action IDs
+  moodAtStart: 1 | 2 | 3 | 4 | 5;
+}
+
+export interface StormConfig {
+  defaultMeals: StormMeal[];
+  contactName?: string;
+  contactPhone?: string;
+}
+
+// Default storm actions - one at a time, no choosing
+export const STORM_ACTIONS: StormAction[] = [
+  // Rung 1: Reset (2 min) - bare minimum to interrupt the freeze
+  { id: 'reset_water', rung: 1, label: 'Drink a glass of water', durationMin: 1, type: 'reset' },
+  { id: 'reset_face', rung: 1, label: 'Wash your face', durationMin: 1, type: 'reset' },
+  { id: 'reset_curtains', rung: 1, label: 'Open the curtains', durationMin: 0, type: 'reset' },
+
+  // Rung 2: 5-minute task - get one small thing done
+  { id: 'task_5min', rung: 2, label: '5 minutes on one task', durationMin: 5, type: 'task' },
+
+  // Rung 3: Indoor movement - get blood flowing without going outside
+  { id: 'move_10min', rung: 3, label: '10 minutes of indoor movement', durationMin: 10, type: 'move' },
+
+  // Rung 4: Work block - real output
+  { id: 'work_25min', rung: 4, label: '25-minute work block', durationMin: 25, type: 'work' },
+
+  // Presentable routine - optional, for when you feel seen
+  { id: 'presentable', rung: 1, label: 'Get presentable (3 min)', durationMin: 3, type: 'presentable' },
+
+  // Outside steps - gradual, optional
+  { id: 'outside_doorstep', rung: 2, label: 'Stand at doorstep for 2 min', durationMin: 2, type: 'outside' },
+  { id: 'outside_street', rung: 3, label: 'Walk to end of street (headphones + sunglasses)', durationMin: 5, type: 'outside' },
+
+  // Reach out - low stakes
+  { id: 'reach_out', rung: 1, label: 'Send a voice note to one person', durationMin: 2, type: 'reach' },
+];
+
 export type HabitCategory = 'body' | 'mind' | 'trade' | 'build' | 'spirit' | 'recovery';
 
 export interface Mission {

@@ -13,7 +13,7 @@ import { getCyclePhase, CYCLE_PHASES, CyclePhase } from '../lib/supplementData';
 import { scheduleGridNotifications } from '../lib/notifications';
 import { loadTradesFromIDB, saveTradesToIDB, migrateFromLocalStorage } from '../lib/indexedDB';
 
-export type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile' | 'meals';
+export type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile' | 'meals' | 'storm';
 
 interface AchievementToast { achievement: Achievement; id: number; }
 interface XPPopup { amount: number; id: number; }
@@ -38,6 +38,7 @@ interface GridContextValue {
   phaseChange: PhaseChange | null;
   isSyncing: boolean;
   pendingDelete: { habit: Habit; timeout: number } | null;
+  stormActive: boolean;
   // Setters
   setTab: (t: Tab) => void;
   setOnboardName: (n: string) => void;
@@ -64,6 +65,8 @@ interface GridContextValue {
   undoDelete: () => void;
   syncNow: () => void;
   saveNow: () => void;
+  enterStormMode: () => void;
+  exitStormMode: () => void;
 }
 
 const GridContext = createContext<GridContextValue | null>(null);
@@ -116,6 +119,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
   const [phaseChange, setPhaseChange] = useState<PhaseChange | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ habit: Habit; timeout: number } | null>(null);
+  const [stormActive, setStormActive] = useState(false);
 
   // Ref to always have latest trades for sync (since trades are in IndexedDB, not localStorage)
   const tradesRef = useRef<TradeSession[]>([]);
@@ -185,6 +189,11 @@ export function GridProvider({ children }: { children: ReactNode }) {
 
     const t = Storage.getTheme();
     setTheme(t);
+
+    // Load storm mode state
+    const storm = Storage.getStormActive();
+    setStormActive(storm);
+    if (storm) setTab('storm');
 
     // 2. Load trades from IndexedDB (async, larger storage)
     const loadTrades = async () => {
@@ -718,11 +727,25 @@ export function GridProvider({ children }: { children: ReactNode }) {
 
   const clearPhaseChange = () => setPhaseChange(null);
 
+  const enterStormMode = () => {
+    setStormActive(true);
+    Storage.setStormActive(true);
+    setTab('storm');
+    triggerSync();
+  };
+
+  const exitStormMode = () => {
+    setStormActive(false);
+    Storage.setStormActive(false);
+    setTab('dashboard');
+    triggerSync();
+  };
+
   return (
     <GridContext.Provider value={{
       profile, habits, missions, achievements, tradeJournal, dailyPriorities,
       tab, theme, toasts, xpPopups, mounted, onboarded, onboardName, phaseChange,
-      isSyncing, pendingDelete,
+      isSyncing, pendingDelete, stormActive,
       setTab, setOnboardName, clearPhaseChange,
       handleOnboard, handleCompleteHabit, handleUncompleteHabit,
       handleAddHabit, handleDeleteHabit, handleEditHabit, handleCompleteMission,
@@ -732,6 +755,7 @@ export function GridProvider({ children }: { children: ReactNode }) {
       undoDelete,
       syncNow: triggerSync,
       saveNow,
+      enterStormMode, exitStormMode,
     }}>
       {children}
     </GridContext.Provider>

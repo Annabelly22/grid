@@ -209,6 +209,7 @@ html, body {
 }
 .nav-item:active { opacity: 0.6; }
 .nav-item.active { color: var(--ng-green); }
+.nav-item.storm-nav.active { color: var(--ng-cyan); }
 .nav-label { font-size: 10px; font-weight: 500; letter-spacing: 0; }
 
 /* ── Achievement popup ──────────────────────────────────────── */

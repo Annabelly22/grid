@@ -8,11 +8,12 @@ import BodyTab from '../components/BodyTab';
 import CoachTab from '../components/CoachTab';
 import ProfileTab from '../components/ProfileTab';
 import MealPlanTab from '../components/MealPlanTab';
+import StormTab from '../components/StormTab';
 import ErrorBoundary from '../components/ErrorBoundary';
 
-type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile' | 'meals';
+type Tab = 'dashboard' | 'habits' | 'missions' | 'body' | 'coach' | 'profile' | 'meals' | 'storm';
 
-const NAV: { id: Tab; icon: string; label: string }[] = [
+const BASE_NAV: { id: Tab; icon: string; label: string }[] = [
   { id: 'dashboard', icon: '⬡', label: 'HUB' },
   { id: 'meals',     icon: '🍽️', label: 'MEALS' },
   { id: 'coach',     icon: '⚡', label: 'GODWILL' },
@@ -20,16 +21,25 @@ const NAV: { id: Tab; icon: string; label: string }[] = [
   { id: 'profile',   icon: '▣', label: 'PROFILE' },
 ];
 
+const STORM_NAV: { id: Tab; icon: string; label: string }[] = [
+  { id: 'storm',     icon: '⛈️', label: 'STORM' },
+  { id: 'dashboard', icon: '⬡', label: 'HUB' },
+  { id: 'meals',     icon: '🍽️', label: 'MEALS' },
+  { id: 'coach',     icon: '⚡', label: 'GODWILL' },
+  { id: 'profile',   icon: '▣', label: 'PROFILE' },
+];
+
 function App() {
   const {
     tab, setTab, profile, habits, missions, achievements, tradeJournal, dailyPriorities,
     theme, toasts, xpPopups, mounted, onboarded, onboardName,
-    isSyncing, pendingDelete, undoDelete,
+    isSyncing, pendingDelete, undoDelete, stormActive,
     setOnboardName, handleOnboard, handleCompleteHabit, handleUncompleteHabit,
     handleAddHabit, handleDeleteHabit, handleEditHabit, handleCompleteMission,
     handleFocusMinutes, handleToggleTheme, handleUpdateCodename, handleResetData,
     handleToggleFavorite, handleReorderHabits,
     handleLogTrade, handleUpdateTrade, handleDeleteTradeSession, handleSetPriorities,
+    enterStormMode, exitStormMode, syncNow,
   } = useGridContext();
 
   if (!mounted || !profile) {
@@ -80,15 +90,15 @@ function App() {
         <div style={{ padding: '24px 20px 28px' }}>
           <GridLogo variant="lockup" size={36} />
         </div>
-        {NAV.map(item => (
+        {(stormActive ? STORM_NAV : BASE_NAV).map(item => (
           <button key={item.id} onClick={() => setTab(item.id)}
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
               padding: '13px 20px', width: '100%',
-              background: tab === item.id ? 'rgba(48,209,88,0.08)' : 'transparent',
-              borderLeft: `3px solid ${tab === item.id ? 'var(--ng-green)' : 'transparent'}`,
+              background: tab === item.id ? (item.id === 'storm' ? 'rgba(0,212,255,0.08)' : 'rgba(48,209,88,0.08)') : 'transparent',
+              borderLeft: `3px solid ${tab === item.id ? (item.id === 'storm' ? 'var(--ng-cyan)' : 'var(--ng-green)') : 'transparent'}`,
               borderTop: 'none', borderRight: 'none', borderBottom: 'none',
-              color: tab === item.id ? 'var(--ng-green)' : 'var(--ng-muted)',
+              color: tab === item.id ? (item.id === 'storm' ? 'var(--ng-cyan)' : 'var(--ng-green)') : 'var(--ng-muted)',
               cursor: 'pointer', fontSize: 13, fontWeight: 600,
             }}>
             <span style={{ fontSize: 15 }}>{item.icon}</span>
@@ -181,17 +191,18 @@ function App() {
           </div>
         )}
 
-        {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} onNavigate={t => setTab(t as Tab)} onCompleteHabit={handleCompleteHabit} dailyPriorities={dailyPriorities} onSetPriorities={handleSetPriorities} theme={theme} onToggleTheme={handleToggleTheme} achievements={achievements} missions={missions} onUpdateCodename={handleUpdateCodename} onResetData={handleResetData} onCompleteMission={handleCompleteMission} />}
+        {tab === 'dashboard' && <Dashboard profile={profile} habits={habits} onNavigate={t => setTab(t as Tab)} onCompleteHabit={handleCompleteHabit} dailyPriorities={dailyPriorities} onSetPriorities={handleSetPriorities} theme={theme} onToggleTheme={handleToggleTheme} achievements={achievements} missions={missions} onUpdateCodename={handleUpdateCodename} onResetData={handleResetData} onCompleteMission={handleCompleteMission} onEnterStormMode={enterStormMode} />}
         {tab === 'habits'    && <HabitsTab habits={habits} onCompleteHabit={handleCompleteHabit} onUncompleteHabit={handleUncompleteHabit} onAddHabit={handleAddHabit} onDeleteHabit={handleDeleteHabit} onEditHabit={handleEditHabit} onToggleFavorite={handleToggleFavorite} onReorderHabits={handleReorderHabits} />}
         {tab === 'body'      && <BodyTab onNavigateToHabits={() => setTab('habits')} />}
         {tab === 'coach'     && <CoachTab profile={profile} habits={habits} onFocusMinutes={handleFocusMinutes} tradeJournal={tradeJournal} onLogTrade={handleLogTrade} onUpdateTrade={handleUpdateTrade} onDeleteTradeSession={handleDeleteTradeSession} />}
         {tab === 'profile'   && <ProfileTab profile={profile} habits={habits} achievements={achievements} missions={missions} theme={theme} onUpdateCodename={handleUpdateCodename} onToggleTheme={handleToggleTheme} onResetData={handleResetData} onCompleteMission={handleCompleteMission} />}
         {tab === 'meals'     && <div className="content-area" style={{ paddingBottom: 80 }}><MealPlanTab /></div>}
+        {tab === 'storm'     && <StormTab onExit={exitStormMode} triggerSync={syncNow} />}
 
         {/* Mobile bottom nav */}
         <nav className="bottom-nav">
-          {NAV.map(item => (
-            <button key={item.id} onClick={() => setTab(item.id)} className={`nav-item ${tab === item.id ? 'active' : ''}`}>
+          {(stormActive ? STORM_NAV : BASE_NAV).map(item => (
+            <button key={item.id} onClick={() => setTab(item.id)} className={`nav-item ${tab === item.id ? 'active' : ''} ${item.id === 'storm' ? 'storm-nav' : ''}`}>
               <span className="nav-icon" style={{ fontSize: 15 }}>{item.icon}</span>
               <span className="nav-label">{item.label}</span>
             </button>

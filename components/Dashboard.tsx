@@ -24,6 +24,7 @@ interface Props {
   onUpdateCodename: (name: string) => void;
   onResetData: () => void;
   onCompleteMission: (id: string) => void;
+  onEnterStormMode?: () => void;
 }
 
 const STOIC_QUOTES: { text: string; author: string }[] = [
@@ -500,7 +501,7 @@ function useDailyCalories() {
   return { stepKcal, gymKcal, fastKcal, fastHours, total, intakeKcal, mealsEaten };
 }
 
-export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit, dailyPriorities, onSetPriorities, theme, onToggleTheme, achievements, missions, onUpdateCodename, onResetData, onCompleteMission }: Props) {
+export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit, dailyPriorities, onSetPriorities, theme, onToggleTheme, achievements, missions, onUpdateCodename, onResetData, onCompleteMission, onEnterStormMode }: Props) {
   const [cycleStart, setCycleStart] = useState<string | null>(null);
   const [priorityInputs, setPriorityInputs] = useState<string[]>(['']);
   const [priorityStruck, setPriorityStruck] = useState<boolean[]>(() => dailyPriorities.map(() => false));
@@ -836,6 +837,36 @@ export default function Dashboard({ profile, habits, onNavigate, onCompleteHabit
             {getGreeting()}
           </div>
         </div>
+
+        {/* ── Storm Mode Entry ─────────────────────────────── */}
+        {onEnterStormMode && (
+          <button
+            onClick={onEnterStormMode}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              width: '100%',
+              padding: '14px 20px',
+              background: 'linear-gradient(135deg, rgba(0,212,255,0.08), rgba(100,210,255,0.04))',
+              border: '1px solid rgba(0,212,255,0.25)',
+              borderRadius: 12,
+              cursor: 'pointer',
+              marginBottom: 16,
+            }}
+          >
+            <span style={{ fontSize: 18 }}>⛈️</span>
+            <div style={{ textAlign: 'left' }}>
+              <div className="font-orbitron" style={{ fontSize: 10, letterSpacing: '1px', color: 'var(--ng-cyan)' }}>
+                STORM PROTOCOL
+              </div>
+              <div className="font-mono" style={{ fontSize: 10, color: 'var(--ng-muted)' }}>
+                Feeling blocked? One action at a time.
+              </div>
+            </div>
+          </button>
+        )}
 
         {/* ── Thin divider ───────────────────────────────────── */}
         <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--ng-border), transparent)', marginBottom: 20 }} />
