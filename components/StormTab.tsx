@@ -1,20 +1,20 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Storage } from '../lib/storage';
 import {
   StormSession, StormMoodEntry, StormConfig, StormAction, StormRung,
   STORM_ACTIONS,
 } from '../lib/gameStore';
-import { getTodayStr } from '../lib/time';
 
 interface Props {
   onExit: () => void;
   triggerSync: () => void;
 }
 
-type StormView = 'mood' | 'ladder' | 'meal' | 'config' | 'insights';
+type StormView = 'mood' | 'ladder' | 'end-mood' | 'config' | 'insights';
 
 export default function StormTab({ onExit, triggerSync }: Props) {
+  // ─── ALL HOOKS AT TOP LEVEL (React rules) ─────────────────────
   const [view, setView] = useState<StormView>('mood');
   const [session, setSession] = useState<StormSession | null>(null);
   const [config, setConfig] = useState<StormConfig>({ defaultMeals: [] });
@@ -23,6 +23,27 @@ export default function StormTab({ onExit, triggerSync }: Props) {
   const [timerActive, setTimerActive] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [currentAction, setCurrentAction] = useState<StormAction | null>(null);
+  const [sideAction, setSideAction] = useState<StormAction | null>(null); // For presentable, etc.
+
+  // Config form state (moved to top level)
+  const [mealName, setMealName] = useState('');
+  const [mealTime, setMealTime] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+
+  const timerEndedRef = useRef(false);
+
+  // Get next action based on current rung and completed actions
+  const getNextAction = useCallback((s: StormSession): StormAction | null => {
+    const rungActions = STORM_ACTIONS.filter(a =>
+      a.rung === s.currentRung &&
+      a.type !== 'outside' &&
+      a.type !== 'presentable' &&
+      a.type !== 'reach'
+    );
+    const remaining = rungActions.filter(a => !s.actionsCompleted.includes(a.id));
+    return remaining[0] || null;
+  }, []);
 
   // Load state on mount
   useEffect(() => {
@@ -33,22 +54,48 @@ export default function StormTab({ onExit, triggerSync }: Props) {
     setConfig(c);
     setMoodLog(m);
 
+    // Initialize config form with saved values
+    if (c.contactName) setContactName(c.contactName);
+    if (c.contactPhone) setContactPhone(c.contactPhone);
+
     // If session exists, go to ladder view
     if (s) {
       setView('ladder');
-      // Find the next action to do
       const nextAction = getNextAction(s);
       setCurrentAction(nextAction);
     }
-  }, []);
+  }, [getNextAction]);
 
-  // Timer countdown
+  // Timer countdown with completion alert
   useEffect(() => {
     if (!timerActive || timerSeconds <= 0) return;
+
     const interval = setInterval(() => {
       setTimerSeconds(prev => {
         if (prev <= 1) {
           setTimerActive(false);
+          timerEndedRef.current = true;
+
+          // Vibrate on completion (if supported)
+          if ('vibrate' in navigator) {
+            navigator.vibrate([200, 100, 200]);
+          }
+
+          // Play a sound (using Web Audio API for reliability)
+          try {
+            const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+          } catch {}
+
           return 0;
         }
         return prev - 1;
@@ -56,13 +103,6 @@ export default function StormTab({ onExit, triggerSync }: Props) {
     }, 1000);
     return () => clearInterval(interval);
   }, [timerActive, timerSeconds]);
-
-  // Get next action based on current rung and completed actions
-  const getNextAction = useCallback((s: StormSession): StormAction | null => {
-    const rungActions = STORM_ACTIONS.filter(a => a.rung === s.currentRung && a.type !== 'outside' && a.type !== 'presentable');
-    const remaining = rungActions.filter(a => !s.actionsCompleted.includes(a.id));
-    return remaining[0] || null;
-  }, []);
 
   // Start a new storm session
   const startSession = (mood: 1 | 2 | 3 | 4 | 5) => {
@@ -91,8 +131,26 @@ export default function StormTab({ onExit, triggerSync }: Props) {
     triggerSync();
   };
 
-  // Complete current action
+  // Complete current action (or side action)
   const completeAction = () => {
+    // If doing a side action (presentable, etc.), just clear it
+    if (sideAction) {
+      if (session) {
+        const updated: StormSession = {
+          ...session,
+          actionsCompleted: [...session.actionsCompleted, sideAction.id],
+        };
+        setSession(updated);
+        Storage.setStormSession(updated);
+      }
+      setSideAction(null);
+      timerEndedRef.current = false;
+      setTimerActive(false);
+      setTimerSeconds(0);
+      triggerSync();
+      return;
+    }
+
     if (!session || !currentAction) return;
 
     const updated: StormSession = {
@@ -101,7 +159,12 @@ export default function StormTab({ onExit, triggerSync }: Props) {
     };
 
     // Check if rung is complete
-    const rungActions = STORM_ACTIONS.filter(a => a.rung === session.currentRung && a.type !== 'outside' && a.type !== 'presentable');
+    const rungActions = STORM_ACTIONS.filter(a =>
+      a.rung === session.currentRung &&
+      a.type !== 'outside' &&
+      a.type !== 'presentable' &&
+      a.type !== 'reach'
+    );
     const allRungComplete = rungActions.every(a => updated.actionsCompleted.includes(a.id));
 
     if (allRungComplete && session.currentRung < 4) {
@@ -114,6 +177,50 @@ export default function StormTab({ onExit, triggerSync }: Props) {
     // Get next action
     const next = getNextAction(updated);
     setCurrentAction(next);
+    timerEndedRef.current = false;
+    setTimerActive(false);
+    setTimerSeconds(0);
+    triggerSync();
+  };
+
+  // Skip current action (can't do it right now)
+  const skipAction = () => {
+    if (sideAction) {
+      setSideAction(null);
+      return;
+    }
+
+    if (!session || !currentAction) return;
+
+    // Mark as skipped (don't add to completed, just move to next)
+    const rungActions = STORM_ACTIONS.filter(a =>
+      a.rung === session.currentRung &&
+      a.type !== 'outside' &&
+      a.type !== 'presentable' &&
+      a.type !== 'reach'
+    );
+    const currentIdx = rungActions.findIndex(a => a.id === currentAction.id);
+    const nextIdx = currentIdx + 1;
+
+    if (nextIdx < rungActions.length) {
+      // Skip to next action in same rung
+      setCurrentAction(rungActions[nextIdx]);
+    } else {
+      // No more actions in this rung, treat as rung complete
+      if (session.currentRung < 4) {
+        const updated: StormSession = {
+          ...session,
+          currentRung: (session.currentRung + 1) as StormRung,
+        };
+        setSession(updated);
+        Storage.setStormSession(updated);
+        const next = getNextAction(updated);
+        setCurrentAction(next);
+      } else {
+        setCurrentAction(null);
+      }
+    }
+
     setTimerActive(false);
     setTimerSeconds(0);
     triggerSync();
@@ -121,12 +228,14 @@ export default function StormTab({ onExit, triggerSync }: Props) {
 
   // Start timer for current action
   const startTimer = () => {
-    if (!currentAction) return;
-    setTimerSeconds(currentAction.durationMin * 60);
+    const action = sideAction || currentAction;
+    if (!action) return;
+    setTimerSeconds(action.durationMin * 60);
     setTimerActive(true);
+    timerEndedRef.current = false;
   };
 
-  // Skip to next rung (optional, user decided this rung is enough)
+  // Skip to next rung
   const advanceRung = () => {
     if (!session || session.currentRung >= 4) return;
     const updated: StormSession = {
@@ -140,11 +249,17 @@ export default function StormTab({ onExit, triggerSync }: Props) {
     triggerSync();
   };
 
-  // End session and log final mood
+  // Prompt for end mood
+  const promptEndMood = () => {
+    setSelectedMood(null);
+    setView('end-mood');
+  };
+
+  // End session with final mood
   const endSession = (finalMood: 1 | 2 | 3 | 4 | 5) => {
     if (!session) return;
 
-    // Log final mood
+    // Log final mood with the last action
     const entry: StormMoodEntry = {
       timestamp: new Date().toISOString(),
       level: finalMood,
@@ -158,6 +273,7 @@ export default function StormTab({ onExit, triggerSync }: Props) {
     setSession(null);
     Storage.setStormSession(null);
     Storage.setStormActive(false);
+    setSelectedMood(null);
     triggerSync();
     onExit();
   };
@@ -165,10 +281,7 @@ export default function StormTab({ onExit, triggerSync }: Props) {
   // Check meal times
   const getCurrentMeal = (): string | null => {
     const now = new Date();
-    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
     for (const meal of config.defaultMeals) {
-      // Check if within 30 min window of meal time
       const [mealH, mealM] = meal.time.split(':').map(Number);
       const mealMinutes = mealH * 60 + mealM;
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -179,11 +292,10 @@ export default function StormTab({ onExit, triggerSync }: Props) {
     return null;
   };
 
-  // Calculate mood insights (what lifted mood over time)
+  // Calculate mood insights
   const getMoodInsights = () => {
     if (moodLog.length < 4) return null;
 
-    // Find pairs where mood improved after an action
     const improvements: Record<string, number[]> = {};
     for (let i = 1; i < moodLog.length; i++) {
       const prev = moodLog[i - 1];
@@ -197,7 +309,6 @@ export default function StormTab({ onExit, triggerSync }: Props) {
       }
     }
 
-    // Calculate average improvement per action type
     const avgImprovements = Object.entries(improvements).map(([type, gains]) => ({
       type,
       avg: gains.reduce((a, b) => a + b, 0) / gains.length,
@@ -214,6 +325,37 @@ export default function StormTab({ onExit, triggerSync }: Props) {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  // Config handlers
+  const addMeal = () => {
+    if (!mealName || !mealTime) return;
+    const newConfig = {
+      ...config,
+      defaultMeals: [...config.defaultMeals, { id: `m_${Date.now()}`, name: mealName, time: mealTime }],
+    };
+    setConfig(newConfig);
+    Storage.setStormConfig(newConfig);
+    setMealName('');
+    setMealTime('');
+    triggerSync();
+  };
+
+  const removeMeal = (id: string) => {
+    const newConfig = {
+      ...config,
+      defaultMeals: config.defaultMeals.filter(m => m.id !== id),
+    };
+    setConfig(newConfig);
+    Storage.setStormConfig(newConfig);
+    triggerSync();
+  };
+
+  const saveContact = () => {
+    const newConfig = { ...config, contactName, contactPhone };
+    setConfig(newConfig);
+    Storage.setStormConfig(newConfig);
+    triggerSync();
+  };
+
   // Rung labels
   const RUNG_LABELS: Record<StormRung, { name: string; desc: string }> = {
     1: { name: 'RESET', desc: 'Interrupt the freeze' },
@@ -224,8 +366,9 @@ export default function StormTab({ onExit, triggerSync }: Props) {
 
   const currentMeal = getCurrentMeal();
   const insights = getMoodInsights();
+  const activeAction = sideAction || currentAction;
 
-  // ─── MOOD CHECK VIEW ───────────────────────────────────────────
+  // ─── INITIAL MOOD CHECK VIEW ─────────────────────────────────────
   if (view === 'mood') {
     return (
       <div className="content-area" style={{ paddingBottom: 100 }}>
@@ -340,7 +483,68 @@ export default function StormTab({ onExit, triggerSync }: Props) {
     );
   }
 
-  // ─── LADDER VIEW ───────────────────────────────────────────────
+  // ─── END SESSION MOOD CHECK ──────────────────────────────────────
+  if (view === 'end-mood') {
+    return (
+      <div className="content-area" style={{ paddingBottom: 100 }}>
+        <div style={{ padding: '24px 16px' }}>
+          <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>✓</div>
+            <div className="font-orbitron" style={{ fontSize: 11, letterSpacing: '2px', color: 'var(--ng-green)', marginBottom: 8 }}>
+              SESSION COMPLETE
+            </div>
+            <div style={{ fontSize: 15, color: 'var(--ng-text)', marginBottom: 24 }}>
+              How do you feel now?
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 32 }}>
+              {([1, 2, 3, 4, 5] as const).map(level => (
+                <button
+                  key={level}
+                  onClick={() => setSelectedMood(level)}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    border: selectedMood === level ? '2px solid var(--ng-green)' : '1px solid var(--ng-border)',
+                    background: selectedMood === level ? 'rgba(48,209,88,0.1)' : 'var(--ng-surface)',
+                    fontSize: 20,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {level === 1 ? '😞' : level === 2 ? '😔' : level === 3 ? '😐' : level === 4 ? '🙂' : '😊'}
+                </button>
+              ))}
+            </div>
+
+            {session && (
+              <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)', marginBottom: 16 }}>
+                Started at {session.moodAtStart === 1 ? '😞' : session.moodAtStart === 2 ? '😔' : session.moodAtStart === 3 ? '😐' : session.moodAtStart === 4 ? '🙂' : '😊'}
+                {selectedMood && selectedMood > session.moodAtStart && (
+                  <span style={{ color: 'var(--ng-green)', marginLeft: 8 }}>
+                    → {selectedMood === 1 ? '😞' : selectedMood === 2 ? '😔' : selectedMood === 3 ? '😐' : selectedMood === 4 ? '🙂' : '😊'} (+{selectedMood - session.moodAtStart})
+                  </span>
+                )}
+              </div>
+            )}
+
+            {selectedMood && (
+              <button
+                className="btn-green-solid"
+                onClick={() => endSession(selectedMood)}
+                style={{ width: '100%' }}
+              >
+                FINISH
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── LADDER VIEW ─────────────────────────────────────────────────
   if (view === 'ladder' && session) {
     return (
       <div className="content-area" style={{ paddingBottom: 100 }}>
@@ -362,32 +566,34 @@ export default function StormTab({ onExit, triggerSync }: Props) {
           </div>
 
           <div style={{ textAlign: 'center', marginBottom: 8 }}>
-            <div className="font-orbitron" style={{ fontSize: 10, letterSpacing: '2px', color: 'var(--ng-green)' }}>
-              RUNG {session.currentRung} — {RUNG_LABELS[session.currentRung].name}
+            <div className="font-orbitron" style={{ fontSize: 10, letterSpacing: '2px', color: sideAction ? 'var(--ng-purple)' : 'var(--ng-green)' }}>
+              {sideAction ? 'SIDE ACTION' : `RUNG ${session.currentRung} — ${RUNG_LABELS[session.currentRung].name}`}
             </div>
             <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)' }}>
-              {RUNG_LABELS[session.currentRung].desc}
+              {sideAction ? 'Optional action' : RUNG_LABELS[session.currentRung].desc}
             </div>
           </div>
 
           {/* Current action card */}
-          {currentAction ? (
+          {activeAction ? (
             <div className="card" style={{ padding: 24, marginBottom: 16 }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>
-                  {currentAction.type === 'reset' && '💧'}
-                  {currentAction.type === 'task' && '📝'}
-                  {currentAction.type === 'move' && '🏃'}
-                  {currentAction.type === 'work' && '💻'}
+                  {activeAction.type === 'reset' && '💧'}
+                  {activeAction.type === 'task' && '📝'}
+                  {activeAction.type === 'move' && '🏃'}
+                  {activeAction.type === 'work' && '💻'}
+                  {activeAction.type === 'presentable' && '✨'}
+                  {activeAction.type === 'reach' && '💬'}
                 </div>
 
                 <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--ng-text)', marginBottom: 8 }}>
-                  {currentAction.label}
+                  {activeAction.label}
                 </div>
 
-                {currentAction.durationMin > 0 && (
+                {activeAction.durationMin > 0 && !timerActive && !timerEndedRef.current && (
                   <div className="font-mono" style={{ fontSize: 12, color: 'var(--ng-muted)', marginBottom: 24 }}>
-                    {currentAction.durationMin} minute{currentAction.durationMin > 1 ? 's' : ''}
+                    {activeAction.durationMin} minute{activeAction.durationMin > 1 ? 's' : ''}
                   </div>
                 )}
 
@@ -403,15 +609,20 @@ export default function StormTab({ onExit, triggerSync }: Props) {
                 )}
 
                 {/* Timer finished */}
-                {!timerActive && timerSeconds === 0 && currentAction.durationMin > 0 && session.actionsCompleted.length > 0 && (
-                  <div className="font-mono" style={{ fontSize: 12, color: 'var(--ng-green)', marginBottom: 16 }}>
-                    Timer complete
+                {timerEndedRef.current && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div className="font-orbitron" style={{ fontSize: 24, color: 'var(--ng-green)', marginBottom: 4 }}>
+                      DONE
+                    </div>
+                    <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-muted)' }}>
+                      Tap below to continue
+                    </div>
                   </div>
                 )}
 
                 {/* Action buttons */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {!timerActive && currentAction.durationMin > 0 && (
+                  {!timerActive && !timerEndedRef.current && activeAction.durationMin > 0 && (
                     <button
                       className="btn-green"
                       onClick={startTimer}
@@ -426,8 +637,26 @@ export default function StormTab({ onExit, triggerSync }: Props) {
                     onClick={completeAction}
                     style={{ width: '100%' }}
                   >
-                    DONE
+                    {timerEndedRef.current ? 'CONTINUE' : 'DONE'}
                   </button>
+
+                  {!sideAction && (
+                    <button
+                      onClick={skipAction}
+                      className="font-mono"
+                      style={{
+                        padding: '10px',
+                        background: 'transparent',
+                        border: '1px solid var(--ng-border)',
+                        borderRadius: 8,
+                        color: 'var(--ng-muted)',
+                        cursor: 'pointer',
+                        fontSize: 11,
+                      }}
+                    >
+                      Can't do this right now — skip
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -455,7 +684,7 @@ export default function StormTab({ onExit, triggerSync }: Props) {
               )}
 
               <button
-                onClick={() => setView('mood')}
+                onClick={promptEndMood}
                 className="btn-green-solid"
                 style={{ width: '100%' }}
               >
@@ -492,17 +721,20 @@ export default function StormTab({ onExit, triggerSync }: Props) {
               onClick={() => {
                 const presentable = STORM_ACTIONS.find(a => a.id === 'presentable');
                 if (presentable) {
-                  setCurrentAction(presentable);
+                  setSideAction(presentable);
+                  setTimerActive(false);
+                  setTimerSeconds(0);
+                  timerEndedRef.current = false;
                 }
               }}
               className="font-mono"
               style={{
                 flex: 1,
                 padding: '10px',
-                background: 'var(--ng-surface)',
-                border: '1px solid var(--ng-border)',
+                background: sideAction?.id === 'presentable' ? 'rgba(191,90,242,0.1)' : 'var(--ng-surface)',
+                border: sideAction?.id === 'presentable' ? '1px solid var(--ng-purple)' : '1px solid var(--ng-border)',
                 borderRadius: 8,
-                color: 'var(--ng-muted)',
+                color: sideAction?.id === 'presentable' ? 'var(--ng-purple)' : 'var(--ng-muted)',
                 cursor: 'pointer',
                 fontSize: 10,
               }}
@@ -512,7 +744,7 @@ export default function StormTab({ onExit, triggerSync }: Props) {
 
             {config.contactName && (
               <a
-                href={config.contactPhone ? `tel:${config.contactPhone}` : '#'}
+                href={config.contactPhone ? `sms:${config.contactPhone}` : '#'}
                 className="font-mono"
                 style={{
                   flex: 1,
@@ -526,17 +758,14 @@ export default function StormTab({ onExit, triggerSync }: Props) {
                   textAlign: 'center',
                 }}
               >
-                REACH OUT TO {config.contactName.toUpperCase()}
+                TEXT {config.contactName.toUpperCase()}
               </a>
             )}
           </div>
 
           {/* Exit */}
           <button
-            onClick={() => {
-              setSelectedMood(null);
-              setView('mood');
-            }}
+            onClick={promptEndMood}
             className="font-mono"
             style={{
               width: '100%',
@@ -556,43 +785,8 @@ export default function StormTab({ onExit, triggerSync }: Props) {
     );
   }
 
-  // ─── CONFIG VIEW ───────────────────────────────────────────────
+  // ─── CONFIG VIEW ─────────────────────────────────────────────────
   if (view === 'config') {
-    const [mealName, setMealName] = useState('');
-    const [mealTime, setMealTime] = useState('');
-    const [contactName, setContactName] = useState(config.contactName || '');
-    const [contactPhone, setContactPhone] = useState(config.contactPhone || '');
-
-    const addMeal = () => {
-      if (!mealName || !mealTime) return;
-      const newConfig = {
-        ...config,
-        defaultMeals: [...config.defaultMeals, { id: `m_${Date.now()}`, name: mealName, time: mealTime }],
-      };
-      setConfig(newConfig);
-      Storage.setStormConfig(newConfig);
-      setMealName('');
-      setMealTime('');
-      triggerSync();
-    };
-
-    const removeMeal = (id: string) => {
-      const newConfig = {
-        ...config,
-        defaultMeals: config.defaultMeals.filter(m => m.id !== id),
-      };
-      setConfig(newConfig);
-      Storage.setStormConfig(newConfig);
-      triggerSync();
-    };
-
-    const saveContact = () => {
-      const newConfig = { ...config, contactName, contactPhone };
-      setConfig(newConfig);
-      Storage.setStormConfig(newConfig);
-      triggerSync();
-    };
-
     return (
       <div className="content-area" style={{ paddingBottom: 100 }}>
         <div style={{ padding: '24px 16px' }}>
@@ -667,7 +861,7 @@ export default function StormTab({ onExit, triggerSync }: Props) {
               REACH-OUT CONTACT
             </div>
             <div className="font-mono" style={{ fontSize: 11, color: 'var(--ng-text)', marginBottom: 16 }}>
-              One person to contact when you're low. One tap.
+              One person to text when you're low. One tap.
             </div>
 
             <input
@@ -693,7 +887,7 @@ export default function StormTab({ onExit, triggerSync }: Props) {
     );
   }
 
-  // ─── INSIGHTS VIEW ─────────────────────────────────────────────
+  // ─── INSIGHTS VIEW ───────────────────────────────────────────────
   if (view === 'insights') {
     const typeLabels: Record<string, string> = {
       reset: 'Reset actions (water, face, curtains)',
